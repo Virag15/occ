@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, AlertTriangle, ArrowDownToLine } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, nullable } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import type { IndexPageProps, Product } from '@/types/entities';
 
 export default function ProductIndex({ rows }: IndexPageProps<Product>) {
@@ -79,6 +81,83 @@ export default function ProductIndex({ rows }: IndexPageProps<Product>) {
             accessorKey: 'gst_rate',
             header: 'GST',
             cell: ({ row }) => row.original.gst_rate ? <span className="tabular-nums text-muted-foreground">{row.original.gst_rate}%</span> : <span className="text-muted-foreground">—</span>,
+        },
+        {
+            id: 'stock',
+            header: ({ column }) => <SortableHeader column={column} title="Stock" />,
+            accessorFn: (row) => Number(row.total_stock ?? 0),
+            cell: ({ row }) => {
+                const p = row.original;
+                const total = p.total_stock === null || p.total_stock === undefined ? null : Number(p.total_stock);
+                const min = p.min_order_level === null ? null : Number(p.min_order_level);
+                const reorder = p.reorder_level === null ? null : Number(p.reorder_level);
+
+                if (total === null) return <span className="text-muted-foreground">—</span>;
+
+                let tone = 'text-foreground';
+                let badge: React.ReactNode = null;
+                if (total < 0) {
+                    tone = 'text-red-600 font-medium';
+                    badge = (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                                    <AlertTriangle className="h-2.5 w-2.5" />
+                                    negative
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                                {p.negative_stock_reason
+                                    ? <span className="text-xs">{p.negative_stock_reason}</span>
+                                    : <span className="text-xs text-muted-foreground">No reason recorded. Edit the product to log why stock went negative.</span>}
+                            </TooltipContent>
+                        </Tooltip>
+                    );
+                } else if (min !== null && total < min) {
+                    tone = 'text-red-600 font-medium';
+                    badge = (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                                    <ArrowDownToLine className="h-2.5 w-2.5" />
+                                    below min
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <span className="text-xs">Below minimum order level ({min.toLocaleString('en-IN')})</span>
+                            </TooltipContent>
+                        </Tooltip>
+                    );
+                } else if (reorder !== null && total <= reorder) {
+                    tone = 'text-amber-700 font-medium';
+                    badge = <span className="rounded-full border border-amber-200 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">reorder</span>;
+                }
+
+                return (
+                    <div className="flex items-center gap-2">
+                        <span className={cn('tabular-nums', tone)}>{total.toLocaleString('en-IN')}</span>
+                        {p.unit && <span className="text-[10px] text-muted-foreground">{p.unit}</span>}
+                        {badge}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'min_level',
+            header: 'Min / Reorder',
+            cell: ({ row }) => {
+                const p = row.original;
+                const min = p.min_order_level === null ? null : Number(p.min_order_level);
+                const re = p.reorder_level === null ? null : Number(p.reorder_level);
+                if (min === null && re === null) return <span className="text-muted-foreground">—</span>;
+                return (
+                    <span className="tabular-nums text-xs text-muted-foreground">
+                        {min !== null ? min.toLocaleString('en-IN') : '—'}
+                        {' / '}
+                        {re !== null ? re.toLocaleString('en-IN') : '—'}
+                    </span>
+                );
+            },
         },
         {
             accessorKey: 'is_active',

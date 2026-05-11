@@ -14,7 +14,10 @@ class ProductController extends Controller
 {
     public function index(Request $request): Response
     {
-        $rows = Product::query()->orderBy('name')->get();
+        $rows = Product::query()
+            ->withSum('stockItems as total_stock', 'qty_closing')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Products/Index', [
             'rows' => $rows,
@@ -75,6 +78,9 @@ class ProductController extends Controller
             'mrp' => ['nullable', 'numeric', 'min:0'],
             'default_sale_price' => ['nullable', 'numeric', 'min:0'],
             'default_purchase_price' => ['nullable', 'numeric', 'min:0'],
+            'min_order_level' => ['nullable', 'numeric', 'min:0'],
+            'reorder_level' => ['nullable', 'numeric', 'min:0'],
+            'negative_stock_reason' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
     }

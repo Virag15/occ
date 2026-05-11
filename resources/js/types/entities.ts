@@ -73,8 +73,12 @@ export type Product = {
     mrp: string | null;
     default_sale_price: string | null;
     default_purchase_price: string | null;
+    min_order_level: string | null;
+    reorder_level: string | null;
+    negative_stock_reason: string | null;
     is_active: boolean;
     stock_items?: StockItem[];
+    total_stock?: number | string | null;
 };
 
 export type CustomerLite = { id: number; name: string; company?: string | null };

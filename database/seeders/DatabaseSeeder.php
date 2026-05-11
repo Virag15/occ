@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\StockItem;
 use App\Models\Transporter;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -131,15 +132,40 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Kaycee Selector Switch', 'brand' => 'Kaycee', 'sku' => 'KC-SS-3P', 'unit' => 'NOS', 'mrp' => 320],
         ];
 
+        // qty_on_hand and min/reorder thresholds for the dev sample, including one negative case
+        $stockProfiles = [
+            ['qty' => 240,  'min' => 50,  'reorder' => 100, 'reason' => null],
+            ['qty' => 18,   'min' => 30,  'reorder' => 60,  'reason' => null],  // below min
+            ['qty' => 75,   'min' => 25,  'reorder' => 50,  'reason' => null],
+            ['qty' => 4,    'min' => 6,   'reorder' => 12,  'reason' => null],  // below min
+            ['qty' => -12,  'min' => 10,  'reorder' => 20,  'reason' => 'Overbooked against ORD-2026-0004 (412k order pending stock-in from C&S Electric, ETA 3 days)'],
+        ];
+
         foreach ($products as $i => $p) {
-            Product::firstOrCreate(
+            $stock = $stockProfiles[$i] ?? ['qty' => 0, 'min' => null, 'reorder' => null, 'reason' => null];
+
+            $product = Product::firstOrCreate(
                 ['tally_id' => sprintf('DEV-PROD-%03d', $i + 1)],
                 $p + [
                     'hsn_code' => '8536',
                     'gst_rate' => 18.00,
                     'default_sale_price' => $p['mrp'] * 0.85,
                     'default_purchase_price' => $p['mrp'] * 0.62,
+                    'min_order_level' => $stock['min'],
+                    'reorder_level' => $stock['reorder'],
+                    'negative_stock_reason' => $stock['reason'],
                     'is_active' => true,
+                ],
+            );
+
+            StockItem::firstOrCreate(
+                ['product_id' => $product->id, 'godown_name' => 'Main'],
+                [
+                    'qty_opening' => $stock['qty'],
+                    'qty_inward' => 0,
+                    'qty_outward' => 0,
+                    'qty_closing' => $stock['qty'],
+                    'as_of_date' => now()->toDateString(),
                 ],
             );
         }

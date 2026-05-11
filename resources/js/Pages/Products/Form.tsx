@@ -22,6 +22,9 @@ type FormShape = {
     mrp: number | string;
     default_sale_price: number | string;
     default_purchase_price: number | string;
+    min_order_level: number | string;
+    reorder_level: number | string;
+    negative_stock_reason: string;
     is_active: boolean;
 };
 
@@ -38,6 +41,9 @@ function emptyForm(p?: Product | null): FormShape {
         mrp: p?.mrp ?? '',
         default_sale_price: p?.default_sale_price ?? '',
         default_purchase_price: p?.default_purchase_price ?? '',
+        min_order_level: p?.min_order_level ?? '',
+        reorder_level: p?.reorder_level ?? '',
+        negative_stock_reason: p?.negative_stock_reason ?? '',
         is_active: p?.is_active ?? true,
     };
 }
@@ -117,6 +123,33 @@ export default function ProductForm({ product }: { product?: Product | null }) {
                             <Input id="default_purchase_price" type="number" step="0.01" value={form.data.default_purchase_price} onChange={(e) => form.setData('default_purchase_price', e.target.value)} />
                         </Field>
                     </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                    <Label className="text-base font-semibold">Stock thresholds</Label>
+                    <p className="text-sm text-muted-foreground -mt-2">
+                        Stock-on-hand syncs from Tally. Set thresholds here so the Products list flags low and negative stock automatically.
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <Field label="Minimum order level" id="min_order_level" error={form.errors.min_order_level}>
+                            <Input id="min_order_level" type="number" step="0.001" value={form.data.min_order_level} onChange={(e) => form.setData('min_order_level', e.target.value)} />
+                        </Field>
+                        <Field label="Reorder level" id="reorder_level" error={form.errors.reorder_level}>
+                            <Input id="reorder_level" type="number" step="0.001" value={form.data.reorder_level} onChange={(e) => form.setData('reorder_level', e.target.value)} />
+                        </Field>
+                    </div>
+                    <Field label="Reason if stock is negative" id="negative_stock_reason" error={form.errors.negative_stock_reason}>
+                        <Textarea
+                            id="negative_stock_reason"
+                            rows={2}
+                            placeholder="e.g. overbooked against a confirmed order; pending stock-in from C&S; manual adjustment by warehouse"
+                            value={form.data.negative_stock_reason}
+                            onChange={(e) => form.setData('negative_stock_reason', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">Shown on hover when the stock badge turns red on the Products list.</p>
+                    </Field>
                 </div>
 
                 <Separator />

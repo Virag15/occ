@@ -15,6 +15,7 @@ class Product extends Model
         'sku', 'name', 'brand', 'category', 'description',
         'hsn_code', 'unit', 'gst_rate',
         'mrp', 'default_sale_price', 'default_purchase_price',
+        'min_order_level', 'reorder_level', 'negative_stock_reason',
         'is_active',
     ];
 
@@ -25,6 +26,8 @@ class Product extends Model
             'mrp' => 'decimal:2',
             'default_sale_price' => 'decimal:2',
             'default_purchase_price' => 'decimal:2',
+            'min_order_level' => 'decimal:3',
+            'reorder_level' => 'decimal:3',
             'is_active' => 'boolean',
             'tally_synced_at' => 'datetime',
         ];
