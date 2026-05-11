@@ -43,22 +43,24 @@ export function SettingsShell({ active, children }: { active: SettingsItemId | n
                             key={it.id}
                             href={it.href}
                             className={cn(
-                                'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors',
+                                'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                                 isActive
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'text-foreground hover:bg-muted/60',
+                                    ? 'font-medium text-foreground'
+                                    : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground',
                             )}
                         >
+                            {/* Sidebar-style dot — coloured when active, faded otherwise */}
+                            <span className={cn(
+                                'h-1.5 w-1.5 shrink-0 rounded-full',
+                                isActive ? 'bg-primary' : 'bg-muted-foreground/40',
+                            )} />
                             <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', it.iconBg)}>
                                 <Icon className={cn('h-3.5 w-3.5', it.iconColor)} />
                             </span>
-                            <span className="flex flex-1 items-center gap-1.5 font-medium">
+                            <span className="flex flex-1 items-center gap-1.5">
                                 {it.label}
                                 {it.soon && (
-                                    <span className={cn(
-                                        'rounded px-1 py-px text-[9px] uppercase tracking-wider',
-                                        isActive ? 'bg-white/20 text-white/80' : 'bg-muted text-muted-foreground',
-                                    )}>
+                                    <span className="rounded bg-muted px-1 py-px text-[9px] uppercase tracking-wider text-muted-foreground">
                                         Soon
                                     </span>
                                 )}
