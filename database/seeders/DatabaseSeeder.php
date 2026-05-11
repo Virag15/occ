@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\Transporter;
 use App\Models\User;
@@ -16,6 +17,49 @@ class DatabaseSeeder extends Seeder
         $this->seedUsers();
         $this->seedTransporters();
         $this->seedTallyMirrors(); // DEV ONLY - real data flows from Tally bridge
+        $this->seedOrders();
+    }
+
+    private function seedOrders(): void
+    {
+        if (Order::query()->exists()) return;
+
+        $customerIds = Customer::query()->pluck('id')->all();
+        $transporterIds = Transporter::query()->pluck('id')->all();
+        if (empty($customerIds) || empty($transporterIds)) return;
+
+        $samples = [
+            ['status' => 'new_order',          'payment_status' => 'not_due', 'priority' => 'normal',  'value' => 75000,  'brands' => ['C&S Electric'],            'days_ago' => 0],
+            ['status' => 'confirmed',          'payment_status' => 'not_due', 'priority' => 'high',    'value' => 215000, 'brands' => ['BCH Electric', 'Luker'],   'days_ago' => 1],
+            ['status' => 'packing',            'payment_status' => 'pending', 'priority' => 'normal',  'value' => 138000, 'brands' => ['C&S Electric'],            'days_ago' => 2],
+            ['status' => 'ready_for_dispatch', 'payment_status' => 'pending', 'priority' => 'urgent',  'value' => 412000, 'brands' => ['BCH Electric'],            'days_ago' => 3],
+            ['status' => 'dispatched',         'payment_status' => 'pending', 'priority' => 'normal',  'value' => 95000,  'brands' => ['Kaycee'],                  'days_ago' => 5, 'lr' => 'LR-2026-00451'],
+            ['status' => 'delivered',          'payment_status' => 'partial', 'priority' => 'normal',  'value' => 188000, 'brands' => ['Luker'],                   'days_ago' => 10, 'lr' => 'LR-2026-00432'],
+            ['status' => 'closed',             'payment_status' => 'paid',    'priority' => 'normal',  'value' => 62000,  'brands' => ['Suraj'],                   'days_ago' => 21, 'lr' => 'LR-2026-00398'],
+            ['status' => 'on_hold',            'payment_status' => 'not_due', 'priority' => 'low',     'value' => 31000,  'brands' => ['C&S Electric'],            'days_ago' => 7],
+        ];
+
+        $year = now()->year;
+        foreach ($samples as $i => $s) {
+            $orderDate = now()->subDays($s['days_ago']);
+            Order::create([
+                'order_code' => sprintf('ORD-%d-%04d', $year, $i + 1),
+                'customer_id' => $customerIds[$i % count($customerIds)],
+                'order_date' => $orderDate->toDateString(),
+                'order_source' => 'whatsapp',
+                'brands' => $s['brands'],
+                'order_value' => $s['value'],
+                'status' => $s['status'],
+                'priority' => $s['priority'],
+                'payment_status' => $s['payment_status'],
+                'payment_terms' => '30_days',
+                'transporter_id' => $transporterIds[$i % count($transporterIds)],
+                'lr_number' => $s['lr'] ?? null,
+                'lr_shared_with_customer' => isset($s['lr']),
+                'dispatch_date' => in_array($s['status'], ['dispatched', 'delivered', 'closed'], true) ? $orderDate->copy()->addDay()->toDateString() : null,
+                'delivered_date' => in_array($s['status'], ['delivered', 'closed'], true) ? $orderDate->copy()->addDays(3)->toDateString() : null,
+            ]);
+        }
     }
 
     private function seedUsers(): void

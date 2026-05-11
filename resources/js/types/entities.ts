@@ -77,6 +77,56 @@ export type Product = {
     stock_items?: StockItem[];
 };
 
+export type CustomerLite = { id: number; name: string; company?: string | null };
+export type TransporterLite = { id: number; name: string };
+
+export type Order = {
+    id: number;
+    order_code: string;
+    customer_id: number;
+    customer?: CustomerLite;
+    order_date: string;
+    order_source: string | null;
+    brands: string[] | null;
+    order_value: string | null;
+    status: string;
+    priority: string;
+
+    packing_slip_generated: boolean;
+    packed_by: string | null;
+    items_packed_count: number | null;
+    parcel_weight_kg: string | null;
+    number_of_boxes: number | null;
+
+    pickup_scheduled_date: string | null;
+    transporter_id: number | null;
+    transporter?: TransporterLite | null;
+    driver_name: string | null;
+    driver_contact: string | null;
+    vehicle_number: string | null;
+    dispatch_date: string | null;
+    lr_number: string | null;
+    lr_shared_with_customer: boolean;
+    expected_delivery: string | null;
+
+    delivered_date: string | null;
+    pod_received: boolean;
+    triplicate_received: boolean;
+    triplicate_received_date: string | null;
+
+    invoice_number: string | null;
+    invoice_date: string | null;
+    payment_terms: string | null;
+    payment_due_date: string | null;
+    payment_status: string;
+    amount_received: string | null;
+    payment_received_date: string | null;
+    payment_mode: string | null;
+
+    internal_notes: string | null;
+    created_at: string;
+};
+
 export type Pagination = {
     total: number;
     per_page: number;

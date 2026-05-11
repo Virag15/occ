@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransporterController;
@@ -18,11 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('customers', CustomerController::class)->except(['show']);
     Route::resource('products', ProductController::class)->except(['show']);
     Route::resource('transporters', TransporterController::class)->except(['show']);
-
-    Route::get('/orders', fn () => Inertia::render('Placeholder', [
-        'title' => 'Orders & Dispatches',
-        'description' => 'Full order lifecycle: table, kanban, dispatch calendar. Lands in Phase 2.',
-    ]))->name('orders.index');
+    Route::resource('orders', OrderController::class)->except(['show']);
 
     Route::get('/returns', fn () => Inertia::render('Placeholder', [
         'title' => 'Returns & Damages',
