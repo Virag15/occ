@@ -233,6 +233,41 @@ class OrderController extends Controller
         return back();
     }
 
+    public function uploadEvidence(Request $request, Order $order, string $kind): RedirectResponse
+    {
+        $allowed = ['pod', 'triplicate', 'lr', 'parcel'];
+        abort_unless(in_array($kind, $allowed, true), 422);
+
+        $request->validate([
+            'photo' => ['required', 'image', 'max:10240'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $path = $request->file('photo')->store("orders/{$order->id}/{$kind}", 'public');
+        $url = \Illuminate\Support\Facades\Storage::url($path);
+
+        $fieldMap = [
+            'pod' => 'pod_photo_url',
+            'triplicate' => 'triplicate_photo_url',
+            'lr' => 'lr_photo_url',
+            'parcel' => 'parcel_photo_url',
+        ];
+        $field = $fieldMap[$kind];
+
+        $existing = is_array($order->{$field}) ? $order->{$field} : [];
+        $existing[] = $url;
+
+        $payload = [$field => $existing];
+        if ($kind === 'pod') $payload['pod_received'] = true;
+        if ($kind === 'triplicate') {
+            $payload['triplicate_received'] = true;
+            $payload['triplicate_received_date'] = now()->toDateString();
+        }
+
+        $order->update($payload);
+        return back();
+    }
+
     public function quickUpdate(Request $request, Order $order): RedirectResponse
     {
         $rules = [

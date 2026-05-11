@@ -1,9 +1,14 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { FormEvent, useState } from 'react';
 import {
     ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, Building2, MapPin,
-    Zap, MessageSquare, CheckCircle2, ChevronRight,
+    Zap, MessageSquare, CheckCircle2, ChevronRight, Upload, Image as ImageIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,6 +69,109 @@ function KV({ label, value, mono = false }: { label: string; value: React.ReactN
     );
 }
 
+const EVIDENCE_META: Record<string, { title: string; description: string; flag: string }> = {
+    pod: {
+        title: 'Mark POD received',
+        description: 'Upload the proof-of-delivery photo. This marks pod_received as true and appends the image URL to the order.',
+        flag: 'pod_received',
+    },
+    triplicate: {
+        title: 'Mark triplicate received',
+        description: 'Upload the triplicate copy. This marks triplicate_received as true and timestamps the date.',
+        flag: 'triplicate_received',
+    },
+};
+
+function EvidenceDialog({
+    kind,
+    orderId,
+    onClose,
+}: {
+    kind: 'pod' | 'triplicate' | null;
+    orderId: number;
+    onClose: () => void;
+}) {
+    const open = !!kind;
+    const meta = kind ? EVIDENCE_META[kind] : null;
+    const [preview, setPreview] = useState<string | null>(null);
+    const form = useForm<{ photo: File | null; notes: string }>({ photo: null, notes: '' });
+
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        if (!kind || !form.data.photo) {
+            toast.error('Please attach the evidence photo first.');
+            return;
+        }
+        form.post(route('orders.upload-evidence', { order: orderId, kind }), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success(`${kind === 'pod' ? 'POD' : 'Triplicate'} recorded.`);
+                form.reset();
+                setPreview(null);
+                onClose();
+            },
+            onError: (errors) => toast.error(Object.values(errors).join(', ')),
+        });
+    };
+
+    const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0] ?? null;
+        form.setData('photo', f);
+        if (f) {
+            const reader = new FileReader();
+            reader.onload = () => setPreview(reader.result as string);
+            reader.readAsDataURL(f);
+        } else {
+            setPreview(null);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(o) => { if (!o) { form.reset(); setPreview(null); onClose(); } }}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{meta?.title ?? ''}</DialogTitle>
+                    <DialogDescription>{meta?.description ?? ''}</DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={submit} className="space-y-4" noValidate>
+                    <div className="space-y-2">
+                        <Label htmlFor="photo">Photo *</Label>
+                        <Input id="photo" type="file" accept="image/*" capture="environment" onChange={onFile} />
+                        {form.errors.photo && <p className="text-xs text-destructive">{form.errors.photo}</p>}
+                    </div>
+
+                    {preview && (
+                        <div className="rounded-md border bg-muted/30 p-2">
+                            <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                                <ImageIcon className="h-3 w-3" /> Preview
+                            </div>
+                            <img src={preview} alt="preview" className="max-h-64 mx-auto rounded" />
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label htmlFor="notes">Notes (optional)</Label>
+                        <Textarea id="notes" rows={2} value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} />
+                    </div>
+
+                    <DialogFooter>
+                        <button type="button" className="inline-flex h-8 items-center px-3 text-xs hover:underline" onClick={onClose}>Cancel</button>
+                        <button
+                            type="submit"
+                            disabled={form.processing || !form.data.photo}
+                            className="inline-flex h-8 items-center rounded-md bg-primary text-primary-foreground px-3 text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+                        >
+                            <Upload className="h-3.5 w-3.5 mr-1" /> {form.processing ? 'Uploading…' : 'Upload and mark received'}
+                        </button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function SectionCard({ icon: Icon, title, action, children }: { icon: React.ComponentType<{ className?: string }>; title: string; action?: React.ReactNode; children: React.ReactNode }) {
     return (
         <Card>
@@ -100,6 +208,8 @@ export default function OrderShow({ order, auditLog }: { order: OrderFull; audit
             onError: (errors) => toast.error((Object.values(errors)[0] as string) ?? 'Could not update'),
         });
     };
+
+    const [evidenceKind, setEvidenceKind] = useState<null | 'pod' | 'triplicate'>(null);
 
     const nextStatus = NEXT_STATUS[order.status];
 
@@ -165,7 +275,9 @@ export default function OrderShow({ order, auditLog }: { order: OrderFull; audit
                         <Button
                             size="sm"
                             variant={order.pod_received ? 'outline' : 'default'}
-                            onClick={() => quickPatch(route('orders.toggle-pod', { order: order.id }), undefined, order.pod_received ? 'POD unmarked' : 'POD marked as received')}
+                            onClick={() => setEvidenceKind('pod')}
+                            disabled={order.pod_received}
+                            title={order.pod_received ? 'Already received' : 'Upload POD image to mark received'}
                         >
                             <FileCheck className="h-3.5 w-3.5 mr-1" />
                             {order.pod_received ? '✓ POD received' : 'Mark POD received'}
@@ -173,17 +285,25 @@ export default function OrderShow({ order, auditLog }: { order: OrderFull; audit
                         <Button
                             size="sm"
                             variant={order.triplicate_received ? 'outline' : 'default'}
-                            onClick={() => quickPatch(route('orders.toggle-triplicate', { order: order.id }), undefined, order.triplicate_received ? 'Triplicate unmarked' : 'Triplicate marked as received')}
+                            onClick={() => setEvidenceKind('triplicate')}
+                            disabled={order.triplicate_received}
+                            title={order.triplicate_received ? 'Already received' : 'Upload triplicate copy to mark received'}
                         >
                             <Truck className="h-3.5 w-3.5 mr-1" />
                             {order.triplicate_received ? '✓ Triplicate received' : 'Mark triplicate received'}
                         </Button>
                     </div>
                     <p className="mt-3 text-[10px] text-muted-foreground">
-                        One-click — no form, no extra details. Each action writes an audit-log entry automatically.
+                        Status changes and LR-shared toggle are one-click. POD and triplicate require uploading the photo evidence — every action writes an audit-log entry.
                     </p>
                 </CardContent>
             </Card>
+
+            <EvidenceDialog
+                kind={evidenceKind}
+                orderId={order.id}
+                onClose={() => setEvidenceKind(null)}
+            />
 
             {/* Headline KPIs */}
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

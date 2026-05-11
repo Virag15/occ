@@ -7,6 +7,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/orders/{order}/toggle-triplicate', [OrderController::class, 'toggleTriplicate'])->name('orders.toggle-triplicate');
     Route::patch('/orders/{order}/toggle-pod', [OrderController::class, 'togglePod'])->name('orders.toggle-pod');
     Route::patch('/orders/{order}/quick-update', [OrderController::class, 'quickUpdate'])->name('orders.quick-update');
+    Route::post('/orders/{order}/evidence/{kind}', [OrderController::class, 'uploadEvidence'])
+        ->whereIn('kind', ['pod', 'triplicate', 'lr', 'parcel'])
+        ->name('orders.upload-evidence');
+
+    // Shipments — nested under orders for create; flat for advance/destroy
+    Route::post('/orders/{order}/shipments', [ShipmentController::class, 'store'])->name('shipments.store');
+    Route::patch('/shipments/{shipment}/advance/{target}', [ShipmentController::class, 'advance'])->whereIn('target', ['dispatched', 'delivered', 'cancelled'])->name('shipments.advance');
+    Route::delete('/shipments/{shipment}', [ShipmentController::class, 'destroy'])->name('shipments.destroy');
 
     Route::get('/returns', fn () => Inertia::render('Placeholder', [
         'title' => 'Returns & Damages',
