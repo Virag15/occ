@@ -1,7 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, Building2, MapPin,
+    Zap, MessageSquare, CheckCircle2, ChevronRight,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,8 +79,29 @@ function SectionCard({ icon: Icon, title, action, children }: { icon: React.Comp
     );
 }
 
+const NEXT_STATUS: Record<string, string> = {
+    new_order: 'confirmed',
+    confirmed: 'packing',
+    stock_check: 'packing',
+    packing: 'packed',
+    packed: 'ready_for_dispatch',
+    ready_for_dispatch: 'dispatched',
+    dispatched: 'delivered',
+    delivered: 'closed',
+};
+
 export default function OrderShow({ order, auditLog }: { order: OrderFull; auditLog: AuditEntry[] }) {
     const c = order.customer;
+
+    const quickPatch = (url: string, body: Record<string, string | number> | undefined, successMsg: string) => {
+        router.patch(url, body ?? {}, {
+            preserveScroll: true,
+            onSuccess: () => toast.success(successMsg),
+            onError: (errors) => toast.error((Object.values(errors)[0] as string) ?? 'Could not update'),
+        });
+    };
+
+    const nextStatus = NEXT_STATUS[order.status];
 
     return (
         <AdminLayout breadcrumbs={[{ label: 'Orders', href: '/orders' }, { label: order.order_code }]}>
@@ -109,6 +132,58 @@ export default function OrderShow({ order, auditLog }: { order: OrderFull; audit
                     </Button>
                 </div>
             </div>
+
+            {/* Quick actions — one-click toggles, no form required */}
+            <Card className="mb-6 border-primary/20 bg-primary/5">
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                        <Zap className="h-4 w-4 text-primary" /> Quick actions
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-2">
+                    <div className="flex flex-wrap gap-2">
+                        {nextStatus && (
+                            <Button
+                                size="sm"
+                                onClick={() => quickPatch(route('orders.update-status', { order: order.id }), { status: nextStatus }, `Status → ${nextStatus.replace(/_/g, ' ')}`)}
+                            >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                Mark {nextStatus.replace(/_/g, ' ')}
+                                <ChevronRight className="h-3 w-3 ml-1 opacity-60" />
+                            </Button>
+                        )}
+                        <Button
+                            size="sm"
+                            variant={order.lr_shared_with_customer ? 'outline' : 'default'}
+                            onClick={() => quickPatch(route('orders.toggle-lr-shared', { order: order.id }), undefined, order.lr_shared_with_customer ? 'LR unmarked' : 'LR marked as shared')}
+                            disabled={!order.lr_number}
+                            title={!order.lr_number ? 'Add an LR number first' : undefined}
+                        >
+                            <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                            {order.lr_shared_with_customer ? '✓ LR shared' : 'Mark LR shared'}
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={order.pod_received ? 'outline' : 'default'}
+                            onClick={() => quickPatch(route('orders.toggle-pod', { order: order.id }), undefined, order.pod_received ? 'POD unmarked' : 'POD marked as received')}
+                        >
+                            <FileCheck className="h-3.5 w-3.5 mr-1" />
+                            {order.pod_received ? '✓ POD received' : 'Mark POD received'}
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={order.triplicate_received ? 'outline' : 'default'}
+                            onClick={() => quickPatch(route('orders.toggle-triplicate', { order: order.id }), undefined, order.triplicate_received ? 'Triplicate unmarked' : 'Triplicate marked as received')}
+                        >
+                            <Truck className="h-3.5 w-3.5 mr-1" />
+                            {order.triplicate_received ? '✓ Triplicate received' : 'Mark triplicate received'}
+                        </Button>
+                    </div>
+                    <p className="mt-3 text-[10px] text-muted-foreground">
+                        One-click — no form, no extra details. Each action writes an audit-log entry automatically.
+                    </p>
+                </CardContent>
+            </Card>
 
             {/* Headline KPIs */}
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
