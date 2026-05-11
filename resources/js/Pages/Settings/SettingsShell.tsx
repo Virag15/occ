@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import {
-    Building2, Plug, Users, History, UserCog, Palette, Shield,
+    Building2, Plug, Users, History, UserCog, Palette,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,87 +14,105 @@ type SettingsItemId =
 type SettingsItem = {
     id: SettingsItemId;
     label: string;
-    description: string;
     href: string;
     icon: LucideIcon;
+    iconBg: string; // tailwind bg-* class for the rounded-square icon container
     soon?: boolean;
 };
 
-type SettingsGroup = {
-    label: string;
-    items: SettingsItem[];
-};
-
-const GROUPS: SettingsGroup[] = [
-    {
-        label: 'Organization',
-        items: [
-            { id: 'company', label: 'Company', icon: Building2, href: '/settings/company', description: 'Logo, signature, address, GSTIN, bank, signatory, T&C' },
-            { id: 'branding', label: 'Branding', icon: Palette, href: '/settings/company', description: 'Theme colours, dark mode (coming)', soon: true },
-        ],
-    },
-    {
-        label: 'Connections',
-        items: [
-            { id: 'integrations', label: 'Integrations', icon: Plug, href: '/settings/integrations', description: 'Tally bridge, WhatsApp, webhooks' },
-        ],
-    },
-    {
-        label: 'Workspace',
-        items: [
-            { id: 'team', label: 'Users & roles', icon: Users, href: '/users', description: 'Add team members, assign roles' },
-            { id: 'audit', label: 'Activity log', icon: History, href: '/audit-logs', description: 'Every change recorded, searchable' },
-        ],
-    },
-    {
-        label: 'You',
-        items: [
-            { id: 'profile', label: 'Profile', icon: UserCog, href: '/profile', description: 'Your account, password, display density' },
-        ],
-    },
+const ITEMS: SettingsItem[] = [
+    { id: 'company', label: 'Company', icon: Building2, iconBg: 'bg-blue-500', href: '/settings/company' },
+    { id: 'branding', label: 'Branding', icon: Palette, iconBg: 'bg-pink-500', href: '/settings/company', soon: true },
+    { id: 'integrations', label: 'Integrations', icon: Plug, iconBg: 'bg-purple-500', href: '/settings/integrations' },
+    { id: 'team', label: 'Users & roles', icon: Users, iconBg: 'bg-indigo-500', href: '/users' },
+    { id: 'audit', label: 'Activity log', icon: History, iconBg: 'bg-gray-500', href: '/audit-logs' },
+    { id: 'profile', label: 'Profile', icon: UserCog, iconBg: 'bg-emerald-500', href: '/profile' },
 ];
 
 export function SettingsShell({ active, children }: { active: SettingsItemId | null; children: React.ReactNode }) {
     return (
-        <div className="grid gap-5 md:grid-cols-[240px_1fr]">
-            {/* Left rail */}
-            <aside className="space-y-5">
-                {GROUPS.map((group) => (
-                    <div key={group.label}>
-                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</p>
-                        <nav className="space-y-0.5">
-                            {group.items.map((it) => {
-                                const Icon = it.icon;
-                                const isActive = it.id === active;
-                                return (
-                                    <Link
-                                        key={it.id}
-                                        href={it.href}
-                                        className={cn(
-                                            'flex items-start gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
-                                            isActive
-                                                ? 'bg-primary/10 text-foreground'
-                                                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                                        )}
-                                    >
-                                        <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', isActive && 'text-primary')} />
-                                        <span className="min-w-0">
-                                            <span className={cn('flex items-center gap-1.5 font-medium', isActive && 'text-foreground')}>
-                                                {it.label}
-                                                {it.soon && <span className="rounded bg-muted px-1 py-px text-[9px] uppercase tracking-wider text-muted-foreground">Soon</span>}
-                                            </span>
-                                            <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground/80">{it.description}</span>
-                                        </span>
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-                    </div>
-                ))}
+        <div className="grid gap-5 md:grid-cols-[220px_1fr]">
+            {/* Left rail — macOS System Settings vibe */}
+            <aside className="space-y-0.5">
+                {ITEMS.map((it) => {
+                    const Icon = it.icon;
+                    const isActive = it.id === active;
+                    return (
+                        <Link
+                            key={it.id}
+                            href={it.href}
+                            className={cn(
+                                'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors',
+                                isActive
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-foreground hover:bg-muted/60',
+                            )}
+                        >
+                            <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md', it.iconBg)}>
+                                <Icon className="h-3.5 w-3.5 text-white" />
+                            </span>
+                            <span className="flex flex-1 items-center gap-1.5 font-medium">
+                                {it.label}
+                                {it.soon && (
+                                    <span className={cn(
+                                        'rounded px-1 py-px text-[9px] uppercase tracking-wider',
+                                        isActive ? 'bg-white/20 text-white/80' : 'bg-muted text-muted-foreground',
+                                    )}>
+                                        Soon
+                                    </span>
+                                )}
+                            </span>
+                        </Link>
+                    );
+                })}
             </aside>
 
-            {/* Right column */}
+            {/* Right content */}
             <div className="min-w-0">{children}</div>
         </div>
     );
+}
+
+// ─── Optional: row component for sub-page navigation (matches macOS right-panel rows) ──────────
+
+/**
+ * Use inside a settings page when the content is a list of clickable sub-pages
+ * (icon · label · chevron), e.g. for the Branding tab or a future Company
+ * landing page that drills into Identity / Address / Tax IDs etc.
+ */
+export function SettingsRowGroup({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="overflow-hidden rounded-lg border bg-card">
+            {children}
+        </div>
+    );
+}
+
+export function SettingsRow({
+    icon: Icon, iconBg = 'bg-gray-500', label, sublabel, href, onClick,
+}: {
+    icon: LucideIcon;
+    iconBg?: string;
+    label: string;
+    sublabel?: string;
+    href?: string;
+    onClick?: () => void;
+}) {
+    const inner = (
+        <>
+            <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-md', iconBg)}>
+                <Icon className="h-4 w-4 text-white" />
+            </span>
+            <span className="flex flex-1 flex-col">
+                <span className="text-sm font-medium">{label}</span>
+                {sublabel && <span className="text-xs text-muted-foreground">{sublabel}</span>}
+            </span>
+            <span className="text-muted-foreground">›</span>
+        </>
+    );
+    const cls = 'flex w-full items-center gap-3 border-b px-3 py-2.5 last:border-0 hover:bg-muted/40 transition-colors text-left';
+    if (href) {
+        return <Link href={href} className={cls}>{inner}</Link>;
+    }
+    return <button type="button" onClick={onClick} className={cls}>{inner}</button>;
 }
