@@ -26,14 +26,9 @@ class Order extends Model
         'order_code', 'customer_id', 'order_date', 'order_source',
         'customer_reference_number', 'customer_po_number',
         'brands', 'order_value', 'discount_amount', 'status', 'priority',
-        'packing_slip_generated', 'packed_by', 'items_packed_count',
-        'parcel_weight_kg', 'number_of_boxes', 'parcel_photo_url',
-        'pickup_scheduled_date', 'transporter_id', 'driver_name',
-        'driver_contact', 'vehicle_number', 'dispatch_date',
-        'lr_number', 'lr_photo_url', 'lr_shared_with_customer', 'lr_shared_at',
-        'expected_delivery',
-        'delivered_date', 'pod_received', 'pod_photo_url',
-        'triplicate_received', 'triplicate_received_date', 'triplicate_photo_url',
+        // Order-level aggregate flags (not duplicates of shipment data — manually maintained)
+        'lr_shared_with_customer', 'pod_received', 'triplicate_received',
+        // Invoice + payment (payment cache rebuilt from payments table)
         'invoice_number', 'invoice_date', 'payment_terms', 'payment_due_date',
         'payment_status', 'amount_received', 'payment_received_date', 'payment_mode',
         'internal_notes', 'created_by',
@@ -45,21 +40,9 @@ class Order extends Model
             'order_date' => 'date',
             'brands' => 'array',
             'order_value' => 'decimal:2',
-            'packing_slip_generated' => 'boolean',
-            'parcel_weight_kg' => 'decimal:2',
-            'parcel_photo_url' => 'array',
-            'pickup_scheduled_date' => 'date',
-            'dispatch_date' => 'date',
-            'lr_photo_url' => 'array',
             'lr_shared_with_customer' => 'boolean',
-            'lr_shared_at' => 'datetime',
-            'expected_delivery' => 'date',
-            'delivered_date' => 'date',
             'pod_received' => 'boolean',
-            'pod_photo_url' => 'array',
             'triplicate_received' => 'boolean',
-            'triplicate_received_date' => 'date',
-            'triplicate_photo_url' => 'array',
             'invoice_date' => 'date',
             'payment_due_date' => 'date',
             'amount_received' => 'decimal:2',
@@ -67,14 +50,22 @@ class Order extends Model
         ];
     }
 
+    /**
+     * Computed fields surfaced in JSON so existing frontend reads (order.lr_number,
+     * order.dispatch_date, order.transporter, ...) keep working after the dispatch
+     * columns moved to the shipments table.
+     *
+     * All accessors derive from the loaded `shipments` collection. Eager-load
+     * shipments wherever you serialize Orders to avoid N+1.
+     */
+    protected $appends = [
+        'lr_number', 'dispatch_date', 'delivered_date', 'expected_delivery',
+        'transporter_id', 'transporter',
+    ];
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
-    }
-
-    public function transporter(): BelongsTo
-    {
-        return $this->belongsTo(Transporter::class);
     }
 
     public function creator(): BelongsTo
@@ -107,9 +98,61 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    // ─── Computed accessors backed by shipments ─────────────────────
+
+    /**
+     * The most recently-created shipment with the requested field present.
+     * Returns null if shipments aren't loaded — callers must eager-load.
+     */
+    protected function shipmentField(string $field)
+    {
+        if (!$this->relationLoaded('shipments')) return null;
+        return $this->shipments
+            ->filter(fn ($s) => $s->{$field} !== null)
+            ->sortByDesc('id')
+            ->first()
+            ?->{$field};
+    }
+
+    public function getLrNumberAttribute(): ?string
+    {
+        return $this->shipmentField('lr_number');
+    }
+
+    public function getDispatchDateAttribute()
+    {
+        return $this->shipmentField('dispatch_date');
+    }
+
+    public function getDeliveredDateAttribute()
+    {
+        return $this->shipmentField('delivered_date');
+    }
+
+    public function getExpectedDeliveryAttribute()
+    {
+        return $this->shipmentField('expected_delivery');
+    }
+
+    public function getTransporterIdAttribute(): ?int
+    {
+        return $this->shipmentField('transporter_id');
+    }
+
+    public function getTransporterAttribute(): ?Transporter
+    {
+        if (!$this->relationLoaded('shipments')) return null;
+        $latest = $this->shipments->sortByDesc('id')->first(fn ($s) => $s->transporter_id !== null);
+        return $latest?->transporter;
+    }
+
+    // ─── Query scopes ───────────────────────────────────────────────
+
     public function scopePendingLRShare(Builder $q): Builder
     {
-        return $q->whereNotNull('lr_number')->where('lr_shared_with_customer', false);
+        // "Has at least one shipment with an LR, but customer not yet notified"
+        return $q->where('lr_shared_with_customer', false)
+            ->whereHas('shipments', fn ($s) => $s->whereNotNull('lr_number'));
     }
 
     public function scopeOverduePayments(Builder $q): Builder
@@ -125,6 +168,6 @@ class Order extends Model
 
     public function scopeDispatchedToday(Builder $q): Builder
     {
-        return $q->whereDate('dispatch_date', now()->toDateString());
+        return $q->whereHas('shipments', fn ($s) => $s->whereDate('dispatch_date', now()->toDateString()));
     }
 }

@@ -165,28 +165,23 @@ export type Order = {
     status: string;
     priority: string;
 
-    packing_slip_generated: boolean;
-    packed_by: string | null;
-    items_packed_count: number | null;
-    parcel_weight_kg: string | null;
-    number_of_boxes: number | null;
-
-    pickup_scheduled_date: string | null;
-    transporter_id: number | null;
-    transporter?: TransporterLite | null;
-    driver_name: string | null;
-    driver_contact: string | null;
-    vehicle_number: string | null;
-    dispatch_date: string | null;
-    lr_number: string | null;
+    // Order-level aggregate flags (manually maintained)
     lr_shared_with_customer: boolean;
-    expected_delivery: string | null;
-
-    delivered_date: string | null;
     pod_received: boolean;
     triplicate_received: boolean;
-    triplicate_received_date: string | null;
 
+    // Computed by Order model accessors from the loaded shipments collection.
+    // Backend $appends these so JSON output stays the same as before the 2.X.4
+    // cleanup. Values reflect the latest dispatched shipment.
+    transporter_id: number | null;
+    transporter?: TransporterLite | null;
+    lr_number: string | null;
+    dispatch_date: string | null;
+    delivered_date: string | null;
+    expected_delivery: string | null;
+
+    // Invoice + payment (amount_received / payment_received_date / payment_mode
+    // recomputed automatically from the payments table)
     invoice_number: string | null;
     invoice_date: string | null;
     payment_terms: string | null;

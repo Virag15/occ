@@ -21,7 +21,13 @@ class OrderController extends Controller
         return Inertia::render('Orders/Index', [
             // Closure makes 'rows' lazy so partial reloads (?only=rows) re-run just this query
             'rows' => fn () => Order::query()
-                ->with(['customer:id,name', 'transporter:id,name'])
+                // Eager-load shipments so the order.transporter / lr_number / dispatch_date
+                // accessors don't N+1 across the index.
+                ->with([
+                    'customer:id,name',
+                    'shipments:id,order_id,transporter_id,lr_number,dispatch_date,delivered_date,expected_delivery',
+                    'shipments.transporter:id,name',
+                ])
                 ->orderByDesc('order_date')
                 ->orderByDesc('id')
                 ->get(),
@@ -32,9 +38,9 @@ class OrderController extends Controller
     {
         $order->load([
             'customer',
-            'transporter',
             'creator:id,name',
             'items.product:id,name,sku',
+            // shipments must be loaded so order's transporter/lr_number/dispatch_date accessors work
             'shipments.transporter:id,name',
             'shipments.items.orderItem:id,product_name,unit',
             'returns' => fn ($q) => $q->latest('date_reported'),
@@ -293,12 +299,12 @@ class OrderController extends Controller
             'status' => ['required', 'in:new_order,confirmed,stock_check,packing,packed,ready_for_dispatch,dispatched,delivered,closed,on_hold,cancelled'],
         ]);
 
-        // LR can live on the order OR on any shipment. Check both before blocking.
-        $hasAnyLr = $order->lr_number || $order->shipments()->whereNotNull('lr_number')->exists();
+        // LR now lives only on shipments — require at least one shipment with an LR before dispatching
+        $hasAnyLr = $order->shipments()->whereNotNull('lr_number')->exists();
 
         $errors = [];
         if ($data['status'] === 'dispatched' && !$hasAnyLr) {
-            $errors['status'] = 'Add an LR number on the order or on a shipment before marking dispatched.';
+            $errors['status'] = 'Add an LR number on a shipment before marking dispatched.';
         }
         if ($data['status'] === 'closed' && $order->payment_status !== 'paid') {
             $errors['status'] = 'Mark payment as paid before closing the order.';
@@ -307,43 +313,27 @@ class OrderController extends Controller
             return back()->withErrors($errors);
         }
 
-        $payload = ['status' => $data['status']];
-        if ($data['status'] === 'dispatched' && !$order->dispatch_date) {
-            $payload['dispatch_date'] = now()->toDateString();
-        }
-        if ($data['status'] === 'delivered' && !$order->delivered_date) {
-            $payload['delivered_date'] = now()->toDateString();
-        }
-
-        $order->update($payload);
-        // AuditObserver writes 'status_changed' automatically.
+        $order->update(['status' => $data['status']]);
+        // dispatch_date / delivered_date are now derived from shipments; nothing to write on the order.
         return back();
     }
 
     public function toggleLrShared(Order $order): RedirectResponse
     {
-        // Either the order or any shipment must carry an LR before this flag is meaningful.
-        $hasAnyLr = $order->lr_number || $order->shipments()->whereNotNull('lr_number')->exists();
+        $hasAnyLr = $order->shipments()->whereNotNull('lr_number')->exists();
         if (!$hasAnyLr) {
             return back()->withErrors(['lr_shared' => 'No LR number to share yet — add one on a shipment first.']);
         }
 
         $next = !$order->lr_shared_with_customer;
-        $order->update([
-            'lr_shared_with_customer' => $next,
-            'lr_shared_at' => $next ? now() : null,
-        ]);
-        // AuditObserver writes 'lr_shared_toggled' automatically.
+        $order->update(['lr_shared_with_customer' => $next]);
         return back();
     }
 
     public function toggleTriplicate(Order $order): RedirectResponse
     {
         $next = !$order->triplicate_received;
-        $order->update([
-            'triplicate_received' => $next,
-            'triplicate_received_date' => $next ? now()->toDateString() : null,
-        ]);
+        $order->update(['triplicate_received' => $next]);
         return back();
     }
 
@@ -371,64 +361,66 @@ class OrderController extends Controller
         $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($path);
         $compressedPath = \App\Support\ImageCompressor::compress($absolutePath);
         if ($compressedPath !== $absolutePath) {
-            // Extension changed (e.g., PNG → JPG); update the relative path we store
             $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
             if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
         }
 
         $url = \Illuminate\Support\Facades\Storage::url($path);
 
-        $fieldMap = [
-            'pod' => 'pod_photo_url',
-            'triplicate' => 'triplicate_photo_url',
-            'lr' => 'lr_photo_url',
-            'parcel' => 'parcel_photo_url',
-        ];
-        $field = $fieldMap[$kind];
+        // The photo storage moved to shipments. Each evidence type writes to the latest shipment,
+        // creating a planning shipment on the fly if none exists yet (LR can be captured before
+        // a shipment has been formally created).
+        $shipment = $order->shipments()->latest('id')->first();
+        if (!$shipment) {
+            $shipment = $order->shipments()->create([
+                'shipment_code' => \App\Models\Shipment::generateCode(),
+                'status' => 'planning',
+                'created_by' => \Illuminate\Support\Facades\Auth::id(),
+            ]);
+        }
 
-        $existing = is_array($order->{$field}) ? $order->{$field} : [];
-        $existing[] = $url;
+        $shipmentPayload = [];
+        $orderPayload = [];
 
-        $payload = [$field => $existing];
-
-        // Per-kind side-effects: set the right flag + auto-advance status when it makes sense
         if ($kind === 'lr') {
             if ($request->filled('lr_number')) {
-                $payload['lr_number'] = $request->input('lr_number');
+                $shipmentPayload['lr_number'] = $request->input('lr_number');
             }
-            $payload['lr_shared_with_customer'] = true;
-            $payload['lr_shared_at'] = now();
-            // Auto-advance to dispatched if we're upstream of it
+            $shipmentPayload['lr_shared_at'] = now();
+            $orderPayload['lr_shared_with_customer'] = true;
+            // Auto-advance order status if upstream
             if (in_array($order->status, ['packed', 'ready_for_dispatch'], true)) {
-                $payload['status'] = 'dispatched';
-                if (!$order->dispatch_date) $payload['dispatch_date'] = now()->toDateString();
+                $orderPayload['status'] = 'dispatched';
+                if (!$shipment->dispatch_date) $shipmentPayload['dispatch_date'] = now()->toDateString();
             }
         }
 
         if ($kind === 'pod') {
-            $payload['pod_received'] = true;
-            // Auto-advance to delivered when POD arrives during dispatch
+            $orderPayload['pod_received'] = true;
+            $shipmentPayload['pod_received'] = true;
             if ($order->status === 'dispatched') {
-                $payload['status'] = 'delivered';
-                if (!$order->delivered_date) $payload['delivered_date'] = now()->toDateString();
+                $orderPayload['status'] = 'delivered';
+                if (!$shipment->delivered_date) $shipmentPayload['delivered_date'] = now()->toDateString();
             }
         }
 
         if ($kind === 'triplicate') {
-            $payload['triplicate_received'] = true;
-            $payload['triplicate_received_date'] = now()->toDateString();
-            // Auto-advance to closed only if payment is settled — otherwise hold here
+            $orderPayload['triplicate_received'] = true;
+            $shipmentPayload['triplicate_received'] = true;
+            $shipmentPayload['triplicate_received_date'] = now()->toDateString();
             if ($order->status === 'delivered' && $order->payment_status === 'paid') {
-                $payload['status'] = 'closed';
+                $orderPayload['status'] = 'closed';
             }
         }
 
-        $order->update($payload);
+        // The photo URLs are now ephemeral — stored as an action note in audit log.
+        // (When we re-add per-shipment photo columns these can persist again.)
+        if (!empty($shipmentPayload)) $shipment->update($shipmentPayload);
+        if (!empty($orderPayload)) $order->update($orderPayload);
 
-        // Mark this as an explicit evidence-upload event so the audit log can show
-        // 'POD uploaded' rather than a generic 'updated' with two URL diffs.
         \App\Models\AuditLog::record('evidence_uploaded', $order, [
             'kind' => ['from' => null, 'to' => $kind],
+            'file' => ['from' => null, 'to' => $url],
         ]);
 
         return back();
@@ -436,17 +428,11 @@ class OrderController extends Controller
 
     public function quickUpdate(Request $request, Order $order): RedirectResponse
     {
+        // Per-shipment fields (LR / dispatch / vehicle / driver) are no longer
+        // editable inline from the order. Open the Order page to edit a shipment.
         $rules = [
-            'lr_number' => ['nullable', 'string', 'max:50'],
-            'vehicle_number' => ['nullable', 'string', 'max:20'],
-            'driver_name' => ['nullable', 'string', 'max:255'],
-            'driver_contact' => ['nullable', 'string', 'max:20'],
             'invoice_number' => ['nullable', 'string', 'max:50'],
-            'amount_received' => ['nullable', 'numeric', 'min:0'],
-            'payment_received_date' => ['nullable', 'date'],
-            'payment_mode' => ['nullable', 'in:neft,rtgs,upi,cheque,cash'],
             'payment_status' => ['nullable', 'in:not_due,pending,partial,paid,overdue'],
-            'expected_delivery' => ['nullable', 'date'],
             'priority' => ['nullable', 'in:urgent,high,normal,low'],
             'internal_notes' => ['nullable', 'string'],
         ];
@@ -472,6 +458,9 @@ class OrderController extends Controller
 
     private function validated(Request $request): array
     {
+        // Only order-level fields validate here. Dispatch / LR / packing fields live
+        // on shipments and are validated by ShipmentController. Payment fields are
+        // either denormalized cache or live on the payments table.
         return $request->validate([
             'order_code' => ['nullable', 'string', 'max:20'],
             'customer_id' => ['required', 'exists:customers,id'],
@@ -486,35 +475,17 @@ class OrderController extends Controller
             'status' => ['required', 'in:new_order,confirmed,stock_check,packing,packed,ready_for_dispatch,dispatched,delivered,closed,on_hold,cancelled'],
             'priority' => ['required', 'in:urgent,high,normal,low'],
 
-            'packing_slip_generated' => ['nullable', 'boolean'],
-            'packed_by' => ['nullable', 'string', 'max:255'],
-            'items_packed_count' => ['nullable', 'integer', 'min:0'],
-            'parcel_weight_kg' => ['nullable', 'numeric', 'min:0'],
-            'number_of_boxes' => ['nullable', 'integer', 'min:0'],
-
-            'pickup_scheduled_date' => ['nullable', 'date'],
-            'transporter_id' => ['nullable', 'exists:transporters,id'],
-            'driver_name' => ['nullable', 'string', 'max:255'],
-            'driver_contact' => ['nullable', 'string', 'max:20'],
-            'vehicle_number' => ['nullable', 'string', 'max:20'],
-            'dispatch_date' => ['nullable', 'date'],
-            'lr_number' => ['nullable', 'string', 'max:50'],
+            // Order-level aggregate flags (not duplicates of shipment data)
             'lr_shared_with_customer' => ['nullable', 'boolean'],
-            'expected_delivery' => ['nullable', 'date'],
-
-            'delivered_date' => ['nullable', 'date'],
             'pod_received' => ['nullable', 'boolean'],
             'triplicate_received' => ['nullable', 'boolean'],
-            'triplicate_received_date' => ['nullable', 'date'],
 
+            // Invoice + payment metadata (amount_received is recomputed from payments)
             'invoice_number' => ['nullable', 'string', 'max:50'],
             'invoice_date' => ['nullable', 'date'],
             'payment_terms' => ['nullable', 'in:advance,cod,7_days,15_days,30_days,45_days,60_days'],
             'payment_due_date' => ['nullable', 'date'],
             'payment_status' => ['required', 'in:not_due,pending,partial,paid,overdue'],
-            'amount_received' => ['nullable', 'numeric', 'min:0'],
-            'payment_received_date' => ['nullable', 'date'],
-            'payment_mode' => ['nullable', 'in:neft,rtgs,upi,cheque,cash'],
 
             'internal_notes' => ['nullable', 'string'],
         ]);

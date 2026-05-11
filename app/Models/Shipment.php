@@ -64,4 +64,17 @@ class Shipment extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    /**
+     * Sequential SHP-YYYY-NNNN code generator. Called when a shipment is created
+     * either via the dialog or implicitly during evidence upload.
+     */
+    public static function generateCode(): string
+    {
+        $year = now()->year;
+        $prefix = "SHP-{$year}-";
+        $last = static::query()->where('shipment_code', 'like', "{$prefix}%")->orderByDesc('id')->value('shipment_code');
+        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
+        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+    }
 }

@@ -63,12 +63,24 @@ class DatabaseSeeder extends Seeder
                 'priority' => $s['priority'],
                 'payment_status' => $s['payment_status'],
                 'payment_terms' => '30_days',
-                'transporter_id' => $transporterIds[$i % count($transporterIds)],
-                'lr_number' => $s['lr'] ?? null,
                 'lr_shared_with_customer' => isset($s['lr']),
-                'dispatch_date' => in_array($s['status'], ['dispatched', 'delivered', 'closed'], true) ? $orderDate->copy()->addDay()->toDateString() : null,
-                'delivered_date' => in_array($s['status'], ['delivered', 'closed'], true) ? $orderDate->copy()->addDays(3)->toDateString() : null,
             ]);
+
+            // For dispatched / delivered / closed orders, also seed a corresponding shipment
+            // so the order's accessors (transporter / lr_number / dispatch_date / delivered_date)
+            // have something to return.
+            if (in_array($s['status'], ['dispatched', 'delivered', 'closed'], true)) {
+                \App\Models\Shipment::create([
+                    'shipment_code' => \App\Models\Shipment::generateCode(),
+                    'order_id' => $order->id,
+                    'transporter_id' => $transporterIds[$i % count($transporterIds)],
+                    'status' => $s['status'] === 'closed' ? 'closed' : ($s['status'] === 'delivered' ? 'delivered' : 'dispatched'),
+                    'lr_number' => $s['lr'] ?? null,
+                    'lr_shared_with_customer' => isset($s['lr']),
+                    'dispatch_date' => $orderDate->copy()->addDay()->toDateString(),
+                    'delivered_date' => in_array($s['status'], ['delivered', 'closed'], true) ? $orderDate->copy()->addDays(3)->toDateString() : null,
+                ]);
+            }
 
             // Each order gets 1–3 line items so fulfillment scenarios are testable.
             $lineCount = ($i % 3) + 1;

@@ -48,7 +48,7 @@ class ShipmentController extends Controller
             }
 
             $shipment = Shipment::create([
-                'shipment_code' => $this->nextShipmentCode(),
+                'shipment_code' => Shipment::generateCode(),
                 'order_id' => $order->id,
                 'transporter_id' => $data['transporter_id'] ?? null,
                 'pickup_scheduled_date' => $data['pickup_scheduled_date'] ?? null,

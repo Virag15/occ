@@ -398,12 +398,13 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
             cell: ({ row }) => (
                 <div className="flex flex-col min-w-0">
                     <span className="text-xs text-muted-foreground truncate">{row.original.transporter?.name ?? <span className="italic">no transporter</span>}</span>
-                    <InlineText
-                        value={row.original.lr_number}
-                        placeholder="+ Add LR"
-                        mono
-                        onSave={(v) => quickPatch(row.original.id, { lr_number: v }, 'LR number saved')}
-                    />
+                    {row.original.lr_number ? (
+                        <span className="font-mono text-xs">{row.original.lr_number}</span>
+                    ) : (
+                        <Link href={route('orders.show', { order: row.original.id })} className="text-xs text-muted-foreground hover:underline">
+                            + add LR on a shipment
+                        </Link>
+                    )}
                 </div>
             ),
         },

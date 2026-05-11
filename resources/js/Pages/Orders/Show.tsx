@@ -672,7 +672,7 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
                         <dl>
                             <KV label="Delivered" value={order.delivered_date ? formatDateIN(order.delivered_date) : null} />
                             <KV label="POD" value={order.pod_received ? '✓ Received' : <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setEvidenceKind('pod')}>Upload POD</Button>} />
-                            <KV label="Triplicate" value={order.triplicate_received ? `✓ ${order.triplicate_received_date ? formatDateIN(order.triplicate_received_date) : 'Received'}` : <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setEvidenceKind('triplicate')}>Upload triplicate</Button>} />
+                            <KV label="Triplicate" value={order.triplicate_received ? '✓ Received' : <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setEvidenceKind('triplicate')}>Upload triplicate</Button>} />
                         </dl>
                     </SectionCard>
 

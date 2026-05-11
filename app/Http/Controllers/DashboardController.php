@@ -19,7 +19,9 @@ class DashboardController extends Controller
 
         // ─── Headline KPI cards ─────────────────────────────────────
         $ordersToday = Order::query()->whereDate('order_date', $today)->count();
-        $dispatchedToday = Order::query()->whereDate('dispatch_date', $today)->count();
+        $dispatchedToday = Order::query()
+            ->whereHas('shipments', fn ($s) => $s->whereDate('dispatch_date', $today))
+            ->count();
 
         // Pending dispatch: orders that are packed/ready_for_dispatch with no LR yet,
         // OR orders in dispatched state but missing LR (rare but recoverable signal).

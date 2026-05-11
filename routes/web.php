@@ -11,6 +11,7 @@ use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\ShipmentController;
+use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -19,10 +20,7 @@ use Inertia\Inertia;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/tasks', fn () => Inertia::render('Placeholder', [
-        'title' => "Today's Tasks",
-        'description' => 'Per-user action queue. Lands in Phase 2 alongside the Orders core.',
-    ]))->name('tasks');
+    Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
 
     Route::resource('customers', CustomerController::class)->except(['show']);
     Route::get('/customers/{customer}', CustomerShowController::class)->name('customers.show');
