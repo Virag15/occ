@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TransporterController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -12,25 +15,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         'description' => 'Per-user action queue. Lands in Phase 2 alongside the Orders core.',
     ]))->name('tasks');
 
-    Route::get('/customers', fn () => Inertia::render('Placeholder', [
-        'title' => 'Customers',
-        'description' => 'Read-only mirror from Tally. The DatabaseTable view lands in Phase 1.',
-    ]))->name('customers.index');
-
-    Route::get('/products', fn () => Inertia::render('Placeholder', [
-        'title' => 'Products',
-        'description' => 'Read-only mirror from Tally with stock-on-hand per godown.',
-    ]))->name('products.index');
+    Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 
     Route::get('/orders', fn () => Inertia::render('Placeholder', [
         'title' => 'Orders & Dispatches',
         'description' => 'Full order lifecycle: table, kanban, dispatch calendar. Lands in Phase 2.',
     ]))->name('orders.index');
 
-    Route::get('/transporters', fn () => Inertia::render('Placeholder', [
-        'title' => 'Transporters',
-        'description' => 'Master list of carriers. CRUD lands in Phase 1.',
-    ]))->name('transporters.index');
+    Route::get('/transporters', [TransporterController::class, 'index'])->name('transporters.index');
+    Route::post('/transporters', [TransporterController::class, 'store'])->name('transporters.store');
+    Route::patch('/transporters/{transporter}', [TransporterController::class, 'update'])->name('transporters.update');
+    Route::delete('/transporters/{transporter}', [TransporterController::class, 'destroy'])->name('transporters.destroy');
 
     Route::get('/returns', fn () => Inertia::render('Placeholder', [
         'title' => 'Returns & Damages',
@@ -42,7 +38,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Redirect unauthed root to login
 Route::get('/welcome', fn () => Inertia::render('Welcome', [
     'canLogin' => Route::has('login'),
     'canRegister' => Route::has('register'),
