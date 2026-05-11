@@ -1,25 +1,21 @@
 import { Link, useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Package, ListChecks, FileText, Save, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
 import { formatCurrency } from '@/lib/format';
-import type { CustomerLite, Order, OrderItem, ProductLite, TransporterLite } from '@/types/entities';
+import type { CustomerLite, Order, OrderItem, ProductLite } from '@/types/entities';
 
 const STATUSES = ['new_order', 'confirmed', 'stock_check', 'packing', 'packed', 'ready_for_dispatch', 'dispatched', 'delivered', 'closed', 'on_hold', 'cancelled'];
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const ORDER_SOURCES = ['whatsapp', 'email', 'phone', 'in_person', 'po'];
-const PAYMENT_TERMS = ['advance', 'cod', '7_days', '15_days', '30_days', '45_days', '60_days'];
-const PAYMENT_STATUSES = ['not_due', 'pending', 'partial', 'paid', 'overdue'];
-const PAYMENT_MODES = ['neft', 'rtgs', 'upi', 'cheque', 'cash'];
 
 type FormShape = {
     order_code: string;
@@ -32,39 +28,7 @@ type FormShape = {
     order_value: number | string;
     status: string;
     priority: string;
-
-    packing_slip_generated: boolean;
-    packed_by: string;
-    items_packed_count: number | string;
-    parcel_weight_kg: number | string;
-    number_of_boxes: number | string;
-
-    pickup_scheduled_date: string;
-    transporter_id: number | string;
-    driver_name: string;
-    driver_contact: string;
-    vehicle_number: string;
-    dispatch_date: string;
-    lr_number: string;
-    lr_shared_with_customer: boolean;
-    expected_delivery: string;
-
-    delivered_date: string;
-    pod_received: boolean;
-    triplicate_received: boolean;
-    triplicate_received_date: string;
-
-    invoice_number: string;
-    invoice_date: string;
-    payment_terms: string;
-    payment_due_date: string;
-    payment_status: string;
-    amount_received: number | string;
-    payment_received_date: string;
-    payment_mode: string;
-
     internal_notes: string;
-
     items: OrderItem[];
 };
 
@@ -80,39 +44,7 @@ function init(order?: Order | null, defaults?: { order_code?: string }): FormSha
         order_value: order?.order_value ?? '',
         status: order?.status ?? 'new_order',
         priority: order?.priority ?? 'normal',
-
-        packing_slip_generated: order?.packing_slip_generated ?? false,
-        packed_by: order?.packed_by ?? '',
-        items_packed_count: order?.items_packed_count ?? '',
-        parcel_weight_kg: order?.parcel_weight_kg ?? '',
-        number_of_boxes: order?.number_of_boxes ?? '',
-
-        pickup_scheduled_date: order?.pickup_scheduled_date ?? '',
-        transporter_id: order?.transporter_id ?? '',
-        driver_name: order?.driver_name ?? '',
-        driver_contact: order?.driver_contact ?? '',
-        vehicle_number: order?.vehicle_number ?? '',
-        dispatch_date: order?.dispatch_date ?? '',
-        lr_number: order?.lr_number ?? '',
-        lr_shared_with_customer: order?.lr_shared_with_customer ?? false,
-        expected_delivery: order?.expected_delivery ?? '',
-
-        delivered_date: order?.delivered_date ?? '',
-        pod_received: order?.pod_received ?? false,
-        triplicate_received: order?.triplicate_received ?? false,
-        triplicate_received_date: order?.triplicate_received_date ?? '',
-
-        invoice_number: order?.invoice_number ?? '',
-        invoice_date: order?.invoice_date ?? '',
-        payment_terms: order?.payment_terms ?? '',
-        payment_due_date: order?.payment_due_date ?? '',
-        payment_status: order?.payment_status ?? 'not_due',
-        amount_received: order?.amount_received ?? '',
-        payment_received_date: order?.payment_received_date ?? '',
-        payment_mode: order?.payment_mode ?? '',
-
         internal_notes: order?.internal_notes ?? '',
-
         items: order?.items ?? [],
     };
 }
@@ -120,13 +52,11 @@ function init(order?: Order | null, defaults?: { order_code?: string }): FormSha
 export default function OrderForm({
     order,
     customers,
-    transporters,
     products,
     nextOrderCode,
 }: {
     order?: Order | null;
     customers: CustomerLite[];
-    transporters: TransporterLite[];
     products: ProductLite[];
     nextOrderCode?: string;
 }) {
@@ -140,7 +70,6 @@ export default function OrderForm({
 
     const updateItem = (idx: number, patch: Partial<OrderItem>) => {
         const next = form.data.items.map((it, i) => i === idx ? { ...it, ...patch } : it);
-        // Re-derive line_total when qty/price/tax changes
         const item = next[idx];
         const qty = Number(item.qty_ordered) || 0;
         const price = Number(item.unit_price ?? 0);
@@ -173,10 +102,10 @@ export default function OrderForm({
     };
 
     const itemsTotal = form.data.items.reduce((sum, it) => sum + (Number(it.line_total) || 0), 0);
+    const itemsCount = form.data.items.length;
 
     const setDate = (key: keyof FormShape) => (d: Date | undefined) => {
         if (!d) return;
-        // Use local-date YYYY-MM-DD to avoid IST timezone shift on toISOString().
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const dd = String(d.getDate()).padStart(2, '0');
@@ -198,45 +127,94 @@ export default function OrderForm({
     };
 
     return (
-        <>
-            <div className="mb-6">
-                <Button variant="ghost" size="sm" asChild className="gap-1.5 -ml-2">
-                    <Link href={route('orders.index')}>
-                        <ArrowLeft className="h-4 w-4" /> Back to Orders
-                    </Link>
-                </Button>
+        <form onSubmit={submit} noValidate className="space-y-5 pb-10">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-1 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" asChild className="-ml-2 gap-1.5">
+                            <Link href={route('orders.index')}><ArrowLeft className="h-4 w-4" /> Orders</Link>
+                        </Button>
+                        <span className="text-muted-foreground">/</span>
+                        <div>
+                            <h1 className="font-mono text-base font-semibold leading-tight">
+                                {form.data.order_code || (isEdit ? order?.order_code : 'New order')}
+                            </h1>
+                            <p className="text-[10px] text-muted-foreground">
+                                {isEdit ? 'Editing existing order' : 'Creating a new order'}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button type="button" variant="ghost" size="sm" asChild>
+                            <Link href={route('orders.index')}>Cancel</Link>
+                        </Button>
+                        <Button type="submit" disabled={form.processing} size="sm">
+                            <Save className="h-3.5 w-3.5 mr-1" />
+                            {form.processing ? 'Saving…' : isEdit ? 'Update order' : 'Create order'}
+                        </Button>
+                    </div>
+                </div>
             </div>
 
-            <form onSubmit={submit} className="space-y-6" noValidate>
-                {/* Basic */}
-                <Section title="Order">
-                    <Grid cols={3}>
-                        <Field label="Order code" id="order_code">
-                            <Input id="order_code" value={form.data.order_code} readOnly className="font-mono text-xs bg-muted" />
+            {/* Info note about what this form captures */}
+            <div className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs">
+                <Info className="h-4 w-4 shrink-0 text-blue-600" />
+                <p className="text-muted-foreground">
+                    This form captures the <span className="font-medium text-foreground">order intake</span> only — what the customer asked for. Dispatch (LR, transporter, vehicle), POD/triplicate, and payment details are captured later from the <span className="font-medium text-foreground">Order page</span> as those events actually happen.
+                </p>
+            </div>
+
+            {/* ─── Order details card ─── */}
+            <Card>
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                        <FileText className="h-4 w-4 text-muted-foreground" /> Order details
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-2 space-y-4">
+                    {/* Row 1: identity */}
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <Field label="Order code" id="order_code" help="Auto-generated">
+                            <Input id="order_code" value={form.data.order_code} readOnly className="bg-muted font-mono text-xs" />
                         </Field>
                         <Field label="Order date *" id="order_date" error={form.errors.order_date}>
                             <DatePicker id="order_date" value={form.data.order_date} onChange={setDate('order_date')} />
                         </Field>
-                        <Field label="Source" id="order_source" error={form.errors.order_source}>
-                            <Select value={form.data.order_source || undefined} onValueChange={(v: string) => form.setData('order_source', v)}>
+                        <Field label="Source" id="order_source" error={form.errors.order_source} help="How the order reached us">
+                            <Select value={form.data.order_source || undefined} onValueChange={(v) => form.setData('order_source', v)}>
                                 <SelectTrigger id="order_source"><SelectValue placeholder="—" /></SelectTrigger>
                                 <SelectContent>
-                                    {ORDER_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    {ORDER_SOURCES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </Field>
-                    </Grid>
-                    <Grid cols={2}>
-                        <Field label="Customer reference #" id="customer_reference_number" error={form.errors.customer_reference_number}>
+                    </div>
+
+                    {/* Row 2: customer (full width — most important field) */}
+                    <Field label="Customer *" id="customer_id" error={form.errors.customer_id}>
+                        <Combobox
+                            id="customer_id"
+                            value={form.data.customer_id ? String(form.data.customer_id) : ''}
+                            onChange={(v) => form.setData('customer_id', Number(v))}
+                            options={customers.map((c): ComboOption => ({ value: String(c.id), label: c.name, sublabel: c.company ?? undefined }))}
+                            placeholder="Search and select customer"
+                            searchPlaceholder="Search by name or company…"
+                        />
+                    </Field>
+
+                    {/* Row 3: customer references */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Customer reference #" id="customer_reference_number" help="Their own ref number, if shared">
                             <Input
                                 id="customer_reference_number"
                                 value={form.data.customer_reference_number}
                                 onChange={(e) => form.setData('customer_reference_number', e.target.value)}
-                                placeholder="e.g. SHRM-25-1138 (customer's own ref, if shared)"
+                                placeholder="e.g. SHRM-25-1138"
                                 className="font-mono text-xs"
                             />
                         </Field>
-                        <Field label="Customer PO #" id="customer_po_number" error={form.errors.customer_po_number}>
+                        <Field label="Customer PO #" id="customer_po_number" help="Purchase order number from buyer">
                             <Input
                                 id="customer_po_number"
                                 value={form.data.customer_po_number}
@@ -245,20 +223,12 @@ export default function OrderForm({
                                 className="font-mono text-xs"
                             />
                         </Field>
-                    </Grid>
-                    <Grid cols={3}>
-                        <Field label="Customer *" id="customer_id" error={form.errors.customer_id}>
-                            <Combobox
-                                id="customer_id"
-                                value={form.data.customer_id ? String(form.data.customer_id) : ''}
-                                onChange={(v) => form.setData('customer_id', Number(v))}
-                                options={customers.map((c): ComboOption => ({ value: String(c.id), label: c.name, sublabel: c.company ?? undefined }))}
-                                placeholder="Select customer"
-                                searchPlaceholder="Search by name or company…"
-                            />
-                        </Field>
+                    </div>
+
+                    {/* Row 4: state */}
+                    <div className="grid gap-3 sm:grid-cols-3">
                         <Field label="Status *" id="status" error={form.errors.status}>
-                            <Select value={form.data.status} onValueChange={(v: string) => form.setData('status', v)}>
+                            <Select value={form.data.status} onValueChange={(v) => form.setData('status', v)}>
                                 <SelectTrigger id="status"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
@@ -266,35 +236,61 @@ export default function OrderForm({
                             </Select>
                         </Field>
                         <Field label="Priority *" id="priority" error={form.errors.priority}>
-                            <Select value={form.data.priority} onValueChange={(v: string) => form.setData('priority', v)}>
+                            <Select value={form.data.priority} onValueChange={(v) => form.setData('priority', v)}>
                                 <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </Field>
-                    </Grid>
-                    <Grid cols={2}>
-                        <Field label="Brands (comma-separated)" id="brands" error={form.errors.brands}>
-                            <Input id="brands" placeholder="C&S Electric, BCH Electric" value={form.data.brands} onChange={(e) => form.setData('brands', e.target.value)} />
+                        <Field label="Brands" id="brands" error={form.errors.brands} help="Comma-separated">
+                            <Input
+                                id="brands"
+                                placeholder="C&S Electric, BCH Electric"
+                                value={form.data.brands}
+                                onChange={(e) => form.setData('brands', e.target.value)}
+                            />
                         </Field>
-                        <Field label="Order value (₹) — auto-summed from line items" id="order_value" error={form.errors.order_value}>
-                            <Input id="order_value" type="number" step="0.01" value={form.data.items.length > 0 ? itemsTotal : form.data.order_value} readOnly={form.data.items.length > 0} onChange={(e) => form.setData('order_value', e.target.value)} className={form.data.items.length > 0 ? 'bg-muted' : ''} />
+                    </div>
+
+                    {/* Row 5: order value (auto when items present) */}
+                    {itemsCount === 0 && (
+                        <Field label="Order value (₹)" id="order_value" error={form.errors.order_value} help="Will auto-sum from line items once added">
+                            <Input
+                                id="order_value"
+                                type="number"
+                                step="0.01"
+                                value={form.data.order_value}
+                                onChange={(e) => form.setData('order_value', e.target.value)}
+                            />
                         </Field>
-                    </Grid>
-                </Section>
+                    )}
+                </CardContent>
+            </Card>
 
-                <Separator />
-
-                {/* Line items */}
-                <Section title="Line items">
-                    <p className="-mt-2 text-sm text-muted-foreground">
-                        Add the products on this order. Picking, packing, and fulfillment will track quantities per line.
-                    </p>
-
-                    {form.data.items.length === 0 ? (
-                        <div className="rounded-md border border-dashed bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-                            <p className="mb-3">No items yet.</p>
+            {/* ─── Line items card ─── */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                        <ListChecks className="h-4 w-4 text-muted-foreground" />
+                        Line items
+                        {itemsCount > 0 && (
+                            <span className="text-xs font-normal text-muted-foreground">
+                                · {itemsCount} line{itemsCount === 1 ? '' : 's'} · {formatCurrency(itemsTotal)} total
+                            </span>
+                        )}
+                    </CardTitle>
+                    {itemsCount > 0 && (
+                        <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add line
+                        </Button>
+                    )}
+                </CardHeader>
+                <CardContent className="p-4 pt-2">
+                    {itemsCount === 0 ? (
+                        <div className="rounded-md border border-dashed bg-muted/20 px-4 py-10 text-center">
+                            <Package className="mx-auto mb-2 h-6 w-6 text-muted-foreground/60" />
+                            <p className="mb-3 text-sm text-muted-foreground">No items on this order yet.</p>
                             <Button type="button" variant="outline" size="sm" onClick={addItem}>
                                 <Plus className="h-3.5 w-3.5 mr-1" /> Add first item
                             </Button>
@@ -302,15 +298,15 @@ export default function OrderForm({
                     ) : (
                         <div className="overflow-x-auto rounded-md border">
                             <table className="w-full text-xs">
-                                <thead className="bg-muted/40 text-muted-foreground">
+                                <thead className="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground">
                                     <tr>
-                                        <th className="px-3 py-2 text-left font-medium" style={{ minWidth: 220 }}>Product</th>
-                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 100 }}>Qty</th>
-                                        <th className="px-3 py-2 text-left font-medium" style={{ width: 80 }}>Unit</th>
-                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 120 }}>Unit price</th>
-                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 90 }}>GST %</th>
-                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 130 }}>Line total</th>
-                                        <th className="px-3 py-2" style={{ width: 40 }} />
+                                        <th className="px-2 py-2 text-left font-medium" style={{ minWidth: 220 }}>Product</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 90 }}>Qty</th>
+                                        <th className="px-2 py-2 text-left font-medium" style={{ width: 60 }}>Unit</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 110 }}>Unit price</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>GST %</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 120 }}>Line total</th>
+                                        <th className="px-2 py-2" style={{ width: 40 }} />
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -322,7 +318,7 @@ export default function OrderForm({
                                         }));
                                         return (
                                             <tr key={i} className="border-t border-border/40 align-top">
-                                                <td className="px-3 py-2">
+                                                <td className="px-2 py-2">
                                                     <Combobox
                                                         value={it.product_id ? String(it.product_id) : ''}
                                                         onChange={(v) => pickProduct(i, v)}
@@ -330,38 +326,35 @@ export default function OrderForm({
                                                         placeholder="Pick product"
                                                         searchPlaceholder="Search products…"
                                                     />
-                                                    {it.product_name && !it.product_id && (
-                                                        <p className="mt-1 text-[10px] text-muted-foreground">{it.product_name}</p>
-                                                    )}
                                                 </td>
-                                                <td className="px-3 py-2">
+                                                <td className="px-2 py-2">
                                                     <Input
                                                         type="number" step="0.001" min="0"
                                                         value={it.qty_ordered as number}
                                                         onChange={(e) => updateItem(i, { qty_ordered: e.target.value as unknown as number })}
-                                                        className="text-right h-8"
+                                                        className="h-8 text-right"
                                                     />
                                                 </td>
-                                                <td className="px-3 py-2 text-muted-foreground text-xs">{it.unit ?? '—'}</td>
-                                                <td className="px-3 py-2">
+                                                <td className="px-2 py-2 text-xs text-muted-foreground">{it.unit ?? '—'}</td>
+                                                <td className="px-2 py-2">
                                                     <Input
                                                         type="number" step="0.01" min="0"
                                                         value={(it.unit_price ?? 0) as number}
                                                         onChange={(e) => updateItem(i, { unit_price: e.target.value as unknown as number })}
-                                                        className="text-right h-8 tabular-nums"
+                                                        className="h-8 text-right tabular-nums"
                                                     />
                                                 </td>
-                                                <td className="px-3 py-2">
+                                                <td className="px-2 py-2">
                                                     <Input
                                                         type="number" step="0.01" min="0" max="100"
                                                         value={(it.tax_rate ?? 0) as number}
                                                         onChange={(e) => updateItem(i, { tax_rate: e.target.value as unknown as number })}
-                                                        className="text-right h-8 tabular-nums"
+                                                        className="h-8 text-right tabular-nums"
                                                     />
                                                 </td>
-                                                <td className="px-3 py-2 text-right tabular-nums font-medium">{formatCurrency(it.line_total ?? 0)}</td>
-                                                <td className="px-3 py-2 text-right">
-                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-red-700" onClick={() => removeItem(i)}>
+                                                <td className="px-2 py-2 text-right font-medium tabular-nums">{formatCurrency(it.line_total ?? 0)}</td>
+                                                <td className="px-2 py-2 text-right">
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeItem(i)}>
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </td>
@@ -371,214 +364,61 @@ export default function OrderForm({
                                 </tbody>
                                 <tfoot className="bg-muted/30">
                                     <tr>
-                                        <td colSpan={5} className="px-3 py-2 text-right font-medium">Total</td>
-                                        <td className="px-3 py-2 text-right tabular-nums font-bold">{formatCurrency(itemsTotal)}</td>
+                                        <td colSpan={5} className="px-2 py-2 text-right text-xs font-medium">Order total</td>
+                                        <td className="px-2 py-2 text-right text-sm font-bold tabular-nums">{formatCurrency(itemsTotal)}</td>
                                         <td />
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                     )}
+                </CardContent>
+            </Card>
 
-                    {form.data.items.length > 0 && (
-                        <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Add another line
-                        </Button>
-                    )}
-                </Section>
+            {/* ─── Notes card ─── */}
+            <Card>
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                        <FileText className="h-4 w-4 text-muted-foreground" /> Internal notes
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-2">
+                    <Textarea
+                        id="internal_notes"
+                        rows={3}
+                        value={form.data.internal_notes}
+                        onChange={(e) => form.setData('internal_notes', e.target.value)}
+                        placeholder="Anything the team should know about this order — special instructions, customer preferences, things to follow up on…"
+                    />
+                    <p className="mt-2 text-[10px] text-muted-foreground">
+                        Visible to all staff. Not printed on slips or invoices.
+                    </p>
+                </CardContent>
+            </Card>
 
-                <Separator />
-
-                {/* Packing */}
-                <Section title="Packing">
-                    <div className="flex items-center gap-3 pb-1">
-                        <Switch id="packing_slip_generated" checked={form.data.packing_slip_generated} onCheckedChange={(v: boolean) => form.setData('packing_slip_generated', v)} />
-                        <Label htmlFor="packing_slip_generated" className="font-normal cursor-pointer">Packing slip generated</Label>
-                    </div>
-                    <Grid cols={4}>
-                        <Field label="Packed by" id="packed_by" error={form.errors.packed_by}>
-                            <Input id="packed_by" value={form.data.packed_by} onChange={(e) => form.setData('packed_by', e.target.value)} />
-                        </Field>
-                        <Field label="Items packed" id="items_packed_count" error={form.errors.items_packed_count}>
-                            <Input id="items_packed_count" type="number" value={form.data.items_packed_count} onChange={(e) => form.setData('items_packed_count', e.target.value)} />
-                        </Field>
-                        <Field label="Parcel weight (kg)" id="parcel_weight_kg" error={form.errors.parcel_weight_kg}>
-                            <Input id="parcel_weight_kg" type="number" step="0.01" value={form.data.parcel_weight_kg} onChange={(e) => form.setData('parcel_weight_kg', e.target.value)} />
-                        </Field>
-                        <Field label="Number of boxes" id="number_of_boxes" error={form.errors.number_of_boxes}>
-                            <Input id="number_of_boxes" type="number" value={form.data.number_of_boxes} onChange={(e) => form.setData('number_of_boxes', e.target.value)} />
-                        </Field>
-                    </Grid>
-                </Section>
-
-                <Separator />
-
-                {/* Dispatch */}
-                <Section title="Dispatch">
-                    <Grid cols={3}>
-                        <Field label="Pickup scheduled" id="pickup_scheduled_date" error={form.errors.pickup_scheduled_date}>
-                            <DatePicker id="pickup_scheduled_date" value={form.data.pickup_scheduled_date} onChange={setDate('pickup_scheduled_date')} />
-                        </Field>
-                        <Field label="Dispatch date" id="dispatch_date" error={form.errors.dispatch_date}>
-                            <DatePicker id="dispatch_date" value={form.data.dispatch_date} onChange={setDate('dispatch_date')} />
-                        </Field>
-                        <Field label="Expected delivery" id="expected_delivery" error={form.errors.expected_delivery}>
-                            <DatePicker id="expected_delivery" value={form.data.expected_delivery} onChange={setDate('expected_delivery')} />
-                        </Field>
-                    </Grid>
-                    <Grid cols={3}>
-                        <Field label="Transporter" id="transporter_id" error={form.errors.transporter_id}>
-                            <Combobox
-                                id="transporter_id"
-                                value={form.data.transporter_id ? String(form.data.transporter_id) : ''}
-                                onChange={(v) => form.setData('transporter_id', Number(v))}
-                                options={transporters.map((t): ComboOption => ({ value: String(t.id), label: t.name }))}
-                                placeholder="Select transporter"
-                                searchPlaceholder="Search transporters…"
-                            />
-                        </Field>
-                        <Field label="Driver name" id="driver_name" error={form.errors.driver_name}>
-                            <Input id="driver_name" value={form.data.driver_name} onChange={(e) => form.setData('driver_name', e.target.value)} />
-                        </Field>
-                        <Field label="Driver contact" id="driver_contact" error={form.errors.driver_contact}>
-                            <Input id="driver_contact" value={form.data.driver_contact} onChange={(e) => form.setData('driver_contact', e.target.value)} />
-                        </Field>
-                    </Grid>
-                    <Grid cols={3}>
-                        <Field label="Vehicle number" id="vehicle_number" error={form.errors.vehicle_number}>
-                            <Input id="vehicle_number" className="font-mono text-xs" value={form.data.vehicle_number} onChange={(e) => form.setData('vehicle_number', e.target.value)} />
-                        </Field>
-                        <Field label="LR number" id="lr_number" error={form.errors.lr_number}>
-                            <Input id="lr_number" className="font-mono text-xs" value={form.data.lr_number} onChange={(e) => form.setData('lr_number', e.target.value)} />
-                        </Field>
-                        <div className="flex items-center gap-3 pt-6">
-                            <Switch id="lr_shared_with_customer" checked={form.data.lr_shared_with_customer} onCheckedChange={(v: boolean) => form.setData('lr_shared_with_customer', v)} />
-                            <Label htmlFor="lr_shared_with_customer" className="font-normal cursor-pointer">LR shared with customer</Label>
-                        </div>
-                    </Grid>
-                </Section>
-
-                <Separator />
-
-                {/* Delivery */}
-                <Section title="Delivery">
-                    <Grid cols={3}>
-                        <Field label="Delivered date" id="delivered_date" error={form.errors.delivered_date}>
-                            <DatePicker id="delivered_date" value={form.data.delivered_date} onChange={setDate('delivered_date')} />
-                        </Field>
-                        <Field label="Triplicate received date" id="triplicate_received_date" error={form.errors.triplicate_received_date}>
-                            <DatePicker id="triplicate_received_date" value={form.data.triplicate_received_date} onChange={setDate('triplicate_received_date')} />
-                        </Field>
-                    </Grid>
-                    <Grid cols={2}>
-                        <div className="flex items-center gap-3">
-                            <Switch id="pod_received" checked={form.data.pod_received} onCheckedChange={(v: boolean) => form.setData('pod_received', v)} />
-                            <Label htmlFor="pod_received" className="font-normal cursor-pointer">Proof of delivery received</Label>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Switch id="triplicate_received" checked={form.data.triplicate_received} onCheckedChange={(v: boolean) => form.setData('triplicate_received', v)} />
-                            <Label htmlFor="triplicate_received" className="font-normal cursor-pointer">Triplicate received</Label>
-                        </div>
-                    </Grid>
-                </Section>
-
-                <Separator />
-
-                {/* Invoice & payment */}
-                <Section title="Invoice & payment">
-                    <Grid cols={3}>
-                        <Field label="Invoice number" id="invoice_number" error={form.errors.invoice_number}>
-                            <Input id="invoice_number" className="font-mono text-xs" value={form.data.invoice_number} onChange={(e) => form.setData('invoice_number', e.target.value)} />
-                        </Field>
-                        <Field label="Invoice date" id="invoice_date" error={form.errors.invoice_date}>
-                            <DatePicker id="invoice_date" value={form.data.invoice_date} onChange={setDate('invoice_date')} />
-                        </Field>
-                        <Field label="Payment terms" id="payment_terms" error={form.errors.payment_terms}>
-                            <Select value={form.data.payment_terms || undefined} onValueChange={(v: string) => form.setData('payment_terms', v)}>
-                                <SelectTrigger id="payment_terms"><SelectValue placeholder="—" /></SelectTrigger>
-                                <SelectContent>
-                                    {PAYMENT_TERMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                    </Grid>
-                    <Grid cols={4}>
-                        <Field label="Payment due" id="payment_due_date" error={form.errors.payment_due_date}>
-                            <DatePicker id="payment_due_date" value={form.data.payment_due_date} onChange={setDate('payment_due_date')} />
-                        </Field>
-                        <Field label="Payment status *" id="payment_status" error={form.errors.payment_status}>
-                            <Select value={form.data.payment_status} onValueChange={(v: string) => form.setData('payment_status', v)}>
-                                <SelectTrigger id="payment_status"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                        <Field label="Amount received (₹)" id="amount_received" error={form.errors.amount_received}>
-                            <Input id="amount_received" type="number" step="0.01" value={form.data.amount_received} onChange={(e) => form.setData('amount_received', e.target.value)} />
-                        </Field>
-                        <Field label="Payment mode" id="payment_mode" error={form.errors.payment_mode}>
-                            <Select value={form.data.payment_mode || undefined} onValueChange={(v: string) => form.setData('payment_mode', v)}>
-                                <SelectTrigger id="payment_mode"><SelectValue placeholder="—" /></SelectTrigger>
-                                <SelectContent>
-                                    {PAYMENT_MODES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                    </Grid>
-                    <Grid cols={1}>
-                        <Field label="Payment received date" id="payment_received_date" error={form.errors.payment_received_date}>
-                            <DatePicker id="payment_received_date" value={form.data.payment_received_date} onChange={setDate('payment_received_date')} />
-                        </Field>
-                    </Grid>
-                </Section>
-
-                <Separator />
-
-                <Field label="Internal notes" id="internal_notes" error={form.errors.internal_notes}>
-                    <Textarea id="internal_notes" rows={3} value={form.data.internal_notes} onChange={(e) => form.setData('internal_notes', e.target.value)} />
-                </Field>
-
-                <Separator />
-
-                <div className="flex gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        {form.processing ? 'Saving…' : isEdit ? 'Update order' : 'Create order'}
-                    </Button>
-                    <Button type="button" variant="outline" asChild>
-                        <Link href={route('orders.index')}>Cancel</Link>
-                    </Button>
-                </div>
-            </form>
-        </>
+            {/* Footer save (mirrors header save for long forms) */}
+            <div className="flex items-center justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" asChild>
+                    <Link href={route('orders.index')}>Cancel</Link>
+                </Button>
+                <Button type="submit" disabled={form.processing}>
+                    <Save className="h-4 w-4 mr-1" />
+                    {form.processing ? 'Saving…' : isEdit ? 'Update order' : 'Create order'}
+                </Button>
+            </div>
+        </form>
     );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-        <div className="space-y-4">
-            <Label className="text-base font-semibold">{title}</Label>
-            {children}
-        </div>
-    );
-}
+// ─── Helpers ─────────────────────────────────────────────────────────
 
-function Grid({ cols, children }: { cols: 1 | 2 | 3 | 4; children: React.ReactNode }) {
-    const classes: Record<number, string> = {
-        1: 'grid gap-4',
-        2: 'grid sm:grid-cols-2 gap-4',
-        3: 'grid sm:grid-cols-3 gap-4',
-        4: 'grid sm:grid-cols-2 lg:grid-cols-4 gap-4',
-    };
-    return <div className={classes[cols]}>{children}</div>;
-}
-
-function Field({ label, id, error, children }: { label: string; id: string; error?: string; children: React.ReactNode }) {
+function Field({ label, id, error, help, children }: { label: string; id: string; error?: string; help?: string; children: React.ReactNode }) {
     return (
-        <div className="space-y-2">
-            <Label htmlFor={id}>{label}</Label>
+        <div className="space-y-1.5">
+            <Label htmlFor={id} className="text-xs">{label}</Label>
             {children}
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {help && !error && <p className="text-[10px] text-muted-foreground">{help}</p>}
+            {error && <p className="text-[10px] text-destructive">{error}</p>}
         </div>
     );
 }

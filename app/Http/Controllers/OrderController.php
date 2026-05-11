@@ -64,7 +64,6 @@ class OrderController extends Controller
     {
         return Inertia::render('Orders/Create', [
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'company']),
-            'transporters' => Transporter::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
             'products' => $this->productOptions(),
             'nextOrderCode' => $this->nextOrderCode(),
         ]);
@@ -73,9 +72,8 @@ class OrderController extends Controller
     public function edit(Order $order): Response
     {
         return Inertia::render('Orders/Edit', [
-            'order' => $order->load(['customer:id,name,company', 'transporter:id,name', 'items']),
+            'order' => $order->load(['customer:id,name,company', 'items']),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'company']),
-            'transporters' => Transporter::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
             'products' => $this->productOptions(),
         ]);
     }
