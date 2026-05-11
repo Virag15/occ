@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,8 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function Login({
     status,
-    canResetPassword,
 }: {
     status?: string;
-    canResetPassword: boolean;
 }) {
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -81,17 +79,7 @@ export default function Login({
                             </div>
 
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="password">Password</Label>
-                                    {canResetPassword && (
-                                        <Link
-                                            href={route('password.request')}
-                                            className="text-xs text-muted-foreground hover:text-foreground"
-                                        >
-                                            Forgot?
-                                        </Link>
-                                    )}
-                                </div>
+                                <Label htmlFor="password">Password</Label>
                                 <div className="relative">
                                     <Input
                                         id="password"

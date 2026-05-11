@@ -13,7 +13,7 @@ interface StatCard {
 
 export default function Dashboard() {
     useEffect(() => {
-        document.title = 'Dashboard — OCC';
+        document.title = 'Dashboard - OCC';
     }, []);
 
     const statCards: StatCard[] = [
@@ -25,11 +25,11 @@ export default function Dashboard() {
 
     return (
         <AdminLayout breadcrumbs={[{ label: 'Dashboard' }]}>
-            <Head title="Operations Dashboard" />
+            <Head title="Dashboard" />
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Operations Dashboard</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard</h1>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">

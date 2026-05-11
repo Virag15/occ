@@ -7,27 +7,41 @@ import { DataTable, SortableHeader } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { nullable } from '@/lib/format';
 import type { Customer, IndexPageProps } from '@/types/entities';
 
+const STATUSES = ['active', 'inactive', 'credit_hold', 'new'];
+const TYPES = ['dealer', 'contractor', 'oem', 'end_user', 'government'];
+
 export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [typeFilter, setTypeFilter] = useState('');
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [processing, setProcessing] = useState(false);
 
     const filteredRows = useMemo(() => {
-        if (!search) return rows;
-        const q = search.toLowerCase();
-        return rows.filter((r) =>
-            r.name.toLowerCase().includes(q)
-            || (r.company ?? '').toLowerCase().includes(q)
-            || (r.gstin ?? '').toLowerCase().includes(q)
-            || (r.phone ?? '').toLowerCase().includes(q)
-            || (r.city ?? '').toLowerCase().includes(q),
-        );
-    }, [search, rows]);
+        let result = rows;
+        if (search) {
+            const q = search.toLowerCase();
+            result = result.filter((r) =>
+                r.name.toLowerCase().includes(q)
+                || (r.company ?? '').toLowerCase().includes(q)
+                || (r.gstin ?? '').toLowerCase().includes(q)
+                || (r.phone ?? '').toLowerCase().includes(q)
+                || (r.city ?? '').toLowerCase().includes(q),
+            );
+        }
+        if (statusFilter) result = result.filter((r) => r.status === statusFilter);
+        if (typeFilter) result = result.filter((r) => r.customer_type === typeFilter);
+        return result;
+    }, [search, statusFilter, typeFilter, rows]);
+
+    const hasActiveFilters = !!search || !!statusFilter || !!typeFilter;
+    const clearFilters = () => { setSearch(''); setStatusFilter(''); setTypeFilter(''); };
 
     const handleDelete = () => {
         if (!deleteId) return;
@@ -35,10 +49,7 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
         router.delete(route('customers.destroy', { customer: deleteId }), {
             preserveScroll: true,
             onSuccess: () => toast.success('Customer deleted (will sync to Tally)'),
-            onFinish: () => {
-                setDeleteId(null);
-                setProcessing(false);
-            },
+            onFinish: () => { setDeleteId(null); setProcessing(false); },
         });
     };
 
@@ -48,16 +59,8 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
             header: ({ column }) => <SortableHeader column={column} title="Name" />,
             cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
         },
-        {
-            accessorKey: 'company',
-            header: 'Company',
-            cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.company)}</span>,
-        },
-        {
-            accessorKey: 'city',
-            header: 'City',
-            cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.city)}</span>,
-        },
+        { accessorKey: 'company', header: 'Company', cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.company)}</span> },
+        { accessorKey: 'city', header: 'City', cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.city)}</span> },
         {
             accessorKey: 'customer_type',
             header: 'Type',
@@ -72,19 +75,11 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
                 ? <span className="font-mono text-xs">{row.original.gstin}</span>
                 : <span className="text-muted-foreground">—</span>,
         },
-        {
-            accessorKey: 'payment_terms',
-            header: 'Terms',
-            cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.payment_terms)}</span>,
-        },
+        { accessorKey: 'payment_terms', header: 'Terms', cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.payment_terms)}</span> },
         {
             accessorKey: 'status',
             header: 'Status',
-            cell: ({ row }) => (
-                <Badge variant={row.original.status === 'active' ? 'default' : 'secondary'}>
-                    {row.original.status}
-                </Badge>
-            ),
+            cell: ({ row }) => <Badge variant={row.original.status === 'active' ? 'default' : 'secondary'}>{row.original.status}</Badge>,
         },
         {
             id: 'actions',
@@ -96,12 +91,7 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
                             <Pencil className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteId(row.original.id)}
-                        className="text-destructive hover:text-red-700"
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.original.id)} className="text-destructive hover:text-red-700">
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 </div>
@@ -111,27 +101,33 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
 
     const toolbar = (
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2 flex-1">
+            <div className="flex flex-wrap items-center gap-2 flex-1">
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search name, company, GSTIN, phone…"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-9"
-                    />
+                    <Input placeholder="Search name, company, GSTIN…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                 </div>
-                {search && (
-                    <Button variant="ghost" size="sm" onClick={() => setSearch('')} className="text-destructive hover:text-destructive shrink-0 hidden sm:flex">
-                        <X className="h-4 w-4 mr-1" />
-                        Reset
+                <Select value={statusFilter || '_all'} onValueChange={(v: string) => setStatusFilter(v === '_all' ? '' : v)}>
+                    <SelectTrigger className="w-[130px] shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="_all">All statuses</SelectItem>
+                        {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Select value={typeFilter || '_all'} onValueChange={(v: string) => setTypeFilter(v === '_all' ? '' : v)}>
+                    <SelectTrigger className="w-[130px] shrink-0"><SelectValue placeholder="Type" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="_all">All types</SelectItem>
+                        {TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="text-destructive hover:text-destructive shrink-0">
+                        <X className="h-4 w-4 mr-1" /> Reset
                     </Button>
                 )}
             </div>
             <Button asChild className="sm:ml-auto">
-                <Link href={route('customers.create')}>
-                    <Plus className="h-4 w-4 mr-1" /> New customer
-                </Link>
+                <Link href={route('customers.create')}><Plus className="h-4 w-4 mr-1" /> New customer</Link>
             </Button>
         </div>
     );
@@ -140,20 +136,13 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
         <AdminLayout breadcrumbs={[{ label: 'Customers' }]}>
             <Head title="Customers" />
 
-            <DataTable
-                columns={columns}
-                data={filteredRows}
-                toolbar={toolbar}
-                emptyMessage="No customers yet."
-            />
+            <DataTable columns={columns} data={filteredRows} toolbar={toolbar} emptyMessage="No customers match the current filters." />
 
             <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Delete customer</DialogTitle>
-                        <DialogDescription>
-                            Are you sure? This will also remove the customer from Tally on the next sync. Orders that already reference this customer will keep the historical data.
-                        </DialogDescription>
+                        <DialogDescription>Are you sure? This will also remove the customer from Tally on the next sync.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
