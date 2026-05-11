@@ -1,6 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
-import type { CustomerLite, Order, TransporterLite } from '@/types/entities';
+import { formatCurrency } from '@/lib/format';
+import type { CustomerLite, Order, OrderItem, ProductLite, TransporterLite } from '@/types/entities';
 
 const STATUSES = ['new_order', 'confirmed', 'stock_check', 'packing', 'packed', 'ready_for_dispatch', 'dispatched', 'delivered', 'closed', 'on_hold', 'cancelled'];
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
@@ -61,6 +62,8 @@ type FormShape = {
     payment_mode: string;
 
     internal_notes: string;
+
+    items: OrderItem[];
 };
 
 function init(order?: Order | null, defaults?: { order_code?: string }): FormShape {
@@ -105,6 +108,8 @@ function init(order?: Order | null, defaults?: { order_code?: string }): FormSha
         payment_mode: order?.payment_mode ?? '',
 
         internal_notes: order?.internal_notes ?? '',
+
+        items: order?.items ?? [],
     };
 }
 
@@ -112,15 +117,58 @@ export default function OrderForm({
     order,
     customers,
     transporters,
+    products,
     nextOrderCode,
 }: {
     order?: Order | null;
     customers: CustomerLite[];
     transporters: TransporterLite[];
+    products: ProductLite[];
     nextOrderCode?: string;
 }) {
     const isEdit = !!order?.id;
     const form = useForm<FormShape>(init(order, { order_code: nextOrderCode }));
+
+    const lineTotal = (qty: number, unitPrice: number, taxRate: number): number => {
+        const subtotal = qty * unitPrice;
+        return Math.round((subtotal + subtotal * (taxRate / 100)) * 100) / 100;
+    };
+
+    const updateItem = (idx: number, patch: Partial<OrderItem>) => {
+        const next = form.data.items.map((it, i) => i === idx ? { ...it, ...patch } : it);
+        // Re-derive line_total when qty/price/tax changes
+        const item = next[idx];
+        const qty = Number(item.qty_ordered) || 0;
+        const price = Number(item.unit_price ?? 0);
+        const tax = Number(item.tax_rate ?? 0);
+        next[idx] = { ...item, line_total: lineTotal(qty, price, tax) };
+        form.setData('items', next);
+    };
+
+    const pickProduct = (idx: number, productId: string) => {
+        const p = products.find((x) => String(x.id) === productId);
+        if (!p) return;
+        updateItem(idx, {
+            product_id: p.id,
+            product_name: p.name,
+            unit: p.unit ?? null,
+            unit_price: p.default_sale_price ?? 0,
+            tax_rate: p.gst_rate ?? 0,
+        });
+    };
+
+    const addItem = () => {
+        form.setData('items', [
+            ...form.data.items,
+            { product_id: null, product_name: '', qty_ordered: 1, unit_price: 0, tax_rate: 0, line_total: 0 },
+        ]);
+    };
+
+    const removeItem = (idx: number) => {
+        form.setData('items', form.data.items.filter((_, i) => i !== idx));
+    };
+
+    const itemsTotal = form.data.items.reduce((sum, it) => sum + (Number(it.line_total) || 0), 0);
 
     const setDate = (key: keyof FormShape) => (d: Date | undefined) => {
         if (!d) return;
