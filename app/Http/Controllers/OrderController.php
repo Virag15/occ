@@ -98,6 +98,107 @@ class OrderController extends Controller
         return redirect()->route('orders.index');
     }
 
+    public function updateStatus(Request $request, Order $order): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:new_order,confirmed,stock_check,packing,packed,ready_for_dispatch,dispatched,delivered,closed,on_hold,cancelled'],
+        ]);
+
+        // Soft validators: surface to user but don't block (warehouse may need to override)
+        $errors = [];
+        if ($data['status'] === 'dispatched' && !$order->lr_number) {
+            $errors['status'] = 'Add an LR number before marking dispatched.';
+        }
+        if ($data['status'] === 'closed' && $order->payment_status !== 'paid') {
+            $errors['status'] = 'Mark payment as paid before closing the order.';
+        }
+        if ($errors) {
+            return back()->withErrors($errors);
+        }
+
+        $old = $order->status;
+        $payload = ['status' => $data['status']];
+
+        // Auto-stamp dates as status progresses
+        if ($data['status'] === 'dispatched' && !$order->dispatch_date) {
+            $payload['dispatch_date'] = now()->toDateString();
+        }
+        if ($data['status'] === 'delivered' && !$order->delivered_date) {
+            $payload['delivered_date'] = now()->toDateString();
+        }
+
+        $order->update($payload);
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
+            'action' => 'status_changed',
+            'changes' => ['status' => ['from' => $old, 'to' => $data['status']]],
+        ]);
+
+        return back();
+    }
+
+    public function toggleLrShared(Order $order): RedirectResponse
+    {
+        $next = !$order->lr_shared_with_customer;
+        $order->update([
+            'lr_shared_with_customer' => $next,
+            'lr_shared_at' => $next ? now() : null,
+        ]);
+
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
+            'action' => $next ? 'lr_marked_shared' : 'lr_unmarked',
+            'changes' => ['lr_shared_with_customer' => ['from' => !$next, 'to' => $next]],
+        ]);
+
+        return back();
+    }
+
+    public function toggleTriplicate(Order $order): RedirectResponse
+    {
+        $next = !$order->triplicate_received;
+        $order->update([
+            'triplicate_received' => $next,
+            'triplicate_received_date' => $next ? now()->toDateString() : null,
+        ]);
+        return back();
+    }
+
+    public function togglePod(Order $order): RedirectResponse
+    {
+        $next = !$order->pod_received;
+        $order->update(['pod_received' => $next]);
+        return back();
+    }
+
+    public function quickUpdate(Request $request, Order $order): RedirectResponse
+    {
+        $rules = [
+            'lr_number' => ['nullable', 'string', 'max:50'],
+            'vehicle_number' => ['nullable', 'string', 'max:20'],
+            'driver_name' => ['nullable', 'string', 'max:255'],
+            'driver_contact' => ['nullable', 'string', 'max:20'],
+            'invoice_number' => ['nullable', 'string', 'max:50'],
+            'amount_received' => ['nullable', 'numeric', 'min:0'],
+            'payment_received_date' => ['nullable', 'date'],
+            'payment_mode' => ['nullable', 'in:neft,rtgs,upi,cheque,cash'],
+            'payment_status' => ['nullable', 'in:not_due,pending,partial,paid,overdue'],
+            'expected_delivery' => ['nullable', 'date'],
+            'priority' => ['nullable', 'in:urgent,high,normal,low'],
+            'internal_notes' => ['nullable', 'string'],
+        ];
+
+        $data = $request->validate(array_intersect_key($rules, $request->all()));
+        $order->update($data);
+
+        return back();
+    }
+
     private function nextOrderCode(): string
     {
         $year = now()->year;
