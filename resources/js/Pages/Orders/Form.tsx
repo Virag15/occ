@@ -124,7 +124,11 @@ export default function OrderForm({
 
     const setDate = (key: keyof FormShape) => (d: Date | undefined) => {
         if (!d) return;
-        form.setData(key, d.toISOString().split('T')[0] as never);
+        // Use local-date YYYY-MM-DD to avoid IST timezone shift on toISOString().
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        form.setData(key, `${yyyy}-${mm}-${dd}` as never);
     };
 
     const submit = (e: FormEvent) => {

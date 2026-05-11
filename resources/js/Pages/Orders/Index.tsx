@@ -336,22 +336,25 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
             accessorKey: 'order_code',
             header: ({ column }) => <SortableHeader column={column} title="Code" />,
             cell: ({ row }) => (
-                <div className="flex flex-col">
-                    <span className="font-mono text-xs font-medium">{row.original.order_code}</span>
+                <Link href={route('orders.show', { order: row.original.id })} className="flex flex-col group">
+                    <span className="font-mono text-xs font-medium group-hover:underline">{row.original.order_code}</span>
                     <span className="text-[10px] text-muted-foreground tabular-nums">{formatDateIN(row.original.order_date)}</span>
-                </div>
+                </Link>
             ),
         },
         {
             id: 'customer',
             header: 'Customer',
             cell: ({ row }) => (
-                <div className="flex flex-col min-w-0">
-                    <span className="font-medium truncate">{row.original.customer?.name ?? '—'}</span>
+                <Link
+                    href={route('orders.show', { order: row.original.id })}
+                    className="flex flex-col min-w-0 group"
+                >
+                    <span className="font-medium truncate group-hover:underline">{row.original.customer?.name ?? '—'}</span>
                     {row.original.customer?.company && (
                         <span className="text-[10px] text-muted-foreground truncate">{row.original.customer.company}</span>
                     )}
-                </div>
+                </Link>
             ),
         },
         {

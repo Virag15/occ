@@ -15,6 +15,20 @@ type DatePickerProps = {
     disabled?: boolean;
 };
 
+function parseLocalDate(value: string | Date | null | undefined): Date | undefined {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    // Parse YYYY-MM-DD as LOCAL midnight to avoid UTC-shift bugs in IST and other
+    // timezones ahead of UTC. `new Date('2026-05-12')` would parse as UTC midnight,
+    // which shows as 2026-05-11 23:30 in IST.
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (match) {
+        return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 export function DatePicker({
     value,
     onChange,
@@ -24,7 +38,7 @@ export function DatePicker({
     disabled,
 }: DatePickerProps) {
     const [open, setOpen] = React.useState(false);
-    const selected = value ? new Date(value) : undefined;
+    const selected = parseLocalDate(value);
 
     function handleSelect(date: Date | undefined) {
         if (date) onChange(date);

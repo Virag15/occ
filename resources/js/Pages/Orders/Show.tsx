@@ -1,0 +1,261 @@
+import { Head, Link } from '@inertiajs/react';
+import {
+    ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, Building2, MapPin,
+} from 'lucide-react';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { formatCurrency, formatDateIN, nullable } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import type { Customer, Order, TransporterLite } from '@/types/entities';
+
+type AuditEntry = {
+    id: number;
+    action: string;
+    changes: Record<string, { from: unknown; to: unknown }> | null;
+    created_at: string;
+    user?: { id: number; name: string } | null;
+};
+
+type OrderFull = Order & {
+    customer?: Customer;
+    transporter?: TransporterLite | null;
+    creator?: { id: number; name: string } | null;
+};
+
+function statusBadgeClasses(status: string): string {
+    const map: Record<string, string> = {
+        new_order: 'bg-muted text-foreground border-border',
+        confirmed: 'bg-blue-500/10 text-blue-600 border-blue-200',
+        stock_check: 'bg-yellow-500/10 text-yellow-700 border-yellow-200',
+        packing: 'bg-yellow-500/10 text-yellow-700 border-yellow-200',
+        packed: 'bg-yellow-500/10 text-yellow-700 border-yellow-200',
+        ready_for_dispatch: 'bg-orange-500/10 text-orange-600 border-orange-200',
+        dispatched: 'bg-orange-500/10 text-orange-600 border-orange-200',
+        delivered: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+        closed: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+        on_hold: 'bg-muted text-muted-foreground border-border',
+        cancelled: 'bg-red-500/10 text-red-600 border-red-200',
+    };
+    return cn('border', map[status] ?? 'bg-muted');
+}
+
+function paymentBadgeClasses(status: string): string {
+    const map: Record<string, string> = {
+        not_due: 'bg-muted text-muted-foreground border-border',
+        pending: 'bg-yellow-500/10 text-yellow-700 border-yellow-200',
+        partial: 'bg-orange-500/10 text-orange-600 border-orange-200',
+        paid: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+        overdue: 'bg-red-500/10 text-red-600 border-red-200',
+    };
+    return cn('border', map[status] ?? 'bg-muted');
+}
+
+function KV({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
+    return (
+        <div className="grid grid-cols-[140px_1fr] items-start gap-3 py-1.5 border-b border-border/40 last:border-0">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className={cn('text-sm', mono && 'font-mono text-xs')}>{value || <span className="text-muted-foreground/60">—</span>}</dd>
+        </div>
+    );
+}
+
+function SectionCard({ icon: Icon, title, action, children }: { icon: React.ComponentType<{ className?: string }>; title: string; action?: React.ReactNode; children: React.ReactNode }) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    {title}
+                </CardTitle>
+                {action}
+            </CardHeader>
+            <CardContent className="p-4 pt-2">{children}</CardContent>
+        </Card>
+    );
+}
+
+export default function OrderShow({ order, auditLog }: { order: OrderFull; auditLog: AuditEntry[] }) {
+    const c = order.customer;
+
+    return (
+        <AdminLayout breadcrumbs={[{ label: 'Orders', href: '/orders' }, { label: order.order_code }]}>
+            <Head title={order.order_code} />
+
+            {/* Toolbar */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="sm" asChild className="gap-1.5 -ml-2">
+                        <Link href={route('orders.index')}>
+                            <ArrowLeft className="h-4 w-4" /> Back
+                        </Link>
+                    </Button>
+                    <Separator orientation="vertical" className="h-5" />
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight font-mono">{order.order_code}</h1>
+                        <p className="text-xs text-muted-foreground">Created {formatDateIN(order.created_at)}{order.creator?.name ? ` by ${order.creator.name}` : ''}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge className={statusBadgeClasses(order.status)}>{order.status.replace(/_/g, ' ')}</Badge>
+                    <Badge className={paymentBadgeClasses(order.payment_status)}>payment: {order.payment_status}</Badge>
+                    {order.priority !== 'normal' && <Badge variant="outline">{order.priority}</Badge>}
+                    <Button asChild>
+                        <Link href={route('orders.edit', { order: order.id })}>
+                            <Pencil className="h-4 w-4 mr-1" /> Edit
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+
+            {/* Headline KPIs */}
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Card>
+                    <CardContent className="p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Value</p>
+                        <p className="mt-1 text-xl font-bold tabular-nums">{formatCurrency(order.order_value)}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Order date</p>
+                        <p className="mt-1 text-xl font-bold tabular-nums">{formatDateIN(order.order_date)}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Expected delivery</p>
+                        <p className="mt-1 text-xl font-bold tabular-nums">{order.expected_delivery ? formatDateIN(order.expected_delivery) : '—'}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Amount received</p>
+                        <p className="mt-1 text-xl font-bold tabular-nums">{formatCurrency(order.amount_received)}</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-3">
+                {/* Customer card spans 1 col, takes left */}
+                <SectionCard icon={Building2} title="Customer">
+                    {c ? (
+                        <>
+                            <p className="text-base font-semibold">{c.name}</p>
+                            {c.company && <p className="text-sm text-muted-foreground">{c.company}</p>}
+                            <div className="mt-3 space-y-1 text-xs">
+                                {c.contact_person && <div className="flex items-center gap-1.5"><span className="text-muted-foreground">Contact:</span> {c.contact_person}</div>}
+                                {c.phone && <a href={`tel:${c.phone}`} className="flex items-center gap-1.5 hover:underline"><Phone className="h-3 w-3 text-muted-foreground" /><span className="font-mono">{c.phone}</span></a>}
+                                {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 hover:underline"><Mail className="h-3 w-3 text-muted-foreground" />{c.email}</a>}
+                                {c.gstin && <div className="flex items-center gap-1.5 text-muted-foreground"><span>GSTIN:</span> <span className="font-mono">{c.gstin}</span></div>}
+                                {(c.billing_address || c.delivery_address || c.city) && (
+                                    <div className="flex items-start gap-1.5 pt-1 text-muted-foreground">
+                                        <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                                        <span>{c.delivery_address || c.billing_address || `${c.city ?? ''}${c.state ? ', ' + c.state : ''}`}</span>
+                                    </div>
+                                )}
+                            </div>
+                            <Separator className="my-3" />
+                            <Button asChild variant="outline" size="sm" className="w-full">
+                                <Link href={route('customers.edit', { customer: c.id })}>View customer file</Link>
+                            </Button>
+                        </>
+                    ) : <p className="text-sm text-muted-foreground">Customer not linked.</p>}
+                </SectionCard>
+
+                {/* Order summary spans 2 cols */}
+                <div className="lg:col-span-2 space-y-6">
+                    <SectionCard icon={Package} title="Order details">
+                        <dl>
+                            <KV label="Code" value={order.order_code} mono />
+                            <KV label="Source" value={order.order_source} />
+                            <KV label="Brands" value={
+                                order.brands && order.brands.length > 0
+                                    ? <div className="flex flex-wrap gap-1">{order.brands.map((b) => <Badge key={b} variant="secondary" className="text-[10px]">{b}</Badge>)}</div>
+                                    : null
+                            } />
+                            <KV label="Priority" value={<Badge variant="outline">{order.priority}</Badge>} />
+                            <KV label="Internal notes" value={order.internal_notes} />
+                        </dl>
+                    </SectionCard>
+
+                    <SectionCard icon={Package} title="Packing">
+                        <dl>
+                            <KV label="Slip generated" value={order.packing_slip_generated ? '✓ Yes' : '—'} />
+                            <KV label="Packed by" value={order.packed_by} />
+                            <KV label="Items packed" value={order.items_packed_count} />
+                            <KV label="Boxes" value={order.number_of_boxes} />
+                            <KV label="Parcel weight" value={order.parcel_weight_kg ? `${order.parcel_weight_kg} kg` : null} />
+                        </dl>
+                    </SectionCard>
+
+                    <SectionCard icon={Truck} title="Dispatch">
+                        <dl>
+                            <KV label="Transporter" value={order.transporter?.name} />
+                            <KV label="Pickup scheduled" value={order.pickup_scheduled_date ? formatDateIN(order.pickup_scheduled_date) : null} />
+                            <KV label="Dispatched" value={order.dispatch_date ? formatDateIN(order.dispatch_date) : null} />
+                            <KV label="LR number" value={order.lr_number} mono />
+                            <KV label="LR shared with customer" value={order.lr_shared_with_customer ? '✓ Yes' : 'No'} />
+                            <KV label="Vehicle" value={order.vehicle_number} mono />
+                            <KV label="Driver" value={order.driver_name ? `${order.driver_name}${order.driver_contact ? ' · ' + order.driver_contact : ''}` : null} />
+                            <KV label="Expected delivery" value={order.expected_delivery ? formatDateIN(order.expected_delivery) : null} />
+                        </dl>
+                    </SectionCard>
+
+                    <SectionCard icon={FileCheck} title="Delivery">
+                        <dl>
+                            <KV label="Delivered" value={order.delivered_date ? formatDateIN(order.delivered_date) : null} />
+                            <KV label="POD received" value={order.pod_received ? '✓ Yes' : 'No'} />
+                            <KV label="Triplicate received" value={order.triplicate_received ? '✓ Yes' : 'No'} />
+                            <KV label="Triplicate date" value={order.triplicate_received_date ? formatDateIN(order.triplicate_received_date) : null} />
+                        </dl>
+                    </SectionCard>
+
+                    <SectionCard icon={IndianRupee} title="Invoice & payment">
+                        <dl>
+                            <KV label="Invoice #" value={order.invoice_number} mono />
+                            <KV label="Invoice date" value={order.invoice_date ? formatDateIN(order.invoice_date) : null} />
+                            <KV label="Payment terms" value={order.payment_terms} />
+                            <KV label="Payment due" value={order.payment_due_date ? formatDateIN(order.payment_due_date) : null} />
+                            <KV label="Payment status" value={<Badge className={paymentBadgeClasses(order.payment_status)}>{order.payment_status}</Badge>} />
+                            <KV label="Amount received" value={formatCurrency(order.amount_received)} />
+                            <KV label="Payment date" value={order.payment_received_date ? formatDateIN(order.payment_received_date) : null} />
+                            <KV label="Payment mode" value={order.payment_mode} />
+                        </dl>
+                    </SectionCard>
+
+                    <SectionCard icon={History} title="Activity">
+                        {auditLog.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+                        ) : (
+                            <ol className="space-y-3 text-xs">
+                                {auditLog.map((e) => (
+                                    <li key={e.id} className="flex gap-3">
+                                        <div className="flex shrink-0 flex-col items-center">
+                                            <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                                            <span className="h-full w-px bg-border" />
+                                        </div>
+                                        <div className="flex-1 pb-3">
+                                            <div className="flex flex-wrap items-baseline gap-2">
+                                                <span className="font-medium capitalize">{e.action.replace(/_/g, ' ')}</span>
+                                                <span className="text-muted-foreground tabular-nums">{formatDateIN(e.created_at)}</span>
+                                                {e.user && <span className="text-muted-foreground">by {e.user.name}</span>}
+                                            </div>
+                                            {e.changes && Object.entries(e.changes).map(([key, change]) => (
+                                                <p key={key} className="mt-0.5 text-muted-foreground">
+                                                    {key}: <span className="line-through">{String(nullable(change.from as string))}</span>{' → '}<span className="text-foreground">{String(nullable(change.to as string))}</span>
+                                                </p>
+                                            ))}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ol>
+                        )}
+                    </SectionCard>
+                </div>
+            </div>
+        </AdminLayout>
+    );
+}

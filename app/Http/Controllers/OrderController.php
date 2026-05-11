@@ -26,6 +26,28 @@ class OrderController extends Controller
         ]);
     }
 
+    public function show(Order $order): Response
+    {
+        $order->load([
+            'customer',
+            'transporter',
+            'creator:id,name',
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('entity_type', 'order')
+            ->where('entity_id', $order->id)
+            ->orderByDesc('created_at')
+            ->with('user:id,name')
+            ->limit(50)
+            ->get();
+
+        return Inertia::render('Orders/Show', [
+            'order' => $order,
+            'auditLog' => $auditLog,
+        ]);
+    }
+
     public function create(): Response
     {
         return Inertia::render('Orders/Create', [

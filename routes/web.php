@@ -19,7 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('customers', CustomerController::class)->except(['show']);
     Route::resource('products', ProductController::class)->except(['show']);
     Route::resource('transporters', TransporterController::class)->except(['show']);
-    Route::resource('orders', OrderController::class)->except(['show']);
+    Route::resource('orders', OrderController::class);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::patch('/orders/{order}/toggle-lr-shared', [OrderController::class, 'toggleLrShared'])->name('orders.toggle-lr-shared');
     Route::patch('/orders/{order}/toggle-triplicate', [OrderController::class, 'toggleTriplicate'])->name('orders.toggle-triplicate');
