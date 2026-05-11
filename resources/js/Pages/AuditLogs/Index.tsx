@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, X, Plus, Pencil, Trash2, LogIn, LogOut, Shield, Truck, FileCheck, AlertTriangle, RefreshCcw, Check } from 'lucide-react';
+import { Search, X, Plus, Pencil, Trash2, LogIn, LogOut, Shield, Truck, FileCheck, AlertTriangle, RefreshCcw, Check, Download, Printer, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Entry = {
@@ -168,20 +168,45 @@ type ActionMeta = { label: string; icon: React.ComponentType<{ className?: strin
 
 function actionMeta(action: string): ActionMeta {
     const a = action.toLowerCase();
+    const pretty = action.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
+    // Return case lifecycle — most specific first
+    if (a === 'return_inspection_started') return { label: 'Inspection started', icon: RotateCcw, classes: 'bg-blue-500/10 text-blue-700 border-blue-200' };
+    if (a === 'return_resolved') return { label: 'Return resolved', icon: Check, classes: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' };
+    if (a === 'return_rejected') return { label: 'Return rejected', icon: X, classes: 'bg-red-500/10 text-red-700 border-red-200' };
+
+    // Document outputs
+    if (a === 'invoice_downloaded') return { label: 'Invoice downloaded', icon: Download, classes: 'bg-indigo-500/10 text-indigo-700 border-indigo-200' };
+    if (a === 'quotation_downloaded') return { label: 'Quotation downloaded', icon: Download, classes: 'bg-indigo-500/10 text-indigo-700 border-indigo-200' };
+    if (a === 'picking_slip_printed') return { label: 'Picking slip printed', icon: Printer, classes: 'bg-indigo-500/10 text-indigo-700 border-indigo-200' };
+    if (a === 'packing_slip_printed') return { label: 'Packing slip printed', icon: Printer, classes: 'bg-indigo-500/10 text-indigo-700 border-indigo-200' };
+
+    // Evidence uploads
+    if (a === 'evidence_uploaded') return { label: 'Evidence uploaded', icon: FileCheck, classes: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' };
+
+    // CRUD basics
     if (a === 'created' || a.endsWith('_created')) return { label: 'Created', icon: Plus, classes: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' };
     if (a === 'deleted' || a.endsWith('_deleted')) return { label: 'Deleted', icon: Trash2, classes: 'bg-red-500/10 text-red-700 border-red-200' };
     if (a === 'updated' || a.endsWith('_updated')) return { label: 'Updated', icon: Pencil, classes: 'bg-blue-500/10 text-blue-700 border-blue-200' };
+
+    // State transitions
     if (a === 'status_changed') return { label: 'Status changed', icon: RefreshCcw, classes: 'bg-orange-500/10 text-orange-700 border-orange-200' };
+    if (a === 'payment_status_changed') return { label: 'Payment status changed', icon: RefreshCcw, classes: 'bg-orange-500/10 text-orange-700 border-orange-200' };
+
+    // Auth
     if (a === 'login') return { label: 'Signed in', icon: LogIn, classes: 'bg-muted text-muted-foreground border-border' };
     if (a === 'logout') return { label: 'Signed out', icon: LogOut, classes: 'bg-muted text-muted-foreground border-border' };
     if (a === 'failed_login' || a === 'login_failed') return { label: 'Login failed', icon: AlertTriangle, classes: 'bg-yellow-500/10 text-yellow-700 border-yellow-200' };
     if (a === 'role_changed') return { label: 'Role changed', icon: Shield, classes: 'bg-purple-500/10 text-purple-700 border-purple-200' };
-    if (a.includes('shared') || a.includes('toggled') || a.includes('marked')) return { label: action.replace(/_/g, ' '), icon: Check, classes: 'bg-yellow-500/10 text-yellow-700 border-yellow-200' };
-    if (a.includes('uploaded') || a.includes('evidence')) return { label: 'Evidence uploaded', icon: FileCheck, classes: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' };
-    if (a.includes('dispatch')) return { label: action.replace(/_/g, ' '), icon: Truck, classes: 'bg-orange-500/10 text-orange-700 border-orange-200' };
 
-    return { label: action.replace(/_/g, ' '), icon: Pencil, classes: 'bg-muted text-foreground border-border' };
+    // Toggle flags
+    if (a.includes('shared') || a.includes('toggled') || a.includes('marked')) return { label: pretty, icon: Check, classes: 'bg-yellow-500/10 text-yellow-700 border-yellow-200' };
+
+    // Catch-all uploads & dispatches
+    if (a.includes('uploaded')) return { label: pretty, icon: FileCheck, classes: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' };
+    if (a.includes('dispatch')) return { label: pretty, icon: Truck, classes: 'bg-orange-500/10 text-orange-700 border-orange-200' };
+
+    return { label: pretty, icon: Pencil, classes: 'bg-muted text-foreground border-border' };
 }
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -261,16 +286,33 @@ export default function AuditLogIndex({ rows }: { rows: Entry[] }) {
                 if (!c || Object.keys(c).length === 0) {
                     return <span className="text-xs text-muted-foreground">—</span>;
                 }
+                const action = row.original.action;
+                const isCreation = action === 'created' || action.endsWith('_created');
                 return (
                     <div className="space-y-1 text-xs">
-                        {Object.entries(c).map(([k, v]) => (
-                            <div key={k} className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-muted-foreground">{prettifyKey(k)}:</span>
-                                <span className="opacity-60 line-through">{fmtValue(v.from)}</span>
-                                <span className="text-muted-foreground/60">→</span>
-                                <span className="font-medium">{fmtValue(v.to)}</span>
-                            </div>
-                        ))}
+                        {Object.entries(c).map(([k, v]) => {
+                            // Event-style entry (from=null/to=value) and not a creation snapshot
+                            // → render just the value, no arrow, no strikethrough.
+                            const isEvent = v.from === null && v.to !== null && !isCreation;
+                            // Deletion-style (from=value/to=null) → just show the prior value with strikethrough.
+                            const isDeletion = v.to === null && v.from !== null;
+                            return (
+                                <div key={k} className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-muted-foreground">{prettifyKey(k)}:</span>
+                                    {isEvent ? (
+                                        <span className="font-medium">{fmtValue(v.to)}</span>
+                                    ) : isDeletion ? (
+                                        <span className="line-through opacity-60">{fmtValue(v.from)}</span>
+                                    ) : (
+                                        <>
+                                            <span className="opacity-60 line-through">{fmtValue(v.from)}</span>
+                                            <span className="text-muted-foreground/60">→</span>
+                                            <span className="font-medium">{fmtValue(v.to)}</span>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 );
             },

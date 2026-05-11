@@ -213,6 +213,10 @@ class ShipmentController extends Controller
             $shipment->forceFill(['picking_slip_generated_at' => now()])->save();
         }
 
+        \App\Models\AuditLog::record('picking_slip_printed', $shipment, [
+            'shipment_code' => ['from' => null, 'to' => $shipment->shipment_code],
+        ]);
+
         return Inertia::render('Shipments/PickingSlip', [
             'shipment' => $shipment,
             'company' => $this->companyPayload(),
@@ -230,6 +234,10 @@ class ShipmentController extends Controller
         if (!$shipment->packing_slip_generated_at) {
             $shipment->forceFill(['packing_slip_generated_at' => now()])->save();
         }
+
+        \App\Models\AuditLog::record('packing_slip_printed', $shipment, [
+            'shipment_code' => ['from' => null, 'to' => $shipment->shipment_code],
+        ]);
 
         return Inertia::render('Shipments/PackingSlip', [
             'shipment' => $shipment,

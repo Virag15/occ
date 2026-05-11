@@ -234,6 +234,14 @@ class OrderController extends Controller
         $order->load(['customer', 'items.product:id,name,sku,hsn_code', 'creator:id,name']);
         $company = \App\Models\CompanySetting::current();
 
+        // Log the download as a discrete action — the user did something (got a file)
+        // even though no model was mutated.
+        \App\Models\AuditLog::record(
+            $mode === 'quotation' ? 'quotation_downloaded' : 'invoice_downloaded',
+            $order,
+            ['order_code' => ['from' => null, 'to' => $order->order_code]],
+        );
+
         // Encode logo + signature as base64 data URIs so DomPDF can embed them without a network fetch
         $logoBase64 = $this->imageAsDataUri($company->logo_path);
         $signatureBase64 = $this->imageAsDataUri($company->signature_path);
@@ -414,6 +422,13 @@ class OrderController extends Controller
         }
 
         $order->update($payload);
+
+        // Mark this as an explicit evidence-upload event so the audit log can show
+        // 'POD uploaded' rather than a generic 'updated' with two URL diffs.
+        \App\Models\AuditLog::record('evidence_uploaded', $order, [
+            'kind' => ['from' => null, 'to' => $kind],
+        ]);
+
         return back();
     }
 

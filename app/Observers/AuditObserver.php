@@ -40,8 +40,15 @@ class AuditObserver
 
         if (empty($changes)) return;
 
-        // Promote important transitions to specific action labels
+        // Promote important transitions to specific action labels — readers should
+        // see 'Inspection started' not 'Status changed: reported → under_inspection'
         $action = match (true) {
+            $model instanceof \App\Models\ReturnCase && isset($changes['case_status']) => match ($changes['case_status']['to'] ?? null) {
+                'under_inspection' => 'return_inspection_started',
+                'resolved' => 'return_resolved',
+                'rejected' => 'return_rejected',
+                default => 'case_status_changed',
+            },
             isset($changes['status']) => 'status_changed',
             isset($changes['payment_status']) => 'payment_status_changed',
             isset($changes['role']) => 'role_changed',
