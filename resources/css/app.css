@@ -1,3 +1,62 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+/* GC CRM — Notion-flavored design tokens (per build plan §3) */
+
+@theme {
+  --color-background: hsl(39 11% 99%);
+  --color-foreground: hsl(30 9% 19%);
+  --color-muted: hsl(40 7% 96%);
+  --color-muted-foreground: hsl(30 5% 45%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(30 9% 19%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(30 9% 19%);
+  --color-border: hsl(30 7% 90%);
+  --color-input: hsl(30 7% 92%);
+  --color-ring: hsl(207 71% 46%);
+  --color-primary: hsl(207 71% 46%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(40 7% 96%);
+  --color-secondary-foreground: hsl(30 9% 19%);
+  --color-accent: hsl(40 7% 94%);
+  --color-accent-foreground: hsl(30 9% 19%);
+  --color-destructive: hsl(0 65% 51%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-success: hsl(142 71% 45%);
+  --color-success-foreground: hsl(0 0% 100%);
+
+  --color-notion-blue: #2563eb;
+  --color-notion-green: #16a34a;
+  --color-notion-yellow: #ca8a04;
+  --color-notion-orange: #ea580c;
+  --color-notion-red: #dc2626;
+  --color-notion-purple: #7c3aed;
+  --color-notion-pink: #db2777;
+  --color-notion-brown: #92400e;
+  --color-notion-gray: #6b7280;
+  --color-notion-default: #374151;
+
+  --radius: 0.375rem;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  *, ::before, ::after {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.005em; }
+  h3 { font-size: 16px; font-weight: 600; }
+  .text-mono, code, kbd { font-family: var(--font-mono); }
+}
