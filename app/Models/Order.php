@@ -102,6 +102,11 @@ class Order extends Model
         return $this->hasMany(Shipment::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     public function scopePendingLRShare(Builder $q): Builder
     {
         return $q->whereNotNull('lr_number')->where('lr_shared_with_customer', false);

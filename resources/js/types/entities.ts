@@ -198,8 +198,22 @@ export type Order = {
 
     internal_notes: string | null;
     items?: OrderItem[];
+    payments?: Payment[];
     created_at: string;
     updated_at: string;
+};
+
+export type Payment = {
+    id: number;
+    order_id: number;
+    paid_on: string;
+    amount: string;
+    mode: string;
+    reference: string | null;
+    notes: string | null;
+    created_by: number | null;
+    creator?: { id: number; name: string } | null;
+    created_at: string;
 };
 
 export type ReturnItem = {

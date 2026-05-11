@@ -3,7 +3,7 @@ import { FormEvent, useState } from 'react';
 import {
     ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, MapPin,
     Zap, MessageSquare, CheckCircle2, ChevronRight, Upload, Image as ImageIcon, Printer, ClipboardList,
-    RotateCcw, AlertTriangle, ExternalLink, Plus, Download,
+    RotateCcw, AlertTriangle, ExternalLink, Plus, Download, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -18,9 +18,10 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { CreateShipmentDialog } from '@/components/CreateShipmentDialog';
 import { ReportReturnDialog } from '@/components/ReportReturnDialog';
+import { RecordPaymentDialog } from '@/components/RecordPaymentDialog';
 import { formatCurrency, formatDateIN, nullable } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { Customer, Order, OrderItem, ReturnCase, Shipment as ShipmentT, TransporterLite } from '@/types/entities';
+import type { Customer, Order, OrderItem, Payment, ReturnCase, Shipment as ShipmentT, TransporterLite } from '@/types/entities';
 type Shipment = ShipmentT;
 
 type AuditEntry = {
@@ -37,6 +38,7 @@ type OrderFull = Order & {
     creator?: { id: number; name: string } | null;
     shipments?: Shipment[];
     returns?: ReturnCase[];
+    payments?: Payment[];
 };
 
 const LINEAR_STATUSES = [
@@ -404,6 +406,7 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
 
     const [createShipmentOpen, setCreateShipmentOpen] = useState(false);
     const [reportReturnOpen, setReportReturnOpen] = useState(false);
+    const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
     const [evidenceKind, setEvidenceKind] = useState<null | EvidenceKind>(null);
 
     const quickPatch = (url: string, body: Record<string, string | number> | undefined, successMsg: string) => {
@@ -557,20 +560,19 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
                         ) : <p className="text-sm text-muted-foreground">Customer not linked.</p>}
                     </SectionCard>
 
-                    <SectionCard icon={IndianRupee} title="Payment summary">
+                    <PaymentsCard
+                        order={order}
+                        payments={order.payments ?? []}
+                        onRecordPayment={() => setRecordPaymentOpen(true)}
+                    />
+
+                    <SectionCard icon={IndianRupee} title="Invoice & terms" dense>
                         <dl>
-                            <KV label="Status" value={<Badge className={paymentStatusClasses(order.payment_status)}>{order.payment_status}</Badge>} />
                             <KV label="Invoice #" value={order.invoice_number} mono />
                             <KV label="Invoice date" value={order.invoice_date ? formatDateIN(order.invoice_date) : null} />
                             <KV label="Terms" value={order.payment_terms} />
                             <KV label="Due date" value={order.payment_due_date ? formatDateIN(order.payment_due_date) : null} />
-                            <KV label="Received" value={formatCurrency(order.amount_received)} />
-                            <KV label="Payment date" value={order.payment_received_date ? formatDateIN(order.payment_received_date) : null} />
-                            <KV label="Mode" value={order.payment_mode} />
                         </dl>
-                        <p className="mt-2 rounded border border-dashed bg-muted/20 p-2 text-[10px] text-muted-foreground">
-                            Split-payment tracking (multiple part-payments per order) lands in a follow-up — for now this captures the latest payment only.
-                        </p>
                     </SectionCard>
 
                     <SectionCard icon={Package} title="Order details" dense>
@@ -729,7 +731,93 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
                     orderItems={items}
                 />
             )}
+
+            <RecordPaymentDialog
+                open={recordPaymentOpen}
+                onClose={() => setRecordPaymentOpen(false)}
+                orderId={order.id}
+                suggestedAmount={Math.max(0, Number(order.order_value ?? 0) - Number(order.amount_received ?? 0))}
+            />
         </AdminLayout>
+    );
+}
+
+// ─── Payments card ───────────────────────────────────────────────────
+function PaymentsCard({ order, payments, onRecordPayment }: { order: OrderFull; payments: Payment[]; onRecordPayment: () => void }) {
+    const orderValue = Number(order.order_value ?? 0);
+    const received = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const balance = Math.max(0, orderValue - received);
+    const fullyPaid = orderValue > 0 && received >= orderValue - 0.01;
+
+    return (
+        <SectionCard
+            icon={IndianRupee}
+            title="Payments"
+            action={
+                <Button size="sm" variant={fullyPaid ? 'outline' : 'default'} onClick={onRecordPayment}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Record payment
+                </Button>
+            }
+        >
+            {/* Running totals */}
+            <div className="mb-3 grid grid-cols-3 gap-2 rounded-md bg-muted/30 p-2 text-xs">
+                <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Payable</p>
+                    <p className="mt-0.5 font-mono font-semibold tabular-nums">{formatCurrency(orderValue)}</p>
+                </div>
+                <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Received</p>
+                    <p className="mt-0.5 font-mono font-semibold tabular-nums text-emerald-600">{formatCurrency(received)}</p>
+                </div>
+                <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Balance due</p>
+                    <p className={cn('mt-0.5 font-mono font-semibold tabular-nums', fullyPaid ? 'text-muted-foreground' : 'text-orange-600')}>
+                        {formatCurrency(balance)}
+                    </p>
+                </div>
+            </div>
+
+            {/* Ledger */}
+            {payments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No payments recorded yet. Click <span className="font-medium text-foreground">Record payment</span> to start the ledger.
+                </p>
+            ) : (
+                <div className="space-y-2">
+                    {payments.map((p) => (
+                        <div key={p.id} className="flex items-start justify-between gap-3 rounded-md border p-2.5">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-baseline gap-2">
+                                    <p className="font-mono font-semibold tabular-nums">{formatCurrency(p.amount)}</p>
+                                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide">{p.mode}</Badge>
+                                </div>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {formatDateIN(p.paid_on)}
+                                    {p.reference && <> · ref <span className="font-mono">{p.reference}</span></>}
+                                    {p.creator?.name && <> · by {p.creator.name}</>}
+                                </p>
+                                {p.notes && <p className="mt-1 text-[10px] text-muted-foreground">{p.notes}</p>}
+                            </div>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => {
+                                    if (!confirm(`Delete this ${formatCurrency(p.amount)} payment? The order balance will recompute.`)) return;
+                                    router.delete(route('payments.destroy', { payment: p.id }), {
+                                        preserveScroll: true,
+                                        onSuccess: () => toast.success('Payment removed'),
+                                    });
+                                }}
+                                title="Delete this payment"
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </SectionCard>
     );
 }
 

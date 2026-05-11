@@ -4,6 +4,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerShowController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
@@ -46,6 +47,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/orders/{order}/evidence/{kind}', [OrderController::class, 'uploadEvidence'])
         ->whereIn('kind', ['pod', 'triplicate', 'lr', 'parcel'])
         ->name('orders.upload-evidence');
+
+    // Payments — multi-payment ledger per order. The legacy single payment fields
+    // on orders are now derived from the sum of these rows.
+    Route::post('/orders/{order}/payments', [PaymentController::class, 'store'])->name('payments.store');
+    Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
 
     // Shipments — nested under orders for create; flat for advance/destroy/slips
     Route::post('/orders/{order}/shipments', [ShipmentController::class, 'store'])->name('shipments.store');

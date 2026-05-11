@@ -40,6 +40,8 @@ class OrderController extends Controller
             'returns' => fn ($q) => $q->latest('date_reported'),
             'returns.items.orderItem:id,product_name',
             'returns.creator:id,name',
+            'payments' => fn ($q) => $q->orderByDesc('paid_on')->orderByDesc('id'),
+            'payments.creator:id,name',
         ]);
 
         $auditLog = \App\Models\AuditLog::query()
