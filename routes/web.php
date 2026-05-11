@@ -7,6 +7,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\UserController;
@@ -49,10 +50,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/shipments/{shipment}/packing-slip', [ShipmentController::class, 'packingSlip'])->name('shipments.packing-slip');
     Route::delete('/shipments/{shipment}', [ShipmentController::class, 'destroy'])->name('shipments.destroy');
 
-    Route::get('/returns', fn () => Inertia::render('Placeholder', [
-        'title' => 'Returns & Damages',
-        'description' => 'Case tracker for damaged-in-transit, manufacturing defects, etc. Lands in Phase 3.',
-    ]))->name('returns.index');
+    // Returns (uses {returnCase} param to avoid the PHP `return` keyword clash)
+    Route::get('/returns', [ReturnController::class, 'index'])->name('returns.index');
+    Route::post('/returns', [ReturnController::class, 'store'])->name('returns.store');
+    Route::get('/returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
+    Route::patch('/returns/{return}/start-inspection', [ReturnController::class, 'startInspection'])->name('returns.start-inspection');
+    Route::patch('/returns/{return}/resolve', [ReturnController::class, 'resolve'])->name('returns.resolve');
+    Route::patch('/returns/{return}/reject', [ReturnController::class, 'reject'])->name('returns.reject');
 
     Route::get('/settings/integrations', fn () => Inertia::render('Placeholder', [
         'title' => 'Integrations',

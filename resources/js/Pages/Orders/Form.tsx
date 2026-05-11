@@ -26,6 +26,8 @@ type FormShape = {
     customer_id: number | string;
     order_date: string;
     order_source: string;
+    customer_reference_number: string;
+    customer_po_number: string;
     brands: string; // comma-separated input, parsed on submit
     order_value: number | string;
     status: string;
@@ -72,6 +74,8 @@ function init(order?: Order | null, defaults?: { order_code?: string }): FormSha
         customer_id: order?.customer_id ?? '',
         order_date: order?.order_date ?? new Date().toISOString().split('T')[0],
         order_source: order?.order_source ?? '',
+        customer_reference_number: order?.customer_reference_number ?? '',
+        customer_po_number: order?.customer_po_number ?? '',
         brands: (order?.brands ?? []).join(', '),
         order_value: order?.order_value ?? '',
         status: order?.status ?? 'new_order',
@@ -220,6 +224,26 @@ export default function OrderForm({
                                     {ORDER_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 </SelectContent>
                             </Select>
+                        </Field>
+                    </Grid>
+                    <Grid cols={2}>
+                        <Field label="Customer reference #" id="customer_reference_number" error={form.errors.customer_reference_number}>
+                            <Input
+                                id="customer_reference_number"
+                                value={form.data.customer_reference_number}
+                                onChange={(e) => form.setData('customer_reference_number', e.target.value)}
+                                placeholder="e.g. SHRM-25-1138 (customer's own ref, if shared)"
+                                className="font-mono text-xs"
+                            />
+                        </Field>
+                        <Field label="Customer PO #" id="customer_po_number" error={form.errors.customer_po_number}>
+                            <Input
+                                id="customer_po_number"
+                                value={form.data.customer_po_number}
+                                onChange={(e) => form.setData('customer_po_number', e.target.value)}
+                                placeholder="e.g. PO/2026/04/1138"
+                                className="font-mono text-xs"
+                            />
                         </Field>
                     </Grid>
                     <Grid cols={3}>

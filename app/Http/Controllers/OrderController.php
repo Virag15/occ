@@ -34,6 +34,11 @@ class OrderController extends Controller
             'transporter',
             'creator:id,name',
             'items.product:id,name,sku',
+            'shipments.transporter:id,name',
+            'shipments.items.orderItem:id,product_name,unit',
+            'returns' => fn ($q) => $q->latest('date_reported'),
+            'returns.items.orderItem:id,product_name',
+            'returns.creator:id,name',
         ]);
 
         $auditLog = \App\Models\AuditLog::query()
@@ -47,6 +52,10 @@ class OrderController extends Controller
         return Inertia::render('Orders/Show', [
             'order' => $order,
             'auditLog' => $auditLog,
+            'transporters' => Transporter::query()
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -181,9 +190,12 @@ class OrderController extends Controller
             'status' => ['required', 'in:new_order,confirmed,stock_check,packing,packed,ready_for_dispatch,dispatched,delivered,closed,on_hold,cancelled'],
         ]);
 
+        // LR can live on the order OR on any shipment. Check both before blocking.
+        $hasAnyLr = $order->lr_number || $order->shipments()->whereNotNull('lr_number')->exists();
+
         $errors = [];
-        if ($data['status'] === 'dispatched' && !$order->lr_number) {
-            $errors['status'] = 'Add an LR number before marking dispatched.';
+        if ($data['status'] === 'dispatched' && !$hasAnyLr) {
+            $errors['status'] = 'Add an LR number on the order or on a shipment before marking dispatched.';
         }
         if ($data['status'] === 'closed' && $order->payment_status !== 'paid') {
             $errors['status'] = 'Mark payment as paid before closing the order.';
@@ -207,6 +219,12 @@ class OrderController extends Controller
 
     public function toggleLrShared(Order $order): RedirectResponse
     {
+        // Either the order or any shipment must carry an LR before this flag is meaningful.
+        $hasAnyLr = $order->lr_number || $order->shipments()->whereNotNull('lr_number')->exists();
+        if (!$hasAnyLr) {
+            return back()->withErrors(['lr_shared' => 'No LR number to share yet — add one on a shipment first.']);
+        }
+
         $next = !$order->lr_shared_with_customer;
         $order->update([
             'lr_shared_with_customer' => $next,
@@ -241,6 +259,7 @@ class OrderController extends Controller
         $request->validate([
             'photo' => ['required', 'image', 'max:10240'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'lr_number' => ['nullable', 'string', 'max:50'],
         ]);
 
         $path = $request->file('photo')->store("orders/{$order->id}/{$kind}", 'public');
@@ -258,10 +277,37 @@ class OrderController extends Controller
         $existing[] = $url;
 
         $payload = [$field => $existing];
-        if ($kind === 'pod') $payload['pod_received'] = true;
+
+        // Per-kind side-effects: set the right flag + auto-advance status when it makes sense
+        if ($kind === 'lr') {
+            if ($request->filled('lr_number')) {
+                $payload['lr_number'] = $request->input('lr_number');
+            }
+            $payload['lr_shared_with_customer'] = true;
+            $payload['lr_shared_at'] = now();
+            // Auto-advance to dispatched if we're upstream of it
+            if (in_array($order->status, ['packed', 'ready_for_dispatch'], true)) {
+                $payload['status'] = 'dispatched';
+                if (!$order->dispatch_date) $payload['dispatch_date'] = now()->toDateString();
+            }
+        }
+
+        if ($kind === 'pod') {
+            $payload['pod_received'] = true;
+            // Auto-advance to delivered when POD arrives during dispatch
+            if ($order->status === 'dispatched') {
+                $payload['status'] = 'delivered';
+                if (!$order->delivered_date) $payload['delivered_date'] = now()->toDateString();
+            }
+        }
+
         if ($kind === 'triplicate') {
             $payload['triplicate_received'] = true;
             $payload['triplicate_received_date'] = now()->toDateString();
+            // Auto-advance to closed only if payment is settled — otherwise hold here
+            if ($order->status === 'delivered' && $order->payment_status === 'paid') {
+                $payload['status'] = 'closed';
+            }
         }
 
         $order->update($payload);
@@ -311,6 +357,8 @@ class OrderController extends Controller
             'customer_id' => ['required', 'exists:customers,id'],
             'order_date' => ['required', 'date'],
             'order_source' => ['nullable', 'in:whatsapp,email,phone,in_person,po'],
+            'customer_reference_number' => ['nullable', 'string', 'max:100'],
+            'customer_po_number' => ['nullable', 'string', 'max:100'],
             'brands' => ['nullable', 'array'],
             'brands.*' => ['string'],
             'order_value' => ['nullable', 'numeric', 'min:0'],

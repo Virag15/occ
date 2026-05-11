@@ -21,6 +21,8 @@ type SlipShipment = {
         id: number;
         order_code: string;
         order_date: string;
+        customer_reference_number: string | null;
+        customer_po_number: string | null;
         priority: string | null;
         customer: {
             name: string;
@@ -42,8 +44,9 @@ export default function PickingSlip({ shipment }: { shipment: SlipShipment }) {
         day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
     });
-
     const totalQty = shipment.items.reduce((s, i) => s + Number(i.qty || 0), 0);
+    const o = shipment.order;
+    const c = o.customer;
 
     return (
         <>
@@ -52,126 +55,155 @@ export default function PickingSlip({ shipment }: { shipment: SlipShipment }) {
                 @media print {
                     .no-print { display: none !important; }
                     body { background: white !important; }
-                    @page { margin: 15mm; size: A4; }
+                    @page { size: A5 portrait; margin: 8mm; }
                 }
                 @media screen {
-                    body { background: #f4f3ef; }
+                    body { background: #e7e5e0; }
                 }
+                .slip {
+                    width: 148mm;
+                    min-height: 210mm;
+                    box-sizing: border-box;
+                    color: #1f1d1a;
+                    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+                    font-size: 9pt;
+                    line-height: 1.35;
+                }
+                .slip h1 { font-size: 13pt; letter-spacing: 0.5pt; }
+                .slip .mono { font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace; }
+                .slip .label { font-size: 7pt; letter-spacing: 0.6pt; text-transform: uppercase; color: #6b6660; }
+                .slip table { border-collapse: collapse; width: 100%; }
+                .slip thead th { font-size: 7pt; letter-spacing: 0.6pt; text-transform: uppercase; color: #6b6660; padding: 4pt 3pt; border-top: 0.8pt solid #2a2722; border-bottom: 0.4pt solid #c5beb2; text-align: left; font-weight: 600; }
+                .slip tbody td { padding: 5pt 3pt; border-bottom: 0.3pt solid #ddd6c8; vertical-align: top; }
+                .slip tbody tr:last-child td { border-bottom: none; }
+                .slip tfoot td { padding: 4pt 3pt; font-weight: 700; border-top: 0.8pt solid #2a2722; }
+                .slip .num { text-align: right; font-variant-numeric: tabular-nums; }
+                .slip .frame { border: 0.5pt solid #2a2722; padding: 5pt 7pt; border-radius: 1pt; }
+                .slip .accent { background: #f5f1e8; }
+                .slip .checkbox { display: inline-block; width: 10pt; height: 10pt; border: 0.8pt solid #2a2722; border-radius: 1pt; }
             `}</style>
-            <div className="min-h-screen p-4 md:p-8">
-                <div className="no-print mx-auto mb-4 flex max-w-3xl items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground">Press <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘P</kbd> or click Print. Close this tab when done.</p>
+
+            <div className="min-h-screen p-4 md:p-6">
+                {/* Print toolbar — screen only */}
+                <div className="no-print mx-auto mb-4 flex max-w-[148mm] items-center justify-between gap-2">
+                    <p className="text-xs text-gray-600">A5 picking slip — warehouse internal. Tick boxes as items are collected.</p>
                     <div className="flex gap-2">
-                        <button
-                            onClick={() => window.print()}
-                            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                        >
+                        <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
                             <Printer className="h-4 w-4" /> Print
                         </button>
-                        <button
-                            onClick={() => window.close()}
-                            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
-                        >
+                        <button onClick={() => window.close()} className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">
                             <X className="h-4 w-4" /> Close
                         </button>
                     </div>
                 </div>
 
-                <div className="mx-auto max-w-3xl bg-white p-8 shadow-sm print:max-w-none print:p-0 print:shadow-none">
-                    {/* Header */}
-                    <div className="flex items-start justify-between border-b pb-4">
+                {/* A5 slip */}
+                <div className="slip mx-auto bg-white p-[8mm] shadow-md print:shadow-none print:m-0 print:p-0">
+                    {/* Header band */}
+                    <div className="flex items-start justify-between border-b border-[#2a2722] pb-2">
                         <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">GC Communication</p>
-                            <h1 className="mt-1 text-2xl font-bold tracking-tight">Picking Slip</h1>
-                            <p className="text-xs text-muted-foreground">Warehouse internal — collect items per row, tick on completion</p>
+                            <p className="label">Warehouse — internal document</p>
+                            <h1 className="font-bold">GC COMMUNICATION</h1>
+                            <p className="text-[8pt] text-[#6b6660]">Nashik · Switchgear distribution</p>
                         </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                            <p className="font-mono text-sm font-semibold text-foreground">{shipment.shipment_code}</p>
-                            <p className="mt-0.5">Generated {generatedAt}</p>
+                        <div className="text-right">
+                            <p className="label">Picking slip</p>
+                            <p className="mono mt-0.5 text-[11pt] font-bold tracking-tight">{shipment.shipment_code}</p>
+                            <p className="text-[7pt] text-[#6b6660]">Generated {generatedAt}</p>
+                            {o.priority && o.priority !== 'normal' && (
+                                <p className="mt-1 inline-block rounded border border-[#2a2722] px-1.5 py-0.5 text-[7pt] font-bold uppercase tracking-wider">{o.priority}</p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Order + Customer */}
-                    <div className="mt-5 grid grid-cols-2 gap-6 text-sm">
-                        <div>
-                            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Order</p>
-                            <p className="font-mono font-semibold">{shipment.order.order_code}</p>
-                            <p className="text-xs text-muted-foreground">Placed {fmt(shipment.order.order_date)}</p>
-                            {shipment.order.priority && shipment.order.priority !== 'normal' && (
-                                <p className="mt-1 inline-block rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                                    Priority: {shipment.order.priority}
-                                </p>
-                            )}
+                    {/* Order + Customer band */}
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div className="frame">
+                            <p className="label mb-1">Customer</p>
+                            <p className="font-semibold">{c.name}</p>
+                            {c.company && <p className="text-[8pt] text-[#6b6660]">{c.company}</p>}
+                            {(c.city || c.state) && <p className="text-[8pt] text-[#6b6660]">{[c.city, c.state].filter(Boolean).join(', ')}</p>}
                         </div>
-                        <div>
-                            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Customer</p>
-                            <p className="font-semibold">{shipment.order.customer.name}</p>
-                            {shipment.order.customer.company && (
-                                <p className="text-xs text-muted-foreground">{shipment.order.customer.company}</p>
-                            )}
-                            {(shipment.order.customer.city || shipment.order.customer.state) && (
-                                <p className="text-xs text-muted-foreground">
-                                    {[shipment.order.customer.city, shipment.order.customer.state].filter(Boolean).join(', ')}
-                                </p>
-                            )}
+                        <div className="frame accent">
+                            <p className="label mb-1">Order</p>
+                            <table className="w-full text-[8pt]">
+                                <tbody>
+                                    <tr>
+                                        <td className="py-0.5 pr-2 text-[#6b6660]">Order #</td>
+                                        <td className="mono py-0.5 font-semibold">{o.order_code}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-0.5 pr-2 text-[#6b6660]">Placed</td>
+                                        <td className="py-0.5">{fmt(o.order_date)}</td>
+                                    </tr>
+                                    {o.customer_reference_number && (
+                                        <tr>
+                                            <td className="py-0.5 pr-2 text-[#6b6660]">Cust ref</td>
+                                            <td className="mono py-0.5 font-semibold">{o.customer_reference_number}</td>
+                                        </tr>
+                                    )}
+                                    {o.customer_po_number && (
+                                        <tr>
+                                            <td className="py-0.5 pr-2 text-[#6b6660]">PO #</td>
+                                            <td className="mono py-0.5 font-semibold">{o.customer_po_number}</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
                     {/* Items */}
-                    <div className="mt-6">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-y text-[10px] uppercase tracking-wide text-muted-foreground">
-                                    <th className="py-2 text-left">#</th>
-                                    <th className="py-2 text-left">Product</th>
-                                    <th className="py-2 text-left">SKU</th>
-                                    <th className="py-2 pl-2 text-right">Qty</th>
-                                    <th className="py-2 pl-2 text-left">Unit</th>
-                                    <th className="w-16 py-2 text-center">Picked</th>
+                    <table className="mt-2">
+                        <thead>
+                            <tr>
+                                <th style={{ width: '6mm' }}>#</th>
+                                <th>Product</th>
+                                <th style={{ width: '22mm' }}>SKU</th>
+                                <th className="num" style={{ width: '12mm' }}>Qty</th>
+                                <th style={{ width: '10mm' }}>Unit</th>
+                                <th style={{ width: '12mm' }} className="text-center">Picked</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {shipment.items.map((item, i) => (
+                                <tr key={item.id}>
+                                    <td className="text-[#6b6660]">{i + 1}</td>
+                                    <td className="font-medium">{item.order_item?.product_name ?? '—'}</td>
+                                    <td className="mono text-[7.5pt] text-[#6b6660]">{item.order_item?.product?.sku ?? '—'}</td>
+                                    <td className="num font-semibold">{Number(item.qty)}</td>
+                                    <td className="text-[#6b6660]">{item.order_item?.unit ?? ''}</td>
+                                    <td className="text-center"><span className="checkbox" /></td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {shipment.items.map((item, i) => (
-                                    <tr key={item.id} className="border-b last:border-0 align-top">
-                                        <td className="py-3 text-xs text-muted-foreground">{i + 1}</td>
-                                        <td className="py-3 pr-2 font-medium">{item.order_item?.product_name ?? '—'}</td>
-                                        <td className="py-3 pr-2 font-mono text-xs text-muted-foreground">{item.order_item?.product?.sku ?? '—'}</td>
-                                        <td className="py-3 pl-2 text-right font-semibold">{Number(item.qty)}</td>
-                                        <td className="py-3 pl-2 text-xs text-muted-foreground">{item.order_item?.unit ?? ''}</td>
-                                        <td className="py-3 text-center">
-                                            <span className="inline-block h-5 w-5 rounded border-2 border-gray-400" />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                <tr className="border-t-2">
-                                    <td colSpan={3} className="py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total units</td>
-                                    <td className="py-2 pl-2 text-right text-base font-bold">{totalQty}</td>
-                                    <td colSpan={2} />
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colSpan={3} className="label">Total units</td>
+                                <td className="num">{totalQty}</td>
+                                <td colSpan={2} />
+                            </tr>
+                        </tfoot>
+                    </table>
 
                     {shipment.notes && (
-                        <div className="mt-6 rounded border border-gray-300 p-3">
-                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
-                            <p className="whitespace-pre-line text-xs">{shipment.notes}</p>
+                        <div className="frame mt-2 text-[8pt]">
+                            <p className="label mb-0.5">Notes</p>
+                            <p className="whitespace-pre-line">{shipment.notes}</p>
                         </div>
                     )}
 
                     {/* Signatures */}
-                    <div className="mt-10 grid grid-cols-2 gap-12 text-xs text-muted-foreground">
+                    <div className="mt-3 grid grid-cols-2 gap-4 text-[8pt]">
                         <div>
-                            <p className="mb-8">Picked by:</p>
-                            <div className="border-b border-dashed border-gray-500" />
-                            <p className="mt-1">Name &amp; Signature</p>
+                            <p className="mb-6">Picked by:</p>
+                            <div className="border-b border-dashed border-[#6b6660]" />
+                            <p className="mt-1 text-[7pt] text-[#6b6660]">Name &amp; signature</p>
                         </div>
                         <div>
-                            <p className="mb-8">Verified by:</p>
-                            <div className="border-b border-dashed border-gray-500" />
-                            <p className="mt-1">Name &amp; Signature</p>
+                            <p className="mb-6">Verified by:</p>
+                            <div className="border-b border-dashed border-[#6b6660]" />
+                            <p className="mt-1 text-[7pt] text-[#6b6660]">Name &amp; signature</p>
                         </div>
                     </div>
                 </div>

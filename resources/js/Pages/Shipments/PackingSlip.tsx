@@ -8,6 +8,7 @@ type SlipItem = {
         id: number;
         product_name: string;
         unit?: string | null;
+        hsn_code?: string | null;
         product?: { id: number; sku?: string | null } | null;
     } | null;
 };
@@ -33,6 +34,8 @@ type SlipShipment = {
         order_code: string;
         order_date: string;
         invoice_number: string | null;
+        customer_reference_number: string | null;
+        customer_po_number: string | null;
         priority: string | null;
         customer: {
             name: string;
@@ -57,9 +60,9 @@ export default function PackingSlip({ shipment }: { shipment: SlipShipment }) {
         day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
     });
-
     const totalQty = shipment.items.reduce((s, i) => s + Number(i.qty || 0), 0);
     const c = shipment.order.customer;
+    const o = shipment.order;
 
     return (
         <>
@@ -68,171 +71,192 @@ export default function PackingSlip({ shipment }: { shipment: SlipShipment }) {
                 @media print {
                     .no-print { display: none !important; }
                     body { background: white !important; }
-                    @page { margin: 15mm; size: A4; }
+                    @page { size: A5 portrait; margin: 8mm; }
                 }
                 @media screen {
-                    body { background: #f4f3ef; }
+                    body { background: #e7e5e0; }
                 }
+                .slip {
+                    width: 148mm;
+                    min-height: 210mm;
+                    box-sizing: border-box;
+                    color: #1f1d1a;
+                    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+                    font-size: 9pt;
+                    line-height: 1.35;
+                }
+                .slip h1 { font-size: 13pt; letter-spacing: 0.5pt; }
+                .slip .mono { font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace; }
+                .slip .label { font-size: 7pt; letter-spacing: 0.6pt; text-transform: uppercase; color: #6b6660; }
+                .slip table { border-collapse: collapse; width: 100%; }
+                .slip thead th { font-size: 7pt; letter-spacing: 0.6pt; text-transform: uppercase; color: #6b6660; padding: 4pt 3pt; border-top: 0.8pt solid #2a2722; border-bottom: 0.4pt solid #c5beb2; text-align: left; font-weight: 600; }
+                .slip tbody td { padding: 4pt 3pt; border-bottom: 0.3pt solid #ddd6c8; vertical-align: top; }
+                .slip tbody tr:last-child td { border-bottom: none; }
+                .slip tfoot td { padding: 4pt 3pt; font-weight: 700; border-top: 0.8pt solid #2a2722; }
+                .slip .num { text-align: right; font-variant-numeric: tabular-nums; }
+                .slip .frame { border: 0.5pt solid #2a2722; padding: 5pt 7pt; border-radius: 1pt; }
+                .slip .accent { background: #f5f1e8; }
             `}</style>
-            <div className="min-h-screen p-4 md:p-8">
-                <div className="no-print mx-auto mb-4 flex max-w-3xl items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground">This slip ships with the parcel. Three copies recommended: customer, transporter, file.</p>
+
+            <div className="min-h-screen p-4 md:p-6">
+                {/* Print toolbar — screen only */}
+                <div className="no-print mx-auto mb-4 flex max-w-[148mm] items-center justify-between gap-2">
+                    <p className="text-xs text-gray-600">A5 packing slip — three copies recommended (customer, transporter, file).</p>
                     <div className="flex gap-2">
-                        <button
-                            onClick={() => window.print()}
-                            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                        >
+                        <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700">
                             <Printer className="h-4 w-4" /> Print
                         </button>
-                        <button
-                            onClick={() => window.close()}
-                            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
-                        >
+                        <button onClick={() => window.close()} className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50">
                             <X className="h-4 w-4" /> Close
                         </button>
                     </div>
                 </div>
 
-                <div className="mx-auto max-w-3xl bg-white p-8 shadow-sm print:max-w-none print:p-0 print:shadow-none">
-                    {/* Header */}
-                    <div className="flex items-start justify-between border-b pb-4">
+                {/* A5 slip */}
+                <div className="slip mx-auto bg-white p-[8mm] shadow-md print:shadow-none print:m-0 print:p-0">
+                    {/* Header band */}
+                    <div className="flex items-start justify-between border-b border-[#2a2722] pb-2">
                         <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">GC Communication</p>
-                            <h1 className="mt-1 text-2xl font-bold tracking-tight">Packing Slip</h1>
-                            <p className="text-xs text-muted-foreground">Authorized distributor — C&amp;S Electric, BCH Electric, Luker, Suraj, Kaycee</p>
+                            <p className="label">Authorized Distributor — Switchgear</p>
+                            <h1 className="font-bold">GC COMMUNICATION</h1>
+                            <p className="text-[8pt] text-[#6b6660]">Nashik, Maharashtra · GSTIN 27AAACG1234A1Z5</p>
+                            <p className="text-[8pt] text-[#6b6660]">C&amp;S Electric · BCH · Luker · Suraj · Kaycee</p>
                         </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                            <p className="font-mono text-sm font-semibold text-foreground">{shipment.shipment_code}</p>
-                            <p className="mt-0.5">Generated {generatedAt}</p>
+                        <div className="text-right">
+                            <p className="label">Packing slip</p>
+                            <p className="mono mt-0.5 text-[11pt] font-bold tracking-tight">{shipment.shipment_code}</p>
+                            <p className="text-[7pt] text-[#6b6660]">Generated {generatedAt}</p>
+                            {o.priority && o.priority !== 'normal' && (
+                                <p className="mt-1 inline-block rounded border border-[#2a2722] px-1.5 py-0.5 text-[7pt] font-bold uppercase tracking-wider">{o.priority}</p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Order + Ship-to */}
-                    <div className="mt-5 grid grid-cols-2 gap-6 text-sm">
-                        <div>
-                            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Order</p>
-                            <p className="font-mono font-semibold">{shipment.order.order_code}</p>
-                            <p className="text-xs text-muted-foreground">Order date: {fmt(shipment.order.order_date)}</p>
-                            {shipment.order.invoice_number && (
-                                <p className="mt-1 text-xs"><span className="text-muted-foreground">Invoice: </span><span className="font-mono">{shipment.order.invoice_number}</span></p>
-                            )}
-                        </div>
-                        <div>
-                            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Ship to</p>
+                    {/* Ship-to & Order info */}
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div className="frame">
+                            <p className="label mb-1">Ship to</p>
                             <p className="font-semibold">{c.name}</p>
-                            {c.company && <p className="text-xs text-muted-foreground">{c.company}</p>}
-                            {c.delivery_address && <p className="whitespace-pre-line text-xs text-muted-foreground">{c.delivery_address}</p>}
-                            {(c.city || c.state) && (
-                                <p className="text-xs text-muted-foreground">{[c.city, c.state].filter(Boolean).join(', ')}</p>
-                            )}
-                            {c.gstin && <p className="font-mono text-xs text-muted-foreground">GSTIN: {c.gstin}</p>}
-                            {c.phone && <p className="font-mono text-xs text-muted-foreground">{c.phone}</p>}
+                            {c.company && <p className="text-[8pt] text-[#6b6660]">{c.company}</p>}
+                            {c.delivery_address && <p className="whitespace-pre-line text-[8pt]">{c.delivery_address}</p>}
+                            {(c.city || c.state) && <p className="text-[8pt]">{[c.city, c.state].filter(Boolean).join(', ')}</p>}
+                            {c.gstin && <p className="mono text-[8pt]">GSTIN: {c.gstin}</p>}
+                            {c.phone && <p className="mono text-[8pt]">{c.phone}</p>}
+                        </div>
+                        <div className="frame accent">
+                            <p className="label mb-1">Order reference</p>
+                            <table className="w-full text-[8pt]">
+                                <tbody>
+                                    <tr>
+                                        <td className="py-0.5 pr-2 text-[#6b6660]">Order #</td>
+                                        <td className="mono py-0.5 font-semibold">{o.order_code}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-0.5 pr-2 text-[#6b6660]">Order date</td>
+                                        <td className="py-0.5">{fmt(o.order_date)}</td>
+                                    </tr>
+                                    {o.customer_reference_number && (
+                                        <tr>
+                                            <td className="py-0.5 pr-2 text-[#6b6660]">Your ref</td>
+                                            <td className="mono py-0.5 font-semibold">{o.customer_reference_number}</td>
+                                        </tr>
+                                    )}
+                                    {o.customer_po_number && (
+                                        <tr>
+                                            <td className="py-0.5 pr-2 text-[#6b6660]">Your PO</td>
+                                            <td className="mono py-0.5 font-semibold">{o.customer_po_number}</td>
+                                        </tr>
+                                    )}
+                                    {o.invoice_number && (
+                                        <tr>
+                                            <td className="py-0.5 pr-2 text-[#6b6660]">Invoice #</td>
+                                            <td className="mono py-0.5">{o.invoice_number}</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    {/* Dispatch info grid */}
-                    <div className="mt-5 grid grid-cols-3 gap-3 rounded border border-gray-300 p-3 text-xs">
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">Transporter</p>
-                            <p className="font-medium">{shipment.transporter?.name ?? '—'}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">LR Number</p>
-                            <p className="font-mono font-medium">{shipment.lr_number ?? '—'}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">Vehicle</p>
-                            <p className="font-mono font-medium">{shipment.vehicle_number ?? '—'}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">Dispatched</p>
-                            <p className="font-medium">{fmt(shipment.dispatch_date)}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">Expected delivery</p>
-                            <p className="font-medium">{fmt(shipment.expected_delivery)}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">Packed by</p>
-                            <p className="font-medium">{shipment.packed_by ?? '—'}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">No. of boxes</p>
-                            <p className="font-medium">{shipment.number_of_boxes ?? '—'}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">Total weight</p>
-                            <p className="font-medium">{shipment.parcel_weight_kg ? `${shipment.parcel_weight_kg} kg` : '—'}</p>
-                        </div>
-                        <div>
-                            <p className="mb-0.5 text-muted-foreground">Driver</p>
-                            <p className="font-medium">
-                                {shipment.driver_name ?? '—'}
-                                {shipment.driver_contact && <span className="block font-mono">{shipment.driver_contact}</span>}
-                            </p>
-                        </div>
+                    {/* Dispatch / Carrier band */}
+                    <div className="mt-2 grid grid-cols-4 gap-1 text-[8pt]">
+                        <DispatchCell label="Transporter" value={shipment.transporter?.name ?? '—'} />
+                        <DispatchCell label="LR number" value={shipment.lr_number ?? '—'} mono />
+                        <DispatchCell label="Vehicle" value={shipment.vehicle_number ?? '—'} mono />
+                        <DispatchCell label="Dispatched" value={fmt(shipment.dispatch_date)} />
+                        <DispatchCell label="Expected" value={fmt(shipment.expected_delivery)} />
+                        <DispatchCell label="Boxes" value={shipment.number_of_boxes != null ? String(shipment.number_of_boxes) : '—'} />
+                        <DispatchCell label="Weight" value={shipment.parcel_weight_kg ? `${shipment.parcel_weight_kg} kg` : '—'} />
+                        <DispatchCell label="Packed by" value={shipment.packed_by ?? '—'} />
                     </div>
 
                     {/* Items */}
-                    <div className="mt-6">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-y text-[10px] uppercase tracking-wide text-muted-foreground">
-                                    <th className="py-2 text-left">#</th>
-                                    <th className="py-2 text-left">Product</th>
-                                    <th className="py-2 text-left">SKU</th>
-                                    <th className="py-2 pl-2 text-right">Qty</th>
-                                    <th className="py-2 pl-2 text-left">Unit</th>
+                    <table className="mt-2">
+                        <thead>
+                            <tr>
+                                <th style={{ width: '8mm' }}>#</th>
+                                <th>Product</th>
+                                <th style={{ width: '20mm' }}>SKU</th>
+                                <th className="num" style={{ width: '12mm' }}>Qty</th>
+                                <th style={{ width: '10mm' }}>Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {shipment.items.map((item, i) => (
+                                <tr key={item.id}>
+                                    <td className="text-[#6b6660]">{i + 1}</td>
+                                    <td className="font-medium">{item.order_item?.product_name ?? '—'}</td>
+                                    <td className="mono text-[7.5pt] text-[#6b6660]">{item.order_item?.product?.sku ?? '—'}</td>
+                                    <td className="num font-semibold">{Number(item.qty)}</td>
+                                    <td className="text-[#6b6660]">{item.order_item?.unit ?? ''}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {shipment.items.map((item, i) => (
-                                    <tr key={item.id} className="border-b last:border-0 align-top">
-                                        <td className="py-3 text-xs text-muted-foreground">{i + 1}</td>
-                                        <td className="py-3 pr-2 font-medium">{item.order_item?.product_name ?? '—'}</td>
-                                        <td className="py-3 pr-2 font-mono text-xs text-muted-foreground">{item.order_item?.product?.sku ?? '—'}</td>
-                                        <td className="py-3 pl-2 text-right font-semibold">{Number(item.qty)}</td>
-                                        <td className="py-3 pl-2 text-xs text-muted-foreground">{item.order_item?.unit ?? ''}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                <tr className="border-t-2">
-                                    <td colSpan={3} className="py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total units</td>
-                                    <td className="py-2 pl-2 text-right text-base font-bold">{totalQty}</td>
-                                    <td />
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colSpan={3} className="label" style={{ borderTop: '0.8pt solid #2a2722' }}>Total units</td>
+                                <td className="num">{totalQty}</td>
+                                <td />
+                            </tr>
+                        </tfoot>
+                    </table>
 
                     {shipment.notes && (
-                        <div className="mt-6 rounded border border-gray-300 p-3">
-                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
-                            <p className="whitespace-pre-line text-xs">{shipment.notes}</p>
+                        <div className="frame mt-2 text-[8pt]">
+                            <p className="label mb-0.5">Notes</p>
+                            <p className="whitespace-pre-line">{shipment.notes}</p>
                         </div>
                     )}
 
                     {/* Disclaimer */}
-                    <div className="mt-6 text-[10px] text-muted-foreground">
-                        <p>Goods once dispatched will not be taken back. Any damage / shortage must be reported within 48 hours of receipt with photo evidence. E&amp;OE.</p>
-                    </div>
+                    <p className="mt-2 text-[7pt] leading-snug text-[#6b6660]">
+                        Goods once dispatched will not be taken back. Any damage or shortage must be reported within 48 hours with photo evidence on +91-XXXX-XXXXXX. E&amp;OE. Subject to Nashik jurisdiction.
+                    </p>
 
                     {/* Signatures */}
-                    <div className="mt-8 grid grid-cols-2 gap-12 text-xs text-muted-foreground">
+                    <div className="mt-3 grid grid-cols-2 gap-4 text-[8pt]">
                         <div>
-                            <p className="mb-8">For GC Communication:</p>
-                            <div className="border-b border-dashed border-gray-500" />
-                            <p className="mt-1">Authorised Signatory</p>
+                            <p className="mb-6">For GC Communication:</p>
+                            <div className="border-b border-dashed border-[#6b6660]" />
+                            <p className="mt-1 text-[7pt] text-[#6b6660]">Authorised Signatory</p>
                         </div>
                         <div>
-                            <p className="mb-8">Received in good condition:</p>
-                            <div className="border-b border-dashed border-gray-500" />
-                            <p className="mt-1">Customer Signature &amp; Date</p>
+                            <p className="mb-6">Received in good condition:</p>
+                            <div className="border-b border-dashed border-[#6b6660]" />
+                            <p className="mt-1 text-[7pt] text-[#6b6660]">Customer signature &amp; date</p>
                         </div>
                     </div>
                 </div>
             </div>
         </>
+    );
+}
+
+function DispatchCell({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+    return (
+        <div className="rounded-[1pt] border border-[#c5beb2] px-1.5 py-1">
+            <p className="label">{label}</p>
+            <p className={`mt-0.5 truncate font-semibold ${mono ? 'mono' : ''}`}>{value}</p>
+        </div>
     );
 }

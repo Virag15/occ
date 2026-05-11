@@ -156,6 +156,8 @@ export type Order = {
     customer?: CustomerLite;
     order_date: string;
     order_source: string | null;
+    customer_reference_number: string | null;
+    customer_po_number: string | null;
     brands: string[] | null;
     order_value: string | null;
     status: string;
@@ -196,6 +198,51 @@ export type Order = {
     items?: OrderItem[];
     created_at: string;
     updated_at: string;
+};
+
+export type ReturnItem = {
+    id: number;
+    return_id: number;
+    order_item_id: number;
+    qty_returned: number | string;
+    condition: string;
+    reason: string | null;
+    replacement_order_item_id: number | null;
+    order_item?: {
+        id: number;
+        product_name: string;
+        unit?: string | null;
+        product?: { id: number; sku?: string | null } | null;
+    } | null;
+};
+
+export type ReturnCase = {
+    id: number;
+    case_code: string;
+    related_order_id: number | null;
+    customer_id: number;
+    case_title: string | null;
+    date_reported: string;
+    case_type: string | null;
+    brand: string | null;
+    severity: string | null;
+    case_status: string;
+    inspection_started_at: string | null;
+    resolution_type: string | null;
+    resolution_date: string | null;
+    credit_note_number: string | null;
+    replacement_lr_number: string | null;
+    value_at_risk: string | null;
+    reason_detail: string | null;
+    reported_via: string | null;
+    internal_notes: string | null;
+    items?: ReturnItem[];
+    customer?: { id: number; name: string; company?: string | null; phone?: string | null; city?: string | null };
+    order?: { id: number; order_code: string; order_date?: string; order_value?: string | null };
+    creator?: { id: number; name: string } | null;
+    inspector?: { id: number; name: string } | null;
+    resolver?: { id: number; name: string } | null;
+    created_at: string;
 };
 
 export type Pagination = {
