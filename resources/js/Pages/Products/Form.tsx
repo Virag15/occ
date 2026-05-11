@@ -88,7 +88,7 @@ export default function ProductForm({ product }: { product?: Product | null }) {
             </Section>
 
             <Section icon={Receipt} title="Tax & unit">
-                <Grid cols={3}>
+                <Grid cols={2}>
                     <Field label="HSN/SAC code" id="hsn_code" error={form.errors.hsn_code} help="GST classification code">
                         <Input id="hsn_code" className="font-mono text-xs" value={form.data.hsn_code} onChange={(e) => form.setData('hsn_code', e.target.value)} />
                     </Field>
@@ -107,7 +107,7 @@ export default function ProductForm({ product }: { product?: Product | null }) {
             </Section>
 
             <Section icon={IndianRupee} title="Pricing">
-                <Grid cols={3}>
+                <Grid cols={2}>
                     <Field label="MRP (₹)" id="mrp" error={form.errors.mrp} help="Maximum retail price (sticker)">
                         <Input id="mrp" type="number" step="0.01" value={form.data.mrp} onChange={(e) => form.setData('mrp', e.target.value)} className="tabular-nums" />
                     </Field>

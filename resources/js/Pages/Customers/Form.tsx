@@ -128,7 +128,7 @@ export default function CustomerForm({ customer }: { customer?: Customer | null 
             </Section>
 
             <Section icon={IndianRupee} title="Commercial terms">
-                <Grid cols={3}>
+                <Grid cols={2}>
                     <Field label="Payment terms" id="payment_terms" error={form.errors.payment_terms}>
                         <Select value={form.data.payment_terms || undefined} onValueChange={(v) => form.setData('payment_terms', v)}>
                             <SelectTrigger id="payment_terms"><SelectValue placeholder="—" /></SelectTrigger>

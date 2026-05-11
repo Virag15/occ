@@ -177,7 +177,7 @@ export default function OrderForm({
                 </CardHeader>
                 <CardContent className="p-4 pt-2 space-y-4">
                     {/* Row 1: identity */}
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         <Field label="Order code" id="order_code" help="Auto-generated">
                             <Input id="order_code" value={form.data.order_code} readOnly className="bg-muted font-mono text-xs" />
                         </Field>
@@ -229,7 +229,7 @@ export default function OrderForm({
                     </div>
 
                     {/* Row 4: state */}
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         <Field label="Status *" id="status" error={form.errors.status}>
                             <Select value={form.data.status} onValueChange={(v) => form.setData('status', v)}>
                                 <SelectTrigger id="status"><SelectValue /></SelectTrigger>
@@ -525,7 +525,6 @@ function PriceHistoryPopover({
                     className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
                     disabled={!enabled}
                     title={enabled ? 'See past prices for this customer × product' : 'Pick customer and product first'}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 >
                     <Info className="h-3.5 w-3.5" />
                 </button>

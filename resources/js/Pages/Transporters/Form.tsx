@@ -111,7 +111,7 @@ export default function TransporterForm({ transporter }: { transporter?: Transpo
             </Section>
 
             <Section icon={Gauge} title="Logistics performance">
-                <Grid cols={3}>
+                <Grid cols={2}>
                     <Field label="Avg transit days" id="avg_transit_days" error={form.errors.avg_transit_days} help="Typical delivery time">
                         <Input id="avg_transit_days" type="number" value={form.data.avg_transit_days} onChange={(e) => form.setData('avg_transit_days', e.target.value)} className="tabular-nums" />
                     </Field>
