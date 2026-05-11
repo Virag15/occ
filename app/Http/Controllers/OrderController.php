@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\Transporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +34,7 @@ class OrderController extends Controller
             'customer',
             'transporter',
             'creator:id,name',
+            'items.product:id,name,sku',
         ]);
 
         $auditLog = AuditLog::query()
@@ -53,6 +56,7 @@ class OrderController extends Controller
         return Inertia::render('Orders/Create', [
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'company']),
             'transporters' => Transporter::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
+            'products' => $this->productOptions(),
             'nextOrderCode' => $this->nextOrderCode(),
         ]);
     }
@@ -60,19 +64,34 @@ class OrderController extends Controller
     public function edit(Order $order): Response
     {
         return Inertia::render('Orders/Edit', [
-            'order' => $order->load(['customer:id,name,company', 'transporter:id,name']),
+            'order' => $order->load(['customer:id,name,company', 'transporter:id,name', 'items']),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'company']),
             'transporters' => Transporter::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
+            'products' => $this->productOptions(),
         ]);
+    }
+
+    private function productOptions(): \Illuminate\Support\Collection
+    {
+        return Product::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku', 'brand', 'unit', 'default_sale_price', 'gst_rate']);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
+        $items = $this->validatedItems($request);
         $data['order_code'] ??= $this->nextOrderCode();
         $data['created_by'] = Auth::id();
+        // Derive order_value from sum of line totals when items present
+        if (!empty($items)) {
+            $data['order_value'] = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+        }
 
         $order = Order::create($data);
+        $this->syncItems($order, $items);
 
         AuditLog::create([
             'user_id' => Auth::id(),
@@ -88,10 +107,15 @@ class OrderController extends Controller
     public function update(Request $request, Order $order): RedirectResponse
     {
         $data = $this->validated($request);
+        $items = $this->validatedItems($request);
         $oldStatus = $order->status;
         $oldPaymentStatus = $order->payment_status;
 
+        if (!empty($items)) {
+            $data['order_value'] = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+        }
         $order->update($data);
+        $this->syncItems($order, $items);
 
         $changes = [];
         if ($oldStatus !== $order->status) {
@@ -112,6 +136,64 @@ class OrderController extends Controller
         }
 
         return redirect()->route('orders.index');
+    }
+
+    /**
+     * Replace the order's line items with the submitted list.
+     * Items with `id` get updated (preserving qty_packed/dispatched/etc.);
+     * items without `id` are inserted fresh.
+     */
+    private function syncItems(Order $order, array $items): void
+    {
+        if (empty($items)) return;
+
+        $keepIds = [];
+        foreach ($items as $i) {
+            $product = isset($i['product_id']) ? Product::find($i['product_id']) : null;
+            $payload = [
+                'product_id' => $i['product_id'] ?? null,
+                'product_name' => $i['product_name'] ?? ($product?->name ?? 'Unnamed line'),
+                'qty_ordered' => $i['qty_ordered'],
+                'unit' => $i['unit'] ?? $product?->unit,
+                'unit_price' => $i['unit_price'] ?? null,
+                'tax_rate' => $i['tax_rate'] ?? null,
+                'line_total' => $i['line_total'] ?? null,
+                'notes' => $i['notes'] ?? null,
+            ];
+
+            if (!empty($i['id'])) {
+                $oi = OrderItem::where('order_id', $order->id)->find($i['id']);
+                if ($oi) {
+                    $oi->update($payload);
+                    $keepIds[] = $oi->id;
+                    continue;
+                }
+            }
+
+            $created = $order->items()->create($payload + ['status' => 'pending']);
+            $keepIds[] = $created->id;
+        }
+
+        // Remove any items that weren't in the submitted list
+        $order->items()->whereNotIn('id', $keepIds)->delete();
+    }
+
+    private function validatedItems(Request $request): array
+    {
+        if (!$request->has('items')) return [];
+
+        return $request->validate([
+            'items' => ['nullable', 'array'],
+            'items.*.id' => ['nullable', 'integer'],
+            'items.*.product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'items.*.product_name' => ['required_with:items', 'string', 'max:255'],
+            'items.*.qty_ordered' => ['required_with:items', 'numeric', 'min:0.001'],
+            'items.*.unit' => ['nullable', 'string', 'max:20'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'items.*.line_total' => ['nullable', 'numeric', 'min:0'],
+            'items.*.notes' => ['nullable', 'string'],
+        ])['items'] ?? [];
     }
 
     public function destroy(Order $order): RedirectResponse

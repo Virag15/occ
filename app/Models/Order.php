@@ -91,6 +91,11 @@ class Order extends Model
         return $this->hasMany(Communication::class);
     }
 
+    public function items(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
     public function scopePendingLRShare(Builder $q): Builder
     {
         return $q->whereNotNull('lr_number')->where('lr_shared_with_customer', false);

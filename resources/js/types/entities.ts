@@ -83,6 +83,34 @@ export type Product = {
 
 export type CustomerLite = { id: number; name: string; company?: string | null };
 export type TransporterLite = { id: number; name: string };
+export type ProductLite = {
+    id: number;
+    name: string;
+    sku?: string | null;
+    brand?: string | null;
+    unit?: string | null;
+    default_sale_price?: string | null;
+    gst_rate?: string | null;
+};
+
+export type OrderItem = {
+    id?: number;
+    product_id: number | null;
+    product_name: string;
+    qty_ordered: number | string;
+    qty_packed?: number | string;
+    qty_dispatched?: number | string;
+    qty_delivered?: number | string;
+    qty_cancelled?: number | string;
+    qty_returned?: number | string;
+    unit?: string | null;
+    unit_price?: number | string | null;
+    tax_rate?: number | string | null;
+    line_total?: number | string | null;
+    status?: string;
+    notes?: string | null;
+    product?: { id: number; name: string; sku?: string | null };
+};
 
 export type Order = {
     id: number;
@@ -128,6 +156,7 @@ export type Order = {
     payment_mode: string | null;
 
     internal_notes: string | null;
+    items?: OrderItem[];
     created_at: string;
     updated_at: string;
 };
