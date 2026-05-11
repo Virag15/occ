@@ -42,9 +42,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereIn('kind', ['pod', 'triplicate', 'lr', 'parcel'])
         ->name('orders.upload-evidence');
 
-    // Shipments — nested under orders for create; flat for advance/destroy
+    // Shipments — nested under orders for create; flat for advance/destroy/slips
     Route::post('/orders/{order}/shipments', [ShipmentController::class, 'store'])->name('shipments.store');
     Route::patch('/shipments/{shipment}/advance/{target}', [ShipmentController::class, 'advance'])->whereIn('target', ['dispatched', 'delivered', 'cancelled'])->name('shipments.advance');
+    Route::get('/shipments/{shipment}/picking-slip', [ShipmentController::class, 'pickingSlip'])->name('shipments.picking-slip');
+    Route::get('/shipments/{shipment}/packing-slip', [ShipmentController::class, 'packingSlip'])->name('shipments.packing-slip');
     Route::delete('/shipments/{shipment}', [ShipmentController::class, 'destroy'])->name('shipments.destroy');
 
     Route::get('/returns', fn () => Inertia::render('Placeholder', [

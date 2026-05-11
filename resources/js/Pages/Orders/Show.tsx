@@ -2,7 +2,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 import {
     ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, Building2, MapPin,
-    Zap, MessageSquare, CheckCircle2, ChevronRight, Upload, Image as ImageIcon,
+    Zap, MessageSquare, CheckCircle2, ChevronRight, Upload, Image as ImageIcon, Printer, ClipboardList,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -14,9 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { CreateShipmentDialog } from '@/components/CreateShipmentDialog';
 import { formatCurrency, formatDateIN, nullable } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { Customer, Order, TransporterLite } from '@/types/entities';
+import type { Customer, Order, Shipment as ShipmentT, TransporterLite } from '@/types/entities';
+type Shipment = ShipmentT;
 
 type AuditEntry = {
     id: number;
@@ -30,6 +32,7 @@ type OrderFull = Order & {
     customer?: Customer;
     transporter?: TransporterLite | null;
     creator?: { id: number; name: string } | null;
+    shipments?: Shipment[];
 };
 
 function statusBadgeClasses(status: string): string {
@@ -198,8 +201,9 @@ const NEXT_STATUS: Record<string, string> = {
     delivered: 'closed',
 };
 
-export default function OrderShow({ order, auditLog }: { order: OrderFull; auditLog: AuditEntry[] }) {
+export default function OrderShow({ order, auditLog, transporters }: { order: OrderFull; auditLog: AuditEntry[]; transporters: TransporterLite[] }) {
     const c = order.customer;
+    const [createShipmentOpen, setCreateShipmentOpen] = useState(false);
 
     const quickPatch = (url: string, body: Record<string, string | number> | undefined, successMsg: string) => {
         router.patch(url, body ?? {}, {
@@ -303,6 +307,14 @@ export default function OrderShow({ order, auditLog }: { order: OrderFull; audit
                 kind={evidenceKind}
                 orderId={order.id}
                 onClose={() => setEvidenceKind(null)}
+            />
+
+            <CreateShipmentDialog
+                open={createShipmentOpen}
+                onClose={() => setCreateShipmentOpen(false)}
+                orderId={order.id}
+                orderItems={order.items ?? []}
+                transporters={transporters}
             />
 
             {/* Headline KPIs */}
@@ -419,6 +431,111 @@ export default function OrderShow({ order, auditLog }: { order: OrderFull; audit
                             <KV label="Payment date" value={order.payment_received_date ? formatDateIN(order.payment_received_date) : null} />
                             <KV label="Payment mode" value={order.payment_mode} />
                         </dl>
+                    </SectionCard>
+
+                    <SectionCard
+                        icon={Truck}
+                        title={`Shipments (${order.shipments?.length ?? 0})`}
+                        action={
+                            (order.items?.length ?? 0) > 0 ? (
+                                <Button size="sm" onClick={() => setCreateShipmentOpen(true)}>
+                                    <Truck className="h-3.5 w-3.5 mr-1" /> Create shipment
+                                </Button>
+                            ) : null
+                        }
+                    >
+                        {(!order.shipments || order.shipments.length === 0) ? (
+                            <p className="text-sm text-muted-foreground">
+                                {(order.items?.length ?? 0) > 0
+                                    ? 'No shipments yet. Click "Create shipment" to pack a partial fulfillment.'
+                                    : 'Add line items first.'}
+                            </p>
+                        ) : (
+                            <div className="space-y-3">
+                                {order.shipments.map((s: Shipment) => {
+                                    const lineSummary = (s.items ?? [])
+                                        .map((si) => `${Number(si.qty)} × ${si.order_item?.product_name ?? 'line'}`)
+                                        .join('; ');
+                                    const statusCls: Record<string, string> = {
+                                        planning: 'bg-muted text-muted-foreground border-border',
+                                        packing: 'bg-yellow-500/10 text-yellow-700 border-yellow-200',
+                                        packed: 'bg-yellow-500/10 text-yellow-700 border-yellow-200',
+                                        dispatched: 'bg-orange-500/10 text-orange-600 border-orange-200',
+                                        in_transit: 'bg-orange-500/10 text-orange-600 border-orange-200',
+                                        delivered: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+                                        closed: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+                                        cancelled: 'bg-red-500/10 text-red-600 border-red-200',
+                                    };
+                                    const next = s.status === 'packed' ? 'dispatched' : s.status === 'dispatched' ? 'delivered' : null;
+                                    return (
+                                        <div key={s.id} className="rounded-md border p-3">
+                                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-xs font-medium">{s.shipment_code}</span>
+                                                        <Badge className={cn('border', statusCls[s.status] ?? 'bg-muted')}>{s.status.replace(/_/g, ' ')}</Badge>
+                                                    </div>
+                                                    <p className="mt-1 text-xs text-muted-foreground">{lineSummary || 'no items'}</p>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                                                        {s.transporter?.name && <span>🚚 {s.transporter.name}</span>}
+                                                        {s.lr_number && <span className="font-mono">LR: {s.lr_number}</span>}
+                                                        {s.dispatch_date && <span>Dispatched {formatDateIN(s.dispatch_date)}</span>}
+                                                        {s.delivered_date && <span>Delivered {formatDateIN(s.delivered_date)}</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        title="Picking slip"
+                                                        onClick={() => window.open(route('shipments.picking-slip', { shipment: s.id }), '_blank')}
+                                                    >
+                                                        <ClipboardList className="h-3.5 w-3.5 mr-1" /> Picking
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        title="Packing slip"
+                                                        onClick={() => window.open(route('shipments.packing-slip', { shipment: s.id }), '_blank')}
+                                                    >
+                                                        <Printer className="h-3.5 w-3.5 mr-1" /> Packing
+                                                    </Button>
+                                                    {next && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => router.patch(route('shipments.advance', { shipment: s.id, target: next }), {}, {
+                                                                preserveScroll: true,
+                                                                onSuccess: () => toast.success(`Shipment → ${next}`),
+                                                                onError: (errs) => toast.error(Object.values(errs).join(', ')),
+                                                            })}
+                                                        >
+                                                            Mark {next}
+                                                        </Button>
+                                                    )}
+                                                    {!['delivered', 'closed', 'cancelled'].includes(s.status) && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-destructive hover:text-red-700"
+                                                            onClick={() => {
+                                                                if (!confirm(`Cancel shipment ${s.shipment_code}? Quantities will refund to the open balance.`)) return;
+                                                                router.delete(route('shipments.destroy', { shipment: s.id }), {
+                                                                    preserveScroll: true,
+                                                                    onSuccess: () => toast.success('Shipment cancelled'),
+                                                                });
+                                                            }}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </SectionCard>
 
                     <SectionCard icon={History} title="Activity">

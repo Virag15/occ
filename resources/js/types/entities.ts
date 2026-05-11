@@ -1,3 +1,40 @@
+export type ShipmentItemLite = {
+    id: number;
+    shipment_id: number;
+    order_item_id: number;
+    qty: number | string;
+    order_item?: { id: number; product_name: string };
+};
+
+export type Shipment = {
+    id: number;
+    shipment_code: string;
+    order_id: number;
+    transporter_id: number | null;
+    transporter?: { id: number; name: string } | null;
+    packed_by: string | null;
+    number_of_boxes: number | null;
+    parcel_weight_kg: string | null;
+    picking_slip_generated_at: string | null;
+    packing_slip_generated_at: string | null;
+    pickup_scheduled_date: string | null;
+    driver_name: string | null;
+    driver_contact: string | null;
+    vehicle_number: string | null;
+    dispatch_date: string | null;
+    lr_number: string | null;
+    lr_shared_with_customer: boolean;
+    expected_delivery: string | null;
+    delivered_date: string | null;
+    pod_received: boolean;
+    triplicate_received: boolean;
+    triplicate_received_date: string | null;
+    status: string;
+    notes: string | null;
+    items: ShipmentItemLite[];
+    created_at: string;
+};
+
 export type Transporter = {
     id: number;
     transporter_code: string | null;

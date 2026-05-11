@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ShipmentController extends Controller
 {
@@ -149,6 +151,39 @@ class ShipmentController extends Controller
         });
 
         return back();
+    }
+
+    public function pickingSlip(Shipment $shipment): Response
+    {
+        $shipment->load([
+            'order.customer',
+            'items.orderItem.product:id,sku',
+        ]);
+
+        if (!$shipment->picking_slip_generated_at) {
+            $shipment->forceFill(['picking_slip_generated_at' => now()])->save();
+        }
+
+        return Inertia::render('Shipments/PickingSlip', [
+            'shipment' => $shipment,
+        ]);
+    }
+
+    public function packingSlip(Shipment $shipment): Response
+    {
+        $shipment->load([
+            'order.customer',
+            'transporter:id,name',
+            'items.orderItem.product:id,sku',
+        ]);
+
+        if (!$shipment->packing_slip_generated_at) {
+            $shipment->forceFill(['packing_slip_generated_at' => now()])->save();
+        }
+
+        return Inertia::render('Shipments/PackingSlip', [
+            'shipment' => $shipment,
+        ]);
     }
 
     private function nextShipmentCode(): string
