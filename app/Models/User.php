@@ -17,11 +17,21 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    public const ROLES = ['owner', 'manager', 'accounts', 'warehouse', 'viewer'];
+    public const DENSITY = ['comfortable', 'compact'];
+
     protected $fillable = [
         'name',
         'email',
         'password',
+        'role',
+        'density_preference',
     ];
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'created_by');
+    }
 
     /**
      * The attributes that should be hidden for serialization.
