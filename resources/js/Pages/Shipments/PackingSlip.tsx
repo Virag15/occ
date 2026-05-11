@@ -55,7 +55,20 @@ function fmt(date: string | null) {
     return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function PackingSlip({ shipment }: { shipment: SlipShipment }) {
+type CompanyPayload = {
+    company_name: string;
+    address_line_1: string | null;
+    city: string | null;
+    state: string | null;
+    pincode: string | null;
+    gstin: string | null;
+    phone: string | null;
+    email: string | null;
+    invoice_footer_note: string | null;
+    logo_data_uri: string | null;
+};
+
+export default function PackingSlip({ shipment, company }: { shipment: SlipShipment; company: CompanyPayload }) {
     const generatedAt = new Date().toLocaleString('en-IN', {
         day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
@@ -115,14 +128,22 @@ export default function PackingSlip({ shipment }: { shipment: SlipShipment }) {
                 {/* A5 slip */}
                 <div className="slip mx-auto bg-white p-[8mm] shadow-md print:shadow-none print:m-0 print:p-0">
                     {/* Header band */}
-                    <div className="flex items-start justify-between border-b border-[#2a2722] pb-2">
-                        <div>
-                            <p className="label">Authorized Distributor — Switchgear</p>
-                            <h1 className="font-bold">GC COMMUNICATION</h1>
-                            <p className="text-[8pt] text-[#6b6660]">Nashik, Maharashtra · GSTIN 27AAACG1234A1Z5</p>
-                            <p className="text-[8pt] text-[#6b6660]">C&amp;S Electric · BCH · Luker · Suraj · Kaycee</p>
+                    <div className="flex items-start justify-between gap-3 border-b border-[#2a2722] pb-2">
+                        <div className="flex items-start gap-3 min-w-0">
+                            {company.logo_data_uri && (
+                                <img src={company.logo_data_uri} alt="logo" style={{ maxWidth: '40pt', maxHeight: '40pt' }} />
+                            )}
+                            <div className="min-w-0">
+                                <p className="label">Authorized Distributor</p>
+                                <h1 className="font-bold uppercase tracking-wide">{company.company_name}</h1>
+                                <p className="text-[8pt] text-[#6b6660]">
+                                    {[company.address_line_1, company.city, company.state, company.pincode].filter(Boolean).join(', ')}
+                                </p>
+                                {company.gstin && <p className="mono text-[8pt] text-[#6b6660]">GSTIN: {company.gstin}</p>}
+                                {company.invoice_footer_note && <p className="text-[7.5pt] text-[#6b6660]">{company.invoice_footer_note}</p>}
+                            </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                             <p className="label">Packing slip</p>
                             <p className="mono mt-0.5 text-[11pt] font-bold tracking-tight">{shipment.shipment_code}</p>
                             <p className="text-[7pt] text-[#6b6660]">Generated {generatedAt}</p>

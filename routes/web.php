@@ -59,14 +59,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/returns/{return}/resolve', [ReturnController::class, 'resolve'])->name('returns.resolve');
     Route::patch('/returns/{return}/reject', [ReturnController::class, 'reject'])->name('returns.reject');
 
-    Route::get('/settings/integrations', fn () => Inertia::render('Placeholder', [
-        'title' => 'Integrations',
-        'description' => 'Tally bridge, WhatsApp provider, email setup. Phase 4.',
-    ]))->name('settings.integrations');
-
     Route::middleware('role:owner,manager')->group(function () {
         Route::get('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'edit'])->name('settings.company');
         Route::post('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'update'])->name('settings.company.update');
+        Route::get('/settings/integrations', fn () => Inertia::render('Settings/Integrations'))->name('settings.integrations');
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

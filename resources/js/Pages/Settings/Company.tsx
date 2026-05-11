@@ -1,8 +1,9 @@
 import { Head, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 import { toast } from 'sonner';
-import { Upload, Save, Image as ImageIcon, Building2, MapPin, Receipt, Landmark, FileText } from 'lucide-react';
+import { Save, Image as ImageIcon, Building2, MapPin, Receipt, Landmark, FileText } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { SettingsShell } from './SettingsShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,9 +111,10 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
     );
 
     return (
-        <AdminLayout breadcrumbs={[{ label: 'Settings', href: '/settings/company' }, { label: 'Company' }]}>
+        <AdminLayout breadcrumbs={[{ label: 'Settings' }, { label: 'Company' }]}>
             <Head title="Company settings" />
 
+            <SettingsShell active="company">
             <form onSubmit={submit} className="space-y-6">
 
                 <Card>
@@ -241,6 +243,7 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
                     </Button>
                 </div>
             </form>
+            </SettingsShell>
         </AdminLayout>
     );
 }

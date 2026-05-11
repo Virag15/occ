@@ -215,6 +215,7 @@ class ShipmentController extends Controller
 
         return Inertia::render('Shipments/PickingSlip', [
             'shipment' => $shipment,
+            'company' => $this->companyPayload(),
         ]);
     }
 
@@ -232,7 +233,36 @@ class ShipmentController extends Controller
 
         return Inertia::render('Shipments/PackingSlip', [
             'shipment' => $shipment,
+            'company' => $this->companyPayload(),
         ]);
+    }
+
+    /**
+     * Lightweight company payload for slips — includes a data-URI logo so the
+     * slip page can embed the image without authenticated /storage URLs at
+     * print time.
+     */
+    private function companyPayload(): array
+    {
+        $cs = \App\Models\CompanySetting::current();
+        $logoDataUri = null;
+        if ($cs->logo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($cs->logo_path)) {
+            $absolute = \Illuminate\Support\Facades\Storage::disk('public')->path($cs->logo_path);
+            $mime = mime_content_type($absolute) ?: 'image/png';
+            $logoDataUri = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolute));
+        }
+        return [
+            'company_name' => $cs->company_name,
+            'address_line_1' => $cs->address_line_1,
+            'city' => $cs->city,
+            'state' => $cs->state,
+            'pincode' => $cs->pincode,
+            'gstin' => $cs->gstin,
+            'phone' => $cs->phone,
+            'email' => $cs->email,
+            'invoice_footer_note' => $cs->invoice_footer_note,
+            'logo_data_uri' => $logoDataUri,
+        ];
     }
 
     private function nextShipmentCode(): string
