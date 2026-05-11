@@ -203,7 +203,7 @@ export default function OrderForm({
                 </Button>
             </div>
 
-            <form onSubmit={submit} className="space-y-6">
+            <form onSubmit={submit} className="space-y-6" noValidate>
                 {/* Basic */}
                 <Section title="Order">
                     <Grid cols={3}>

@@ -62,7 +62,7 @@ export default function Login({
                             </div>
                         )}
 
-                        <form onSubmit={submit} className="space-y-4">
+                        <form onSubmit={submit} className="space-y-4" noValidate>
                             <div className="space-y-2">
                                 <Label htmlFor="email">Email</Label>
                                 <Input
@@ -73,7 +73,6 @@ export default function Login({
                                     placeholder="you@gccommunication.in"
                                     autoComplete="email"
                                     autoFocus
-                                    required
                                 />
                                 {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                             </div>
@@ -88,7 +87,6 @@ export default function Login({
                                         onChange={(e) => setData('password', e.target.value)}
                                         placeholder="••••••••"
                                         autoComplete="current-password"
-                                        required
                                         className="pr-10"
                                     />
                                     <Button

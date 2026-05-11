@@ -24,7 +24,7 @@ export default function ConfirmPassword() {
                 </p>
             </div>
 
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} className="space-y-4" noValidate>
                 <div className="space-y-1.5">
                     <Label htmlFor="password">Password</Label>
                     <Input

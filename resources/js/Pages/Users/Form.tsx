@@ -56,7 +56,7 @@ export default function UserForm({ user }: { user?: Existing | null }) {
                 </Button>
             </div>
 
-            <form onSubmit={submit} className="space-y-6">
+            <form onSubmit={submit} className="space-y-6" noValidate>
                 <div className="space-y-4">
                     <Label className="text-base font-semibold">Basic info</Label>
                     <div className="grid sm:grid-cols-2 gap-4">

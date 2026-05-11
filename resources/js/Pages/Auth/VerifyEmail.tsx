@@ -28,7 +28,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 </div>
             )}
 
-            <form onSubmit={submit} className="flex items-center justify-between">
+            <form onSubmit={submit} className="flex items-center justify-between" noValidate>
                 <Button type="submit" disabled={processing} size="sm">
                     {processing ? 'Sending…' : 'Resend email'}
                 </Button>

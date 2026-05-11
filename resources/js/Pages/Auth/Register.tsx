@@ -29,7 +29,7 @@ export default function Register() {
                 <p className="text-xs text-muted-foreground">Request access to OCC.</p>
             </div>
 
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} className="space-y-4" noValidate>
                 <div className="space-y-1.5">
                     <Label htmlFor="name">Name</Label>
                     <Input

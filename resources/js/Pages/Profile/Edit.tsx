@@ -44,7 +44,7 @@ function ProfileInfoSection({ user, mustVerifyEmail, status }: { user: { name: s
     };
 
     return (
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-4" noValidate>
             <div>
                 <Label className="text-base font-semibold">Profile information</Label>
                 <p className="text-sm text-muted-foreground mt-1">Update your account&apos;s display name and email.</p>
@@ -119,7 +119,7 @@ function PasswordSection() {
     };
 
     return (
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-4" noValidate>
             <div>
                 <Label className="text-base font-semibold">Password</Label>
                 <p className="text-sm text-muted-foreground mt-1">Use a long random password to keep your account secure.</p>
@@ -203,7 +203,7 @@ function DeleteAccountSection() {
                             This will permanently delete your account. Please enter your password to confirm.
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={submit} className="space-y-3">
+                    <form onSubmit={submit} className="space-y-3" noValidate>
                         <Field label="Password" id="delete_password" error={form.errors.password}>
                             <Input
                                 ref={passwordInput}
