@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\StockItem;
 use App\Models\Transporter;
 use App\Models\User;
+use App\Observers\AuditObserver;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -16,10 +17,14 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        AuditObserver::$enabled = false;
+
         $this->seedUsers();
         $this->seedTransporters();
-        $this->seedTallyMirrors(); // DEV ONLY - real data flows from Tally bridge
+        $this->seedTallyMirrors();
         $this->seedOrders();
+
+        AuditObserver::$enabled = true;
     }
 
     private function seedOrders(): void

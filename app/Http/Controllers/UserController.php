@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,7 +39,7 @@ class UserController extends Controller
             'role' => ['required', Rule::in(User::ROLES)],
         ]);
 
-        $user = User::create([
+        User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -48,10 +47,7 @@ class UserController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        $this->audit('user_created', $user, [
-            'role' => ['from' => null, 'to' => $user->role],
-        ]);
-
+        // AuditObserver writes 'created' automatically.
         return redirect()->route('users.index');
     }
 
@@ -64,7 +60,6 @@ class UserController extends Controller
             'role' => ['required', Rule::in(User::ROLES)],
         ]);
 
-        $oldRole = $user->role;
         $update = [
             'name' => $data['name'],
             'email' => $data['email'],
@@ -75,10 +70,7 @@ class UserController extends Controller
         }
         $user->update($update);
 
-        if ($oldRole !== $user->role) {
-            $this->audit('role_changed', $user, ['role' => ['from' => $oldRole, 'to' => $user->role]]);
-        }
-
+        // AuditObserver writes 'role_changed' when role is in dirty fields, else 'updated'.
         return redirect()->route('users.index');
     }
 
@@ -87,19 +79,8 @@ class UserController extends Controller
         if ($user->id === Auth::id()) {
             return back()->withErrors(['user' => 'You cannot delete your own account.']);
         }
-        $this->audit('user_deleted', $user, ['email' => ['from' => $user->email, 'to' => null]]);
         $user->delete();
+        // AuditObserver writes 'deleted' automatically.
         return redirect()->route('users.index');
-    }
-
-    private function audit(string $action, User $user, array $changes): void
-    {
-        AuditLog::create([
-            'user_id' => Auth::id(),
-            'entity_type' => 'user',
-            'entity_id' => $user->id,
-            'action' => $action,
-            'changes' => $changes,
-        ]);
     }
 }

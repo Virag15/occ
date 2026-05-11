@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -37,7 +36,7 @@ class OrderController extends Controller
             'items.product:id,name,sku',
         ]);
 
-        $auditLog = AuditLog::query()
+        $auditLog = \App\Models\AuditLog::query()
             ->where('entity_type', 'order')
             ->where('entity_id', $order->id)
             ->orderByDesc('created_at')
@@ -93,14 +92,7 @@ class OrderController extends Controller
         $order = Order::create($data);
         $this->syncItems($order, $items);
 
-        AuditLog::create([
-            'user_id' => Auth::id(),
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'created',
-            'changes' => ['status' => ['from' => null, 'to' => $order->status]],
-        ]);
-
+        // AuditObserver handles 'created' automatically.
         return redirect()->route('orders.index');
     }
 
@@ -108,8 +100,6 @@ class OrderController extends Controller
     {
         $data = $this->validated($request);
         $items = $this->validatedItems($request);
-        $oldStatus = $order->status;
-        $oldPaymentStatus = $order->payment_status;
 
         if (!empty($items)) {
             $data['order_value'] = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
@@ -117,24 +107,7 @@ class OrderController extends Controller
         $order->update($data);
         $this->syncItems($order, $items);
 
-        $changes = [];
-        if ($oldStatus !== $order->status) {
-            $changes['status'] = ['from' => $oldStatus, 'to' => $order->status];
-        }
-        if ($oldPaymentStatus !== $order->payment_status) {
-            $changes['payment_status'] = ['from' => $oldPaymentStatus, 'to' => $order->payment_status];
-        }
-
-        if ($changes) {
-            AuditLog::create([
-                'user_id' => Auth::id(),
-                'entity_type' => 'order',
-                'entity_id' => $order->id,
-                'action' => 'status_changed',
-                'changes' => $changes,
-            ]);
-        }
-
+        // AuditObserver handles 'updated' / 'status_changed' / 'payment_status_changed' automatically.
         return redirect()->route('orders.index');
     }
 
@@ -208,7 +181,6 @@ class OrderController extends Controller
             'status' => ['required', 'in:new_order,confirmed,stock_check,packing,packed,ready_for_dispatch,dispatched,delivered,closed,on_hold,cancelled'],
         ]);
 
-        // Soft validators: surface to user but don't block (warehouse may need to override)
         $errors = [];
         if ($data['status'] === 'dispatched' && !$order->lr_number) {
             $errors['status'] = 'Add an LR number before marking dispatched.';
@@ -220,10 +192,7 @@ class OrderController extends Controller
             return back()->withErrors($errors);
         }
 
-        $old = $order->status;
         $payload = ['status' => $data['status']];
-
-        // Auto-stamp dates as status progresses
         if ($data['status'] === 'dispatched' && !$order->dispatch_date) {
             $payload['dispatch_date'] = now()->toDateString();
         }
@@ -232,15 +201,7 @@ class OrderController extends Controller
         }
 
         $order->update($payload);
-
-        AuditLog::create([
-            'user_id' => Auth::id(),
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'status_changed',
-            'changes' => ['status' => ['from' => $old, 'to' => $data['status']]],
-        ]);
-
+        // AuditObserver writes 'status_changed' automatically.
         return back();
     }
 
@@ -251,15 +212,7 @@ class OrderController extends Controller
             'lr_shared_with_customer' => $next,
             'lr_shared_at' => $next ? now() : null,
         ]);
-
-        AuditLog::create([
-            'user_id' => Auth::id(),
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => $next ? 'lr_marked_shared' : 'lr_unmarked',
-            'changes' => ['lr_shared_with_customer' => ['from' => !$next, 'to' => $next]],
-        ]);
-
+        // AuditObserver writes 'lr_shared_toggled' automatically.
         return back();
     }
 
