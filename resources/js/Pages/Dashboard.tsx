@@ -201,7 +201,6 @@ export default function Dashboard({ kpis, status_distribution, action_queue, rec
                                                     cy="50%"
                                                     innerRadius={50}
                                                     outerRadius={75}
-                                                    paddingAngle={2}
                                                 >
                                                     {donutData.map((d) => <Cell key={d.status} fill={d.color} />)}
                                                 </Pie>
