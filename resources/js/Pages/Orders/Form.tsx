@@ -254,10 +254,113 @@ export default function OrderForm({
                         <Field label="Brands (comma-separated)" id="brands" error={form.errors.brands}>
                             <Input id="brands" placeholder="C&S Electric, BCH Electric" value={form.data.brands} onChange={(e) => form.setData('brands', e.target.value)} />
                         </Field>
-                        <Field label="Order value (₹)" id="order_value" error={form.errors.order_value}>
-                            <Input id="order_value" type="number" step="0.01" value={form.data.order_value} onChange={(e) => form.setData('order_value', e.target.value)} />
+                        <Field label="Order value (₹) — auto-summed from line items" id="order_value" error={form.errors.order_value}>
+                            <Input id="order_value" type="number" step="0.01" value={form.data.items.length > 0 ? itemsTotal : form.data.order_value} readOnly={form.data.items.length > 0} onChange={(e) => form.setData('order_value', e.target.value)} className={form.data.items.length > 0 ? 'bg-muted' : ''} />
                         </Field>
                     </Grid>
+                </Section>
+
+                <Separator />
+
+                {/* Line items */}
+                <Section title="Line items">
+                    <p className="-mt-2 text-sm text-muted-foreground">
+                        Add the products on this order. Picking, packing, and fulfillment will track quantities per line.
+                    </p>
+
+                    {form.data.items.length === 0 ? (
+                        <div className="rounded-md border border-dashed bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                            <p className="mb-3">No items yet.</p>
+                            <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Add first item
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto rounded-md border">
+                            <table className="w-full text-xs">
+                                <thead className="bg-muted/40 text-muted-foreground">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-medium" style={{ minWidth: 220 }}>Product</th>
+                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 100 }}>Qty</th>
+                                        <th className="px-3 py-2 text-left font-medium" style={{ width: 80 }}>Unit</th>
+                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 120 }}>Unit price</th>
+                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 90 }}>GST %</th>
+                                        <th className="px-3 py-2 text-right font-medium" style={{ width: 130 }}>Line total</th>
+                                        <th className="px-3 py-2" style={{ width: 40 }} />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {form.data.items.map((it, i) => {
+                                        const productOptions: ComboOption[] = products.map((p) => ({
+                                            value: String(p.id),
+                                            label: p.name,
+                                            sublabel: p.sku ?? (p.brand ?? undefined),
+                                        }));
+                                        return (
+                                            <tr key={i} className="border-t border-border/40 align-top">
+                                                <td className="px-3 py-2">
+                                                    <Combobox
+                                                        value={it.product_id ? String(it.product_id) : ''}
+                                                        onChange={(v) => pickProduct(i, v)}
+                                                        options={productOptions}
+                                                        placeholder="Pick product"
+                                                        searchPlaceholder="Search products…"
+                                                    />
+                                                    {it.product_name && !it.product_id && (
+                                                        <p className="mt-1 text-[10px] text-muted-foreground">{it.product_name}</p>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    <Input
+                                                        type="number" step="0.001" min="0"
+                                                        value={it.qty_ordered as number}
+                                                        onChange={(e) => updateItem(i, { qty_ordered: e.target.value as unknown as number })}
+                                                        className="text-right h-8"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2 text-muted-foreground text-xs">{it.unit ?? '—'}</td>
+                                                <td className="px-3 py-2">
+                                                    <Input
+                                                        type="number" step="0.01" min="0"
+                                                        value={(it.unit_price ?? 0) as number}
+                                                        onChange={(e) => updateItem(i, { unit_price: e.target.value as unknown as number })}
+                                                        className="text-right h-8 tabular-nums"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    <Input
+                                                        type="number" step="0.01" min="0" max="100"
+                                                        value={(it.tax_rate ?? 0) as number}
+                                                        onChange={(e) => updateItem(i, { tax_rate: e.target.value as unknown as number })}
+                                                        className="text-right h-8 tabular-nums"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2 text-right tabular-nums font-medium">{formatCurrency(it.line_total ?? 0)}</td>
+                                                <td className="px-3 py-2 text-right">
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-red-700" onClick={() => removeItem(i)}>
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                <tfoot className="bg-muted/30">
+                                    <tr>
+                                        <td colSpan={5} className="px-3 py-2 text-right font-medium">Total</td>
+                                        <td className="px-3 py-2 text-right tabular-nums font-bold">{formatCurrency(itemsTotal)}</td>
+                                        <td />
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    )}
+
+                    {form.data.items.length > 0 && (
+                        <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add another line
+                        </Button>
+                    )}
                 </Section>
 
                 <Separator />

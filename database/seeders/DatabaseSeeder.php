@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\StockItem;
 use App\Models\Transporter;
@@ -40,10 +41,13 @@ class DatabaseSeeder extends Seeder
             ['status' => 'on_hold',            'payment_status' => 'not_due', 'priority' => 'low',     'value' => 31000,  'brands' => ['C&S Electric'],            'days_ago' => 7],
         ];
 
+        $products = Product::query()->get();
+        if ($products->isEmpty()) return;
+
         $year = now()->year;
         foreach ($samples as $i => $s) {
             $orderDate = now()->subDays($s['days_ago']);
-            Order::create([
+            $order = Order::create([
                 'order_code' => sprintf('ORD-%d-%04d', $year, $i + 1),
                 'customer_id' => $customerIds[$i % count($customerIds)],
                 'order_date' => $orderDate->toDateString(),
@@ -60,6 +64,60 @@ class DatabaseSeeder extends Seeder
                 'dispatch_date' => in_array($s['status'], ['dispatched', 'delivered', 'closed'], true) ? $orderDate->copy()->addDay()->toDateString() : null,
                 'delivered_date' => in_array($s['status'], ['delivered', 'closed'], true) ? $orderDate->copy()->addDays(3)->toDateString() : null,
             ]);
+
+            // Each order gets 1–3 line items so fulfillment scenarios are testable.
+            $lineCount = ($i % 3) + 1;
+            $picked = $products->random(min($lineCount, $products->count()));
+            $orderTotal = 0;
+            foreach ($picked as $j => $p) {
+                $qty = (int) [10, 25, 50, 100][($i + $j) % 4];
+                $unitPrice = (float) ($p->default_sale_price ?: $p->mrp ?: 100);
+                $tax = (float) ($p->gst_rate ?: 18);
+                $lineSubtotal = $qty * $unitPrice;
+                $lineTotal = round($lineSubtotal + ($lineSubtotal * $tax / 100), 2);
+                $orderTotal += $lineTotal;
+
+                // Set fulfillment quantities based on order status
+                $qtyPacked = 0;
+                $qtyDispatched = 0;
+                $qtyDelivered = 0;
+                $lineStatus = 'pending';
+                if (in_array($s['status'], ['packed', 'ready_for_dispatch'], true)) {
+                    $qtyPacked = $qty;
+                    $lineStatus = 'packed';
+                } elseif ($s['status'] === 'dispatched') {
+                    $qtyPacked = $qty;
+                    $qtyDispatched = $qty;
+                    $lineStatus = 'dispatched';
+                } elseif (in_array($s['status'], ['delivered', 'closed'], true)) {
+                    $qtyPacked = $qty;
+                    $qtyDispatched = $qty;
+                    $qtyDelivered = $qty;
+                    $lineStatus = 'delivered';
+                } elseif ($s['status'] === 'packing') {
+                    // partial pack
+                    $qtyPacked = (int) floor($qty * 0.5);
+                    $lineStatus = $qtyPacked > 0 ? 'partially_packed' : 'pending';
+                }
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $p->id,
+                    'product_name' => $p->name,
+                    'qty_ordered' => $qty,
+                    'qty_packed' => $qtyPacked,
+                    'qty_dispatched' => $qtyDispatched,
+                    'qty_delivered' => $qtyDelivered,
+                    'unit' => $p->unit,
+                    'unit_price' => $unitPrice,
+                    'tax_rate' => $tax,
+                    'line_total' => $lineTotal,
+                    'status' => $lineStatus,
+                ]);
+            }
+
+            // Override order_value with computed line sum
+            $order->update(['order_value' => $orderTotal]);
         }
     }
 
