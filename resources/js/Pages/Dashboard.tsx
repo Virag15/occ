@@ -28,10 +28,6 @@ export default function Dashboard() {
             <Head title="Dashboard" />
 
             <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard</h1>
-                </div>
-
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
                     {statCards.map((stat) => (
                         <Card key={stat.title}>
