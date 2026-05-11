@@ -1,6 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
-import { ArrowLeft, Plus, Trash2, Package, ListChecks, FileText, Save, Info } from 'lucide-react';
+import { Plus, Trash2, Package, ListChecks, FileText, Save, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,32 +128,24 @@ export default function OrderForm({
 
     return (
         <form onSubmit={submit} noValidate className="space-y-5 pb-10">
-            {/* Sticky header */}
-            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-1 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" asChild className="-ml-2 gap-1.5">
-                            <Link href={route('orders.index')}><ArrowLeft className="h-4 w-4" /> Orders</Link>
-                        </Button>
-                        <span className="text-muted-foreground">/</span>
-                        <div>
-                            <h1 className="font-mono text-base font-semibold leading-tight">
-                                {form.data.order_code || (isEdit ? order?.order_code : 'New order')}
-                            </h1>
-                            <p className="text-[10px] text-muted-foreground">
-                                {isEdit ? 'Editing existing order' : 'Creating a new order'}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button type="button" variant="ghost" size="sm" asChild>
-                            <Link href={route('orders.index')}>Cancel</Link>
-                        </Button>
-                        <Button type="submit" disabled={form.processing} size="sm">
-                            <Save className="h-3.5 w-3.5 mr-1" />
-                            {form.processing ? 'Saving…' : isEdit ? 'Update order' : 'Create order'}
-                        </Button>
-                    </div>
+            {/* Title row — order code on the left, primary actions on the right */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 className="font-mono text-xl font-bold tracking-tight sm:text-2xl">
+                        {form.data.order_code || (isEdit ? order?.order_code : 'New order')}
+                    </h1>
+                    <p className="text-xs text-muted-foreground">
+                        {isEdit ? 'Editing existing order' : 'Creating a new order'}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button type="button" variant="outline" size="sm" asChild>
+                        <Link href={route('orders.index')}>Cancel</Link>
+                    </Button>
+                    <Button type="submit" disabled={form.processing} size="sm">
+                        <Save className="h-3.5 w-3.5 mr-1" />
+                        {form.processing ? 'Saving…' : isEdit ? 'Update order' : 'Create order'}
+                    </Button>
                 </div>
             </div>
 
