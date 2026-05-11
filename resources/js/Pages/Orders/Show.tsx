@@ -444,8 +444,13 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
                     <Badge className={paymentStatusClasses(order.payment_status)}>payment: {order.payment_status}</Badge>
                     {order.priority !== 'normal' && <Badge variant="outline">{order.priority}</Badge>}
                     <Button variant="outline" asChild>
+                        <a href={route('orders.quotation-pdf', { order: order.id })} target="_blank" rel="noreferrer">
+                            <Download className="h-4 w-4 mr-1" /> Quotation
+                        </a>
+                    </Button>
+                    <Button variant="outline" asChild>
                         <a href={route('orders.invoice-pdf', { order: order.id })} target="_blank" rel="noreferrer">
-                            <Download className="h-4 w-4 mr-1" /> Invoice PDF
+                            <Download className="h-4 w-4 mr-1" /> Invoice
                         </a>
                     </Button>
                     <Button asChild>

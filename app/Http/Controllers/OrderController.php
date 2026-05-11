@@ -189,7 +189,47 @@ class OrderController extends Controller
         return redirect()->route('orders.index');
     }
 
+    /**
+     * Lookup the last N times this customer bought this product. Used by the
+     * Order Form line item "info" popover so the user can quote a price that's
+     * consistent with history (or deliberately deviate).
+     */
+    public function priceHistory(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+        ]);
+
+        $rows = OrderItem::query()
+            ->select(['order_items.id', 'order_items.order_id', 'order_items.qty_ordered', 'order_items.unit_price', 'order_items.discount_pct', 'order_items.tax_rate', 'order_items.line_total'])
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.customer_id', $data['customer_id'])
+            ->where('order_items.product_id', $data['product_id'])
+            ->where('orders.id', '!=', (int) $request->input('exclude_order_id', 0))
+            ->addSelect('orders.order_code', 'orders.order_date', 'orders.status')
+            ->orderByDesc('orders.order_date')
+            ->orderByDesc('orders.id')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'rows' => $rows,
+            'count' => $rows->count(),
+        ]);
+    }
+
     public function invoicePdf(Order $order): \Symfony\Component\HttpFoundation\Response
+    {
+        return $this->renderOrderPdf($order, 'invoice');
+    }
+
+    public function quotationPdf(Order $order): \Symfony\Component\HttpFoundation\Response
+    {
+        return $this->renderOrderPdf($order, 'quotation');
+    }
+
+    private function renderOrderPdf(Order $order, string $mode): \Symfony\Component\HttpFoundation\Response
     {
         $order->load(['customer', 'items.product:id,name,sku,hsn_code', 'creator:id,name']);
         $company = \App\Models\CompanySetting::current();
@@ -217,9 +257,14 @@ class OrderController extends Controller
             'logoBase64' => $logoBase64,
             'signatureBase64' => $signatureBase64,
             'amountInWords' => $amountInWords,
+            'mode' => $mode,
         ])->setPaper('a4', 'portrait');
 
-        return $pdf->download("invoice-{$order->order_code}.pdf");
+        $filename = $mode === 'quotation'
+            ? "quotation-{$order->order_code}.pdf"
+            : "invoice-{$order->order_code}.pdf";
+
+        return $pdf->download($filename);
     }
 
     private function imageAsDataUri(?string $relativePath): ?string

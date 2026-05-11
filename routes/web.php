@@ -33,8 +33,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('users', UserController::class)->except(['show']);
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     });
+    // Bare literal routes must come BEFORE the resource so /{order} doesn't shadow them
+    Route::get('/orders/price-history', [OrderController::class, 'priceHistory'])->name('orders.price-history');
     Route::resource('orders', OrderController::class);
     Route::get('/orders/{order}/invoice.pdf', [OrderController::class, 'invoicePdf'])->name('orders.invoice-pdf');
+    Route::get('/orders/{order}/quotation.pdf', [OrderController::class, 'quotationPdf'])->name('orders.quotation-pdf');
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::patch('/orders/{order}/toggle-lr-shared', [OrderController::class, 'toggleLrShared'])->name('orders.toggle-lr-shared');
     Route::patch('/orders/{order}/toggle-triplicate', [OrderController::class, 'toggleTriplicate'])->name('orders.toggle-triplicate');

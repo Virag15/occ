@@ -1,6 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
-import { Plus, Trash2, Package, ListChecks, FileText, Save, Info } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import { Plus, Trash2, Package, ListChecks, FileText, Save, Info, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatDateIN } from '@/lib/format';
 import type { CustomerLite, Order, OrderItem, ProductLite } from '@/types/entities';
 
 const STATUSES = ['new_order', 'confirmed', 'stock_check', 'packing', 'packed', 'ready_for_dispatch', 'dispatched', 'delivered', 'closed', 'on_hold', 'cancelled'];
@@ -340,12 +341,20 @@ export default function OrderForm({
                                                 </td>
                                                 <td className="px-2 py-2 text-xs text-muted-foreground">{it.unit ?? '—'}</td>
                                                 <td className="px-2 py-2">
-                                                    <Input
-                                                        type="number" step="0.01" min="0"
-                                                        value={(it.unit_price ?? 0) as number}
-                                                        onChange={(e) => updateItem(i, { unit_price: e.target.value as unknown as number })}
-                                                        className="h-8 text-right tabular-nums"
-                                                    />
+                                                    <div className="flex items-center gap-1">
+                                                        <Input
+                                                            type="number" step="0.01" min="0"
+                                                            value={(it.unit_price ?? 0) as number}
+                                                            onChange={(e) => updateItem(i, { unit_price: e.target.value as unknown as number })}
+                                                            className="h-8 flex-1 text-right tabular-nums"
+                                                        />
+                                                        <PriceHistoryPopover
+                                                            customerId={form.data.customer_id}
+                                                            productId={it.product_id ?? undefined}
+                                                            excludeOrderId={order?.id}
+                                                            onPickPrice={(price, discPct) => updateItem(i, { unit_price: price, discount_pct: discPct })}
+                                                        />
+                                                    </div>
                                                 </td>
                                                 <td className="px-2 py-2">
                                                     <Input
@@ -460,5 +469,124 @@ function Field({ label, id, error, help, children }: { label: string; id: string
             {help && !error && <p className="text-[10px] text-muted-foreground">{help}</p>}
             {error && <p className="text-[10px] text-destructive">{error}</p>}
         </div>
+    );
+}
+
+// Price-history popover — fetches the last few times this customer bought this product
+type HistoryRow = {
+    id: number;
+    order_code: string;
+    order_date: string;
+    qty_ordered: string;
+    unit_price: string | null;
+    discount_pct: string | null;
+    tax_rate: string | null;
+    line_total: string | null;
+    status: string;
+};
+
+function PriceHistoryPopover({
+    customerId,
+    productId,
+    excludeOrderId,
+    onPickPrice,
+}: {
+    customerId: number | string | null;
+    productId: number | null | undefined;
+    excludeOrderId?: number;
+    onPickPrice: (price: number, discountPct: number) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [rows, setRows] = useState<HistoryRow[] | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const enabled = !!customerId && !!productId;
+
+    useEffect(() => {
+        if (!open || !enabled) return;
+        setLoading(true);
+        const params = new URLSearchParams({ customer_id: String(customerId), product_id: String(productId) });
+        if (excludeOrderId) params.set('exclude_order_id', String(excludeOrderId));
+        fetch(`${route('orders.price-history')}?${params.toString()}`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        })
+            .then((r) => r.json())
+            .then((d) => setRows(d.rows ?? []))
+            .catch(() => setRows([]))
+            .finally(() => setLoading(false));
+    }, [open, customerId, productId, excludeOrderId, enabled]);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <button
+                    type="button"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                    disabled={!enabled}
+                    title={enabled ? 'See past prices for this customer × product' : 'Pick customer and product first'}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                >
+                    <Info className="h-3.5 w-3.5" />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[420px] p-3" align="end" sideOffset={4}>
+                <div className="mb-2 flex items-center gap-2">
+                    <History className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold">Price history</p>
+                    <span className="text-[10px] text-muted-foreground">this customer × this product</span>
+                </div>
+                {loading ? (
+                    <p className="py-4 text-center text-xs text-muted-foreground">Loading…</p>
+                ) : !rows || rows.length === 0 ? (
+                    <p className="py-4 text-center text-xs text-muted-foreground">
+                        No previous orders of this product for this customer.
+                    </p>
+                ) : (
+                    <div className="overflow-hidden rounded border">
+                        <table className="w-full text-[11px]">
+                            <thead className="bg-muted/40 text-[9px] uppercase tracking-wide text-muted-foreground">
+                                <tr>
+                                    <th className="px-2 py-1.5 text-left">Date</th>
+                                    <th className="px-2 py-1.5 text-left">Order</th>
+                                    <th className="px-2 py-1.5 text-right">Qty</th>
+                                    <th className="px-2 py-1.5 text-right">Price</th>
+                                    <th className="px-2 py-1.5 text-right">Disc</th>
+                                    <th className="w-12 px-1 py-1.5" />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((r) => (
+                                    <tr key={r.id} className="border-t border-border/40 align-top">
+                                        <td className="px-2 py-1.5 tabular-nums text-muted-foreground">{formatDateIN(r.order_date)}</td>
+                                        <td className="px-2 py-1.5 font-mono text-[10px]">{r.order_code}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums">{Number(r.qty_ordered)}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums font-medium">{formatCurrency(r.unit_price)}</td>
+                                        <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                                            {Number(r.discount_pct ?? 0) > 0 ? `${Number(r.discount_pct).toFixed(0)}%` : '—'}
+                                        </td>
+                                        <td className="px-1 py-1.5 text-right">
+                                            <button
+                                                type="button"
+                                                className="rounded px-1.5 py-0.5 text-[10px] text-primary hover:bg-primary/10"
+                                                onClick={() => {
+                                                    onPickPrice(Number(r.unit_price ?? 0), Number(r.discount_pct ?? 0));
+                                                    setOpen(false);
+                                                }}
+                                            >
+                                                Use
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                    Click <span className="font-medium text-foreground">Use</span> to copy the price &amp; discount into this line.
+                </p>
+            </PopoverContent>
+        </Popover>
     );
 }

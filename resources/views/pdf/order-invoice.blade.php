@@ -70,6 +70,15 @@
     $buyerState = strtoupper(substr(trim($cust->gstin ?? ''), 0, 2));
     $sameState = $sellerState && $buyerState && $sellerState === $buyerState;
 
+    // Mode: 'invoice' (default) | 'quotation'
+    $mode = $mode ?? 'invoice';
+    $isQuotation = $mode === 'quotation';
+    $docTitle = $isQuotation ? 'QUOTATION' : 'TAX INVOICE';
+    $docSubtitle = $isQuotation ? 'Pro-forma — not a tax invoice' : 'Original for Recipient';
+    $shipToLabel = $isQuotation ? 'Quote to' : 'Ship to';
+    $billToLabel = $isQuotation ? 'Quote for' : 'Bill to';
+    $validUntil = $isQuotation ? (\Carbon\Carbon::parse($order->order_date)->addDays(15)->format('d M Y')) : null;
+
     $subtotal = 0.0;       // gross qty × price across lines (pre-discount, pre-tax)
     $lineDiscountTotal = 0.0;
     $taxableTotal = 0.0;   // taxable value after line discounts
@@ -122,10 +131,13 @@
                 </p>
             </td>
             <td style="vertical-align: top; text-align: right; width: 130pt;">
-                <p class="invoice-title">TAX INVOICE</p>
-                <p class="mono" style="font-size: 10pt; margin-top: 4pt;">{{ $order->invoice_number ?? $order->order_code }}</p>
+                <p class="invoice-title">{{ $docTitle }}</p>
+                <p class="mono" style="font-size: 10pt; margin-top: 4pt;">{{ $isQuotation ? $order->order_code : ($order->invoice_number ?? $order->order_code) }}</p>
                 <p style="font-size: 7.5pt; color: #6b6660;">Date: {{ optional($order->invoice_date ?? $order->order_date)->format('d M Y') }}</p>
-                <p style="font-size: 7pt; color: #6b6660;">Original for Recipient</p>
+                @if ($validUntil)
+                    <p style="font-size: 7.5pt; color: #6b6660;">Valid until: {{ $validUntil }}</p>
+                @endif
+                <p style="font-size: 7pt; color: #6b6660;">{{ $docSubtitle }}</p>
             </td>
         </tr>
     </table>
@@ -135,7 +147,7 @@
 <div class="info-grid">
     <div class="row">
         <div class="cell split-left">
-            <p class="label-row">Bill to</p>
+            <p class="label-row">{{ $billToLabel }}</p>
             <p style="font-weight: bold; font-size: 10pt;">{{ $cust->name }}</p>
             @if ($cust->company)<p>{{ $cust->company }}</p>@endif
             @if ($cust->billing_address)<p style="font-size: 8pt;">{!! nl2br(e($cust->billing_address)) !!}</p>@endif
@@ -147,7 +159,7 @@
             @if ($cust->phone)<p class="mono" style="font-size: 8pt;">Phone: {{ $cust->phone }}</p>@endif
         </div>
         <div class="cell split-right">
-            <p class="label-row">Ship to</p>
+            <p class="label-row">{{ $shipToLabel }}</p>
             <p style="font-weight: bold; font-size: 10pt;">{{ $cust->name }}</p>
             @if ($cust->delivery_address)<p style="font-size: 8pt;">{!! nl2br(e($cust->delivery_address)) !!}</p>
             @elseif ($cust->billing_address)<p style="font-size: 8pt;">{!! nl2br(e($cust->billing_address)) !!}</p>@endif
@@ -328,7 +340,7 @@
                     <td style="padding: 3pt 0;"><strong>Total payable</strong></td>
                     <td class="num"><strong>₹ {{ number_format($grandTotal, 2) }}</strong></td>
                 </tr>
-                @if ($order->amount_received && (float) $order->amount_received > 0)
+                @if (!$isQuotation && $order->amount_received && (float) $order->amount_received > 0)
                     <tr><td style="color: #6b6660; padding: 1pt 0;">Received</td><td class="num">₹ {{ number_format((float) $order->amount_received, 2) }}</td></tr>
                     <tr><td style="padding: 1pt 0;"><strong>Balance due</strong></td><td class="num"><strong>₹ {{ number_format(max(0, $grandTotal - (float) $order->amount_received), 2) }}</strong></td></tr>
                 @endif
