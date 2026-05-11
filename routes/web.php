@@ -60,6 +60,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/returns/{return}/reject', [ReturnController::class, 'reject'])->name('returns.reject');
 
     Route::middleware('role:owner,manager')->group(function () {
+        // Bare /settings → first item (Company). Keeps a stable canonical entry point.
+        Route::get('/settings', fn () => redirect()->route('settings.company'))->name('settings.index');
         Route::get('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'edit'])->name('settings.company');
         Route::post('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'update'])->name('settings.company.update');
         Route::get('/settings/integrations', fn () => Inertia::render('Settings/Integrations'))->name('settings.integrations');

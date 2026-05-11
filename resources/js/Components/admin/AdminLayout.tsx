@@ -122,7 +122,7 @@ const navGroups: NavGroup[] = [
         textColor: 'text-purple-600',
         items: [
             { name: 'Profile', href: '/profile', icon: UserCog },
-            { name: 'Settings', href: '/settings/company', icon: Settings, roles: ['owner', 'manager'] },
+            { name: 'Settings', href: '/settings', icon: Settings, roles: ['owner', 'manager'] },
         ],
     },
 ];
