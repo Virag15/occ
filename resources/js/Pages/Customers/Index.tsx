@@ -1,152 +1,168 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
+import { toast } from 'sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { DataTable, SortableHeader } from '@/components/ui/data-table';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { nullable } from '@/lib/format';
 import type { Customer, IndexPageProps } from '@/types/entities';
-import { formatCurrency, formatDateIN, nullable } from '@/lib/format';
 
-function statusBadge(status: string) {
-    const map: Record<string, string> = {
-        active: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
-        credit_hold: 'bg-red-500/10 text-red-600 border-red-200',
-        new: 'bg-blue-500/10 text-blue-600 border-blue-200',
-    };
-    const cls = map[status] || 'bg-muted text-muted-foreground border-border';
-    return <Badge className={cls}>{status}</Badge>;
-}
+export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
+    const [search, setSearch] = useState('');
+    const [deleteId, setDeleteId] = useState<number | null>(null);
+    const [processing, setProcessing] = useState(false);
 
-function typeBadge(type: string | null) {
-    if (!type) return <span className="text-muted-foreground/60">—</span>;
-    const map: Record<string, string> = {
-        dealer: 'bg-blue-500/10 text-blue-600 border-blue-200',
-        contractor: 'bg-purple-500/10 text-purple-600 border-purple-200',
-        oem: 'bg-orange-500/10 text-orange-600 border-orange-200',
-        government: 'bg-amber-700/10 text-amber-700 border-amber-200',
-        end_user: 'bg-muted text-muted-foreground border-border',
-    };
-    return <Badge className={map[type] || 'bg-muted'}>{type}</Badge>;
-}
+    const filteredRows = useMemo(() => {
+        if (!search) return rows;
+        const q = search.toLowerCase();
+        return rows.filter((r) =>
+            r.name.toLowerCase().includes(q)
+            || (r.company ?? '').toLowerCase().includes(q)
+            || (r.gstin ?? '').toLowerCase().includes(q)
+            || (r.phone ?? '').toLowerCase().includes(q)
+            || (r.city ?? '').toLowerCase().includes(q),
+        );
+    }, [search, rows]);
 
-const columns: ColumnDef<Customer>[] = [
-    {
-        accessorKey: 'name',
-        header: ({ column }) => <SortableHeader column={column} title="Name" />,
-        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-    },
-    { accessorKey: 'company', header: 'Company', cell: ({ row }) => nullable(row.original.company) },
-    { accessorKey: 'city', header: 'City', cell: ({ row }) => nullable(row.original.city) },
-    { accessorKey: 'customer_type', header: 'Type', cell: ({ row }) => typeBadge(row.original.customer_type) },
-    {
-        accessorKey: 'gstin',
-        header: 'GSTIN',
-        cell: ({ row }) => row.original.gstin ? <span className="font-mono text-xs">{row.original.gstin}</span> : '—',
-    },
-    { accessorKey: 'payment_terms', header: 'Terms', cell: ({ row }) => nullable(row.original.payment_terms) },
-    { accessorKey: 'status', header: 'Status', cell: ({ row }) => statusBadge(row.original.status) },
-];
-
-function DetailView({ customer }: { customer: Customer }) {
-    const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-        <div className="grid grid-cols-[140px_1fr] items-start gap-3 py-1.5 border-b border-border/40 last:border-0">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="text-sm">{value || <span className="text-muted-foreground/60">—</span>}</dd>
-        </div>
-    );
-
-    return (
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-            <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>Read-only — data syncs from Tally. Last synced: {formatDateIN(customer.tally_synced_at)}.</span>
-            </div>
-
-            <dl>
-                <Row label="Code" value={<span className="font-mono text-xs">{customer.customer_code}</span>} />
-                <Row label="Company" value={customer.company} />
-                <Row label="Type" value={typeBadge(customer.customer_type)} />
-                <Row label="Status" value={statusBadge(customer.status)} />
-                <Row label="Contact person" value={customer.contact_person} />
-                <Row label="Phone" value={customer.phone ? <a href={`tel:${customer.phone}`} className="font-mono text-xs hover:underline">{customer.phone}</a> : null} />
-                <Row label="WhatsApp" value={customer.whatsapp} />
-                <Row label="Email" value={customer.email ? <a href={`mailto:${customer.email}`} className="hover:underline">{customer.email}</a> : null} />
-                <Row label="Billing address" value={customer.billing_address} />
-                <Row label="Delivery address" value={customer.delivery_address} />
-                <Row label="City" value={customer.city} />
-                <Row label="State" value={customer.state} />
-                <Row label="GSTIN" value={customer.gstin ? <span className="font-mono text-xs">{customer.gstin}</span> : null} />
-                <Row label="Payment terms" value={customer.payment_terms} />
-                <Row label="Credit limit" value={formatCurrency(customer.credit_limit)} />
-                <Row label="Brand preferences" value={customer.brand_preferences?.length
-                    ? <div className="flex flex-wrap gap-1">{customer.brand_preferences.map((b) => <Badge key={b} variant="secondary" className="text-[10px]">{b}</Badge>)}</div>
-                    : null} />
-                <Row label="Notes" value={customer.notes} />
-            </dl>
-        </div>
-    );
-}
-
-export default function CustomerIndex({ rows, peek, filters }: IndexPageProps<Customer>) {
-    const openPeekRow = (c: Customer) => {
-        const url = new URL(window.location.href);
-        url.searchParams.set('peek', String(c.id));
-        router.visit(url.pathname + url.search, { preserveScroll: true, preserveState: true });
+    const handleDelete = () => {
+        if (!deleteId) return;
+        setProcessing(true);
+        router.delete(route('customers.destroy', { customer: deleteId }), {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Customer deleted (will sync to Tally)'),
+            onFinish: () => {
+                setDeleteId(null);
+                setProcessing(false);
+            },
+        });
     };
 
-    const closePeek = () => {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('peek');
-        router.visit(url.pathname + url.search, { preserveScroll: true, preserveState: true, replace: true });
-    };
-
-    const tableColumns: ColumnDef<Customer>[] = columns.map((col, i) =>
-        i === 0
-            ? {
-                ...col,
-                cell: ({ row }) => (
-                    <button
-                        type="button"
-                        onClick={() => openPeekRow(row.original)}
-                        className="text-left font-medium hover:underline"
+    const columns = useMemo((): ColumnDef<Customer>[] => [
+        {
+            accessorKey: 'name',
+            header: ({ column }) => <SortableHeader column={column} title="Name" />,
+            cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+        },
+        {
+            accessorKey: 'company',
+            header: 'Company',
+            cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.company)}</span>,
+        },
+        {
+            accessorKey: 'city',
+            header: 'City',
+            cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.city)}</span>,
+        },
+        {
+            accessorKey: 'customer_type',
+            header: 'Type',
+            cell: ({ row }) => row.original.customer_type
+                ? <Badge variant="secondary">{row.original.customer_type}</Badge>
+                : <span className="text-muted-foreground">—</span>,
+        },
+        {
+            accessorKey: 'gstin',
+            header: 'GSTIN',
+            cell: ({ row }) => row.original.gstin
+                ? <span className="font-mono text-xs">{row.original.gstin}</span>
+                : <span className="text-muted-foreground">—</span>,
+        },
+        {
+            accessorKey: 'payment_terms',
+            header: 'Terms',
+            cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.payment_terms)}</span>,
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <Badge variant={row.original.status === 'active' ? 'default' : 'secondary'}>
+                    {row.original.status}
+                </Badge>
+            ),
+        },
+        {
+            id: 'actions',
+            header: () => <span className="sr-only">Actions</span>,
+            cell: ({ row }) => (
+                <div className="flex items-center gap-1">
+                    <Button asChild variant="ghost" size="icon">
+                        <Link href={route('customers.edit', { customer: row.original.id })}>
+                            <Pencil className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteId(row.original.id)}
+                        className="text-destructive hover:text-red-700"
                     >
-                        {row.original.name}
-                    </button>
-                ),
-            }
-            : col,
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            ),
+        },
+    ], []);
+
+    const toolbar = (
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2 flex-1">
+                <div className="relative flex-1 sm:w-72 sm:flex-none">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search name, company, GSTIN, phone…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-9"
+                    />
+                </div>
+                {search && (
+                    <Button variant="ghost" size="sm" onClick={() => setSearch('')} className="text-destructive hover:text-destructive shrink-0 hidden sm:flex">
+                        <X className="h-4 w-4 mr-1" />
+                        Reset
+                    </Button>
+                )}
+            </div>
+            <Button asChild className="sm:ml-auto">
+                <Link href={route('customers.create')}>
+                    <Plus className="h-4 w-4 mr-1" /> New customer
+                </Link>
+            </Button>
+        </div>
     );
 
     return (
         <AdminLayout breadcrumbs={[{ label: 'Customers' }]}>
             <Head title="Customers" />
 
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Customers</h1>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">Synced from Tally</span>
-                </div>
+            <DataTable
+                columns={columns}
+                data={filteredRows}
+                toolbar={toolbar}
+                emptyMessage="No customers yet."
+            />
 
-                <DataTable
-                    columns={tableColumns}
-                    data={rows}
-                    searchKey="name"
-                    searchPlaceholder="Search by name…"
-                    emptyMessage="No customers synced from Tally yet."
-                />
-            </div>
-
-            <Sheet open={!!peek} onOpenChange={(o: boolean) => { if (!o) closePeek(); }}>
-                <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col">
-                    <SheetHeader className="border-b border-border px-6 py-4 shrink-0">
-                        <SheetTitle>{peek?.name}</SheetTitle>
-                    </SheetHeader>
-                    {peek && <DetailView customer={peek} />}
-                </SheetContent>
-            </Sheet>
-
-            <span className="hidden">{filters.q}</span>
+            <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete customer</DialogTitle>
+                        <DialogDescription>
+                            Are you sure? This will also remove the customer from Tally on the next sync. Orders that already reference this customer will keep the historical data.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleDelete} disabled={processing}>
+                            {processing ? 'Deleting…' : 'Delete'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AdminLayout>
     );
 }

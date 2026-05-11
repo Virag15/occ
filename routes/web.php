@@ -15,23 +15,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         'description' => 'Per-user action queue. Lands in Phase 2 alongside the Orders core.',
     ]))->name('tasks');
 
-    Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
-    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+    Route::resource('customers', CustomerController::class)->except(['show']);
+    Route::resource('products', ProductController::class)->except(['show']);
+    Route::resource('transporters', TransporterController::class)->except(['show']);
 
     Route::get('/orders', fn () => Inertia::render('Placeholder', [
         'title' => 'Orders & Dispatches',
         'description' => 'Full order lifecycle: table, kanban, dispatch calendar. Lands in Phase 2.',
     ]))->name('orders.index');
 
-    Route::get('/transporters', [TransporterController::class, 'index'])->name('transporters.index');
-    Route::post('/transporters', [TransporterController::class, 'store'])->name('transporters.store');
-    Route::patch('/transporters/{transporter}', [TransporterController::class, 'update'])->name('transporters.update');
-    Route::delete('/transporters/{transporter}', [TransporterController::class, 'destroy'])->name('transporters.destroy');
-
     Route::get('/returns', fn () => Inertia::render('Placeholder', [
         'title' => 'Returns & Damages',
         'description' => 'Case tracker for damaged-in-transit, manufacturing defects, etc. Lands in Phase 3.',
     ]))->name('returns.index');
+
+    Route::get('/settings/integrations', fn () => Inertia::render('Placeholder', [
+        'title' => 'Integrations',
+        'description' => 'Tally bridge, WhatsApp provider, email setup. Phase 4.',
+    ]))->name('settings.integrations');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

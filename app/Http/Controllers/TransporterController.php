@@ -12,59 +12,41 @@ class TransporterController extends Controller
 {
     public function index(Request $request): Response
     {
-        $query = Transporter::query();
-
-        if ($q = $request->string('q')->trim()->value()) {
-            $query->where(function ($w) use ($q) {
-                $w->where('name', 'like', "%{$q}%")
-                    ->orWhere('city', 'like', "%{$q}%")
-                    ->orWhere('contact_person', 'like', "%{$q}%")
-                    ->orWhere('primary_phone', 'like', "%{$q}%");
-            });
-        }
-
-        $rows = $query->orderBy('name')->paginate(50)->withQueryString();
-
-        $peek = null;
-        if ($peekId = $request->integer('peek')) {
-            $peek = Transporter::find($peekId);
-        }
+        $rows = Transporter::query()->orderBy('name')->get();
 
         return Inertia::render('Transporters/Index', [
-            'rows' => $rows->items(),
-            'pagination' => [
-                'total' => $rows->total(),
-                'per_page' => $rows->perPage(),
-                'current_page' => $rows->currentPage(),
-                'last_page' => $rows->lastPage(),
-            ],
-            'filters' => ['q' => $q ?? ''],
-            'peek' => $peek,
+            'rows' => $rows,
+            'pagination' => ['total' => $rows->count(), 'per_page' => 50, 'current_page' => 1, 'last_page' => 1],
+            'filters' => ['q' => $request->string('q')->value()],
+            'peek' => null,
         ]);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('Transporters/Create');
+    }
+
+    public function edit(Transporter $transporter): Response
+    {
+        return Inertia::render('Transporters/Edit', ['transporter' => $transporter]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validated($request);
-
-        $transporter = Transporter::create($data);
-
-        return redirect()->route('transporters.index', ['peek' => $transporter->id]);
+        Transporter::create($this->validated($request));
+        return redirect()->route('transporters.index');
     }
 
     public function update(Request $request, Transporter $transporter): RedirectResponse
     {
-        $data = $this->validated($request);
-
-        $transporter->update($data);
-
-        return back();
+        $transporter->update($this->validated($request));
+        return redirect()->route('transporters.index');
     }
 
     public function destroy(Transporter $transporter): RedirectResponse
     {
         $transporter->delete();
-
         return redirect()->route('transporters.index');
     }
 
@@ -80,8 +62,6 @@ class TransporterController extends Controller
             'office_address' => ['nullable', 'string'],
             'city' => ['nullable', 'string', 'max:100'],
             'gstin' => ['nullable', 'string', 'max:15'],
-            'areas_served' => ['nullable', 'array'],
-            'vehicle_types' => ['nullable', 'array'],
             'avg_transit_days' => ['nullable', 'integer', 'min:0', 'max:30'],
             'cost_per_kg' => ['nullable', 'numeric', 'min:0'],
             'triplicate_reliability' => ['nullable', 'integer', 'between:1,5'],
