@@ -191,9 +191,10 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
             {/* Sidebar header */}
             <div className="flex h-12 items-center border-b border-border shrink-0 px-3 gap-2">
                 {!showCollapsed && (
-                    <span className="text-sm font-bold tracking-tight text-foreground flex-1 whitespace-nowrap">
-                        GC Communication
-                    </span>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold tracking-tight text-foreground leading-none whitespace-nowrap">OCC</p>
+                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">GC Communication</p>
+                    </div>
                 )}
                 <Button
                     variant="ghost"
@@ -393,7 +394,7 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
                     )}
 
                     <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground hidden sm:inline">
-                        Switchgear distribution ops
+                        OCC · GC Communication
                     </span>
                 </header>
 

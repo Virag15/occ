@@ -13,7 +13,7 @@ interface StatCard {
 
 export default function Dashboard() {
     useEffect(() => {
-        document.title = 'Dashboard — GC Communication';
+        document.title = 'Dashboard — OCC';
     }, []);
 
     const statCards: StatCard[] = [
