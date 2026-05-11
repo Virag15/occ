@@ -122,9 +122,58 @@ class ShipmentController extends Controller
                 $oi->status = $oi->deriveStatus();
                 $oi->save();
             }
+
+            // Sync the parent order status from the aggregate state of its line items
+            $this->syncOrderStatus($shipment->order_id);
         });
 
         return back();
+    }
+
+    /**
+     * Auto-advance the order status when shipments + line items reach a clear aggregate state.
+     *
+     * Rules (conservative — we only move FORWARD, never override deliberate states):
+     *  - 'on_hold', 'cancelled', 'closed' → leave alone (user picked these explicitly)
+     *  - All items fully delivered → 'delivered'
+     *  - All items fully dispatched → 'dispatched'
+     *  - Any item with qty_packed > 0 + currently upstream → 'packed'
+     */
+    private function syncOrderStatus(int $orderId): void
+    {
+        $order = \App\Models\Order::with('items')->find($orderId);
+        if (!$order) return;
+
+        // Leave these alone — they're deliberate end-states
+        if (in_array($order->status, ['on_hold', 'cancelled', 'closed'], true)) return;
+
+        $items = $order->items;
+        if ($items->isEmpty()) return;
+
+        $allOrdered = $items->sum(fn ($it) => (float) $it->qty_ordered);
+        $allDelivered = $items->sum(fn ($it) => (float) $it->qty_delivered);
+        $allDispatched = $items->sum(fn ($it) => (float) $it->qty_dispatched);
+        $allPacked = $items->sum(fn ($it) => (float) $it->qty_packed);
+        $allCancelled = $items->sum(fn ($it) => (float) $it->qty_cancelled);
+
+        $effectiveOrdered = $allOrdered - $allCancelled;
+        if ($effectiveOrdered <= 0) return;
+
+        $payload = [];
+
+        if ($allDelivered >= $effectiveOrdered - 0.001 && $order->status !== 'delivered') {
+            $payload['status'] = 'delivered';
+            if (!$order->delivered_date) $payload['delivered_date'] = now()->toDateString();
+        } elseif ($allDispatched >= $effectiveOrdered - 0.001 && !in_array($order->status, ['delivered'], true)) {
+            $payload['status'] = 'dispatched';
+            if (!$order->dispatch_date) $payload['dispatch_date'] = now()->toDateString();
+        } elseif ($allPacked >= $effectiveOrdered - 0.001 && in_array($order->status, ['new_order', 'confirmed', 'stock_check', 'packing'], true)) {
+            $payload['status'] = 'packed';
+        }
+
+        if (!empty($payload)) {
+            $order->update($payload);
+        }
     }
 
     public function destroy(Shipment $shipment): RedirectResponse

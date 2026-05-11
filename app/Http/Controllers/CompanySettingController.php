@@ -46,19 +46,18 @@ class CompanySettingController extends Controller
             'terms_and_conditions' => ['nullable', 'string'],
             'invoice_footer_note' => ['nullable', 'string'],
             'logo' => ['nullable', 'image', 'max:5120'],
+            'signature' => ['nullable', 'image', 'max:5120'],
         ]);
 
         $settings = CompanySetting::current();
 
         if ($request->hasFile('logo')) {
-            // Delete previous logo if any
             if ($settings->logo_path && Storage::disk('public')->exists($settings->logo_path)) {
                 Storage::disk('public')->delete($settings->logo_path);
             }
-
             $path = $request->file('logo')->store('company', 'public');
             $absolute = Storage::disk('public')->path($path);
-            $compressed = ImageCompressor::compress($absolute, 600, 90); // logos can be smaller
+            $compressed = ImageCompressor::compress($absolute, 600, 90);
             if ($compressed !== $absolute) {
                 $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
                 if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
@@ -66,7 +65,23 @@ class CompanySettingController extends Controller
             $data['logo_path'] = $path;
         }
 
-        unset($data['logo']);
+        if ($request->hasFile('signature')) {
+            if ($settings->signature_path && Storage::disk('public')->exists($settings->signature_path)) {
+                Storage::disk('public')->delete($settings->signature_path);
+            }
+            $path = $request->file('signature')->store('company', 'public');
+            $absolute = Storage::disk('public')->path($path);
+            // Signatures look better when slightly larger and on transparent background — but we
+            // still compress for size. Keep wide max so handwriting stays legible.
+            $compressed = ImageCompressor::compress($absolute, 800, 92);
+            if ($compressed !== $absolute) {
+                $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
+                if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
+            }
+            $data['signature_path'] = $path;
+        }
+
+        unset($data['logo'], $data['signature']);
         $settings->update($data);
 
         return back()->with('success', 'Company settings updated.');

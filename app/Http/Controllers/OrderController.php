@@ -190,13 +190,9 @@ class OrderController extends Controller
         $order->load(['customer', 'items.product:id,name,sku,hsn_code', 'creator:id,name']);
         $company = \App\Models\CompanySetting::current();
 
-        // Encode the logo as base64 data URI so DomPDF can embed it without a network fetch
-        $logoBase64 = null;
-        if ($company->logo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($company->logo_path)) {
-            $absolute = \Illuminate\Support\Facades\Storage::disk('public')->path($company->logo_path);
-            $mime = mime_content_type($absolute) ?: 'image/png';
-            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolute));
-        }
+        // Encode logo + signature as base64 data URIs so DomPDF can embed them without a network fetch
+        $logoBase64 = $this->imageAsDataUri($company->logo_path);
+        $signatureBase64 = $this->imageAsDataUri($company->signature_path);
 
         // Compute the grand total in rupees for "amount in words"
         $grandTotal = 0.0;
@@ -213,10 +209,21 @@ class OrderController extends Controller
             'order' => $order,
             'company' => $company,
             'logoBase64' => $logoBase64,
+            'signatureBase64' => $signatureBase64,
             'amountInWords' => $amountInWords,
         ])->setPaper('a4', 'portrait');
 
         return $pdf->download("invoice-{$order->order_code}.pdf");
+    }
+
+    private function imageAsDataUri(?string $relativePath): ?string
+    {
+        if (!$relativePath) return null;
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        if (!$disk->exists($relativePath)) return null;
+        $absolute = $disk->path($relativePath);
+        $mime = mime_content_type($absolute) ?: 'image/png';
+        return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolute));
     }
 
     public function updateStatus(Request $request, Order $order): RedirectResponse

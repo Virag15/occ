@@ -303,8 +303,15 @@
         <div class="sig-block">
             <div class="right" style="display: block; width: 100%; text-align: right;">
                 <p style="font-size: 8pt; color: #6b6660; margin-top: 14pt;">For <strong>{{ $cs->company_name }}</strong></p>
-                <div class="sig-line"></div>
-                <p style="font-size: 8pt;">{{ $cs->signatory_name ?? '' }}</p>
+                @if ($signatureBase64)
+                    <div style="margin-top: 6pt; height: 36pt;">
+                        <img src="{{ $signatureBase64 }}" style="max-height: 36pt; max-width: 140pt;" />
+                    </div>
+                    <div style="border-bottom: 0.5pt solid #2a2722; min-width: 140pt; display: inline-block;"></div>
+                @else
+                    <div class="sig-line"></div>
+                @endif
+                <p style="font-size: 9pt; font-weight: bold; margin-top: 2pt;">{{ $cs->signatory_name ?? '' }}</p>
                 <p class="label">{{ $cs->signatory_designation ?? 'Authorised Signatory' }}</p>
             </div>
         </div>

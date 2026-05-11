@@ -453,10 +453,19 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
                                 </>
                             )}
                             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Quick flags</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => toggleLrShared(o.id)}>
-                                <MessageSquare className="h-4 w-4 mr-2" />
-                                {o.lr_shared_with_customer ? 'Unmark LR shared' : 'Mark LR as shared'}
-                            </DropdownMenuItem>
+                            {o.lr_shared_with_customer ? (
+                                <DropdownMenuItem onClick={() => toggleLrShared(o.id)}>
+                                    <MessageSquare className="h-4 w-4 mr-2" />
+                                    Unmark LR shared
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem asChild>
+                                    <Link href={route('orders.show', { order: o.id })}>
+                                        <MessageSquare className="h-4 w-4 mr-2" />
+                                        Share LR (capture number + photo)…
+                                    </Link>
+                                </DropdownMenuItem>
+                            )}
                             {o.pod_received ? (
                                 <DropdownMenuItem disabled>
                                     <FileCheck className="h-4 w-4 mr-2" />

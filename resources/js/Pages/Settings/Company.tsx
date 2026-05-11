@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 type Settings = {
     id: number;
     logo_path: string | null;
+    signature_path: string | null;
     company_name: string;
     legal_name: string | null;
     address_line_1: string | null;
@@ -40,6 +41,7 @@ type Settings = {
 
 export default function CompanySettings({ settings }: { settings: Settings }) {
     const [logoPreview, setLogoPreview] = useState<string | null>(settings.logo_path ? `/storage/${settings.logo_path}` : null);
+    const [sigPreview, setSigPreview] = useState<string | null>(settings.signature_path ? `/storage/${settings.signature_path}` : null);
 
     const form = useForm({
         company_name: settings.company_name ?? '',
@@ -66,6 +68,7 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
         terms_and_conditions: settings.terms_and_conditions ?? '',
         invoice_footer_note: settings.invoice_footer_note ?? '',
         logo: null as File | null,
+        signature: null as File | null,
     });
 
     const onLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,6 +77,16 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
         if (f) {
             const reader = new FileReader();
             reader.onload = () => setLogoPreview(reader.result as string);
+            reader.readAsDataURL(f);
+        }
+    };
+
+    const onSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0] ?? null;
+        form.setData('signature', f);
+        if (f) {
+            const reader = new FileReader();
+            reader.onload = () => setSigPreview(reader.result as string);
             reader.readAsDataURL(f);
         }
     };
@@ -104,18 +117,37 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
 
                 <Card>
                     <CardHeader className="p-4 pb-2">
-                        <CardTitle className="flex items-center gap-2 text-sm font-medium"><ImageIcon className="h-4 w-4 text-muted-foreground" /> Logo</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium"><ImageIcon className="h-4 w-4 text-muted-foreground" /> Logo &amp; signature</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-4 pt-2">
+                    <CardContent className="p-4 pt-2 space-y-4">
                         <div className="flex items-center gap-4">
-                            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded border bg-muted/30">
+                            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded border bg-muted/30 shrink-0">
                                 {logoPreview
                                     ? <img src={logoPreview} alt="logo" className="max-h-full max-w-full" />
                                     : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
                             </div>
                             <div className="flex-1 space-y-2">
+                                <Label className="text-xs">Company logo</Label>
                                 <Input type="file" accept="image/*" onChange={onLogo} />
-                                <p className="text-xs text-muted-foreground">Uploaded logo will appear on the invoice PDF. Max 5MB. Will be compressed to 600px wide JPEG automatically.</p>
+                                <p className="text-xs text-muted-foreground">Appears top-left on the invoice PDF. Max 5MB. Compressed to 600px JPEG.</p>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-24 w-44 items-center justify-center overflow-hidden rounded border bg-white shrink-0">
+                                {sigPreview
+                                    ? <img src={sigPreview} alt="signature" className="max-h-full max-w-full" />
+                                    : <span className="text-xs italic text-muted-foreground">no signature</span>}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                                <Label className="text-xs">Authorised signature</Label>
+                                <Input type="file" accept="image/*" onChange={onSignature} />
+                                <p className="text-xs text-muted-foreground">
+                                    Upload a scanned signature (transparent PNG looks best). Appears above the signatory name on the invoice PDF.
+                                    Tip: photograph signature on a plain white sheet for cleanest result.
+                                </p>
                             </div>
                         </div>
                     </CardContent>
