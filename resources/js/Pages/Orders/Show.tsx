@@ -3,7 +3,7 @@ import { FormEvent, useState } from 'react';
 import {
     ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, MapPin,
     Zap, MessageSquare, CheckCircle2, ChevronRight, Upload, Image as ImageIcon, Printer, ClipboardList,
-    RotateCcw, AlertTriangle, ExternalLink, Plus,
+    RotateCcw, AlertTriangle, ExternalLink, Plus, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -443,6 +443,11 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
                     <Badge className={orderStatusClasses(order.status)}>{order.status.replace(/_/g, ' ')}</Badge>
                     <Badge className={paymentStatusClasses(order.payment_status)}>payment: {order.payment_status}</Badge>
                     {order.priority !== 'normal' && <Badge variant="outline">{order.priority}</Badge>}
+                    <Button variant="outline" asChild>
+                        <a href={route('orders.invoice-pdf', { order: order.id })} target="_blank" rel="noreferrer">
+                            <Download className="h-4 w-4 mr-1" /> Invoice PDF
+                        </a>
+                    </Button>
                     <Button asChild>
                         <Link href={route('orders.edit', { order: order.id })}>
                             <Pencil className="h-4 w-4 mr-1" /> Edit

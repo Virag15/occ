@@ -13,6 +13,7 @@ import {
     PanelLeftClose,
     PanelLeft,
     Settings,
+    Building2,
     UserCog,
     UsersRound,
     History,
@@ -122,6 +123,7 @@ const navGroups: NavGroup[] = [
         textColor: 'text-purple-600',
         items: [
             { name: 'Profile', href: '/profile', icon: UserCog },
+            { name: 'Company', href: '/settings/company', icon: Building2, roles: ['owner', 'manager'] },
             { name: 'Settings', href: '/settings/integrations', icon: Settings, roles: ['owner'] },
         ],
     },

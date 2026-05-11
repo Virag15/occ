@@ -19,7 +19,8 @@ class OrderController extends Controller
     public function index(): Response
     {
         return Inertia::render('Orders/Index', [
-            'rows' => Order::query()
+            // Closure makes 'rows' lazy so partial reloads (?only=rows) re-run just this query
+            'rows' => fn () => Order::query()
                 ->with(['customer:id,name', 'transporter:id,name'])
                 ->orderByDesc('order_date')
                 ->orderByDesc('id')
@@ -184,6 +185,40 @@ class OrderController extends Controller
         return redirect()->route('orders.index');
     }
 
+    public function invoicePdf(Order $order): \Symfony\Component\HttpFoundation\Response
+    {
+        $order->load(['customer', 'items.product:id,name,sku,hsn_code', 'creator:id,name']);
+        $company = \App\Models\CompanySetting::current();
+
+        // Encode the logo as base64 data URI so DomPDF can embed it without a network fetch
+        $logoBase64 = null;
+        if ($company->logo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($company->logo_path)) {
+            $absolute = \Illuminate\Support\Facades\Storage::disk('public')->path($company->logo_path);
+            $mime = mime_content_type($absolute) ?: 'image/png';
+            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolute));
+        }
+
+        // Compute the grand total in rupees for "amount in words"
+        $grandTotal = 0.0;
+        foreach ($order->items as $it) {
+            $qty = (float) $it->qty_ordered;
+            $rate = (float) ($it->unit_price ?? 0);
+            $taxRate = (float) ($it->tax_rate ?? 0);
+            $sub = $qty * $rate;
+            $grandTotal += $sub + ($sub * $taxRate / 100);
+        }
+        $amountInWords = \App\Support\NumberToWords::rupees($grandTotal);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.order-invoice', [
+            'order' => $order,
+            'company' => $company,
+            'logoBase64' => $logoBase64,
+            'amountInWords' => $amountInWords,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download("invoice-{$order->order_code}.pdf");
+    }
+
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         $data = $request->validate([
@@ -263,6 +298,16 @@ class OrderController extends Controller
         ]);
 
         $path = $request->file('photo')->store("orders/{$order->id}/{$kind}", 'public');
+
+        // Compress the uploaded photo in place (auto-rotate, resize to 2000px max, JPEG q82)
+        $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($path);
+        $compressedPath = \App\Support\ImageCompressor::compress($absolutePath);
+        if ($compressedPath !== $absolutePath) {
+            // Extension changed (e.g., PNG → JPG); update the relative path we store
+            $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
+            if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
+        }
+
         $url = \Illuminate\Support\Facades\Storage::url($path);
 
         $fieldMap = [

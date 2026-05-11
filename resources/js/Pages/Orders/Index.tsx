@@ -284,7 +284,8 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
     const changeStatus = (orderId: number, status: string) => {
         router.patch(route('orders.update-status', { order: orderId }), { status }, {
             preserveScroll: true,
-            preserveState: false,
+            preserveState: true,
+            only: ['rows'],
             onSuccess: () => toast.success(`Status → ${status.replace(/_/g, ' ')}`),
             onError: (errors) => toast.error(errors.status ?? 'Could not update status'),
         });
@@ -293,7 +294,8 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
     const quickPatch = (orderId: number, payload: Record<string, string | number | null>, successMsg?: string) => {
         router.patch(route('orders.quick-update', { order: orderId }), payload, {
             preserveScroll: true,
-            preserveState: false,
+            preserveState: true,
+            only: ['rows'],
             onSuccess: () => { if (successMsg) toast.success(successMsg); },
             onError: (errors) => toast.error(Object.values(errors).join(', ')),
         });
@@ -302,7 +304,8 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
     const toggleLrShared = (orderId: number) => {
         router.patch(route('orders.toggle-lr-shared', { order: orderId }), {}, {
             preserveScroll: true,
-            preserveState: false,
+            preserveState: true,
+            only: ['rows'],
             onSuccess: () => toast.success('LR share flag toggled'),
         });
     };
@@ -310,14 +313,16 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
     const toggleTriplicate = (orderId: number) => {
         router.patch(route('orders.toggle-triplicate', { order: orderId }), {}, {
             preserveScroll: true,
-            preserveState: false,
+            preserveState: true,
+            only: ['rows'],
         });
     };
 
     const togglePod = (orderId: number) => {
         router.patch(route('orders.toggle-pod', { order: orderId }), {}, {
             preserveScroll: true,
-            preserveState: false,
+            preserveState: true,
+            only: ['rows'],
         });
     };
 
