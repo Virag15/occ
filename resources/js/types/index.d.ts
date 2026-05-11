@@ -1,7 +1,10 @@
+export type Role = 'owner' | 'manager' | 'accounts' | 'warehouse' | 'viewer';
+
 export interface User {
     id: number;
     name: string;
     email: string;
+    role: Role;
     email_verified_at?: string;
 }
 

@@ -57,7 +57,11 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
         {
             accessorKey: 'name',
             header: ({ column }) => <SortableHeader column={column} title="Name" />,
-            cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+            cell: ({ row }) => (
+                <Link href={route('customers.show', { customer: row.original.id })} className="font-medium hover:underline">
+                    {row.original.name}
+                </Link>
+            ),
         },
         { accessorKey: 'company', header: 'Company', cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.company)}</span> },
         { accessorKey: 'city', header: 'City', cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.city)}</span> },

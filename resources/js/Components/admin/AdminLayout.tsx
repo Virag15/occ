@@ -14,6 +14,8 @@ import {
     PanelLeft,
     Settings,
     UserCog,
+    UsersRound,
+    History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -41,10 +43,13 @@ import { Toaster } from '@/components/ui/sonner';
 import { LucideIcon } from 'lucide-react';
 import type { PageProps } from '@/types';
 
+type Role = 'owner' | 'manager' | 'accounts' | 'warehouse' | 'viewer';
+
 interface NavItemData {
     name: string;
     href: string;
     icon: LucideIcon;
+    roles?: Role[]; // if omitted, all roles see it
 }
 
 interface NavGroup {
@@ -90,7 +95,7 @@ const navGroups: NavGroup[] = [
         items: [
             { name: 'Customers', href: '/customers', icon: Users },
             { name: 'Products', href: '/products', icon: Package },
-            { name: 'Transporters', href: '/transporters', icon: Truck },
+            { name: 'Transporters', href: '/transporters', icon: Truck, roles: ['owner', 'manager', 'accounts', 'warehouse', 'viewer'] },
         ],
     },
     {
@@ -103,15 +108,33 @@ const navGroups: NavGroup[] = [
         ],
     },
     {
+        label: 'Admin',
+        color: 'bg-red-500',
+        textColor: 'text-red-600',
+        items: [
+            { name: 'Users', href: '/users', icon: UsersRound, roles: ['owner', 'manager'] },
+            { name: 'Activity log', href: '/audit-logs', icon: History, roles: ['owner', 'manager'] },
+        ],
+    },
+    {
         label: 'System',
         color: 'bg-purple-500',
         textColor: 'text-purple-600',
         items: [
             { name: 'Profile', href: '/profile', icon: UserCog },
-            { name: 'Settings', href: '/settings/integrations', icon: Settings },
+            { name: 'Settings', href: '/settings/integrations', icon: Settings, roles: ['owner'] },
         ],
     },
 ];
+
+function filterGroupsByRole(groups: NavGroup[], role: Role | undefined): NavGroup[] {
+    return groups
+        .map((g) => ({
+            ...g,
+            items: g.items.filter((it) => !it.roles || (role && it.roles.includes(role))),
+        }))
+        .filter((g) => g.items.length > 0);
+}
 
 const SIDEBAR_W = 240;
 const SIDEBAR_COLLAPSED_W = 52;
@@ -212,7 +235,7 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
             {/* Nav */}
             <ScrollArea className="flex-1 py-2">
                 <div className={cn('px-2', showCollapsed ? 'space-y-1' : 'space-y-3')}>
-                    {navGroups.map((group) => (
+                    {filterGroupsByRole(navGroups, user?.role as Role | undefined).map((group) => (
                         <div key={group.label}>
                             {!showCollapsed && (
                                 <p className={cn(

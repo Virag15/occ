@@ -62,7 +62,11 @@ export default function ProductIndex({ rows }: IndexPageProps<Product>) {
         {
             accessorKey: 'name',
             header: ({ column }) => <SortableHeader column={column} title="Product" />,
-            cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+            cell: ({ row }) => (
+                <Link href={route('products.show', { product: row.original.id })} className="font-medium hover:underline">
+                    {row.original.name}
+                </Link>
+            ),
         },
         { accessorKey: 'sku', header: 'SKU', cell: ({ row }) => row.original.sku ? <span className="font-mono text-xs">{row.original.sku}</span> : <span className="text-muted-foreground">—</span> },
         {

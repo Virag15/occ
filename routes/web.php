@@ -1,10 +1,14 @@
 <?php
 
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerShowController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransporterController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -17,8 +21,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     ]))->name('tasks');
 
     Route::resource('customers', CustomerController::class)->except(['show']);
+    Route::get('/customers/{customer}', CustomerShowController::class)->name('customers.show');
     Route::resource('products', ProductController::class)->except(['show']);
+    Route::get('/products/{product}', ProductShowController::class)->name('products.show');
     Route::resource('transporters', TransporterController::class)->except(['show']);
+
+    // Admin-only — RBAC enforced via role middleware
+    Route::middleware('role:owner,manager')->group(function () {
+        Route::resource('users', UserController::class)->except(['show']);
+        Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+    });
     Route::resource('orders', OrderController::class);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::patch('/orders/{order}/toggle-lr-shared', [OrderController::class, 'toggleLrShared'])->name('orders.toggle-lr-shared');
