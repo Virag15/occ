@@ -63,7 +63,7 @@ export default function ProductForm({ product }: { product?: Product | null }) {
                 </Button>
             </div>
 
-            <form onSubmit={submit} className="space-y-6 max-w-3xl">
+            <form onSubmit={submit} className="space-y-6">
                 <div className="space-y-4">
                     <Label className="text-base font-semibold">Identity</Label>
                     <div className="grid sm:grid-cols-2 gap-4">
