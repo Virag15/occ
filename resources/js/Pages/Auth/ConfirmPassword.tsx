@@ -1,55 +1,45 @@
-import InputError from '@/components/InputError';
-import InputLabel from '@/components/InputLabel';
-import PrimaryButton from '@/components/PrimaryButton';
-import TextInput from '@/components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEvent } from 'react';
+import GuestLayout from '@/Layouts/GuestLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function ConfirmPassword() {
-    const { data, setData, post, processing, errors, reset } = useForm({
-        password: '',
-    });
+    const { data, setData, post, processing, errors, reset } = useForm({ password: '' });
 
-    const submit: FormEventHandler = (e) => {
+    const submit = (e: FormEvent) => {
         e.preventDefault();
-
-        post(route('password.confirm'), {
-            onFinish: () => reset('password'),
-        });
+        post(route('password.confirm'), { onFinish: () => reset('password') });
     };
 
     return (
         <GuestLayout>
-            <Head title="Confirm Password" />
+            <Head title="Confirm password" />
 
-            <div className="mb-4 text-sm text-gray-600">
-                This is a secure area of the application. Please confirm your
-                password before continuing.
+            <div className="mb-5 space-y-1">
+                <h1 className="text-lg font-semibold tracking-tight">Confirm password</h1>
+                <p className="text-xs text-muted-foreground">
+                    Please confirm your password before continuing to this secure area.
+                </p>
             </div>
 
-            <form onSubmit={submit}>
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
+            <form onSubmit={submit} className="space-y-4">
+                <div className="space-y-1.5">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
                         id="password"
                         type="password"
-                        name="password"
                         value={data.password}
-                        className="mt-1 block w-full"
-                        isFocused={true}
+                        autoFocus
                         onChange={(e) => setData('password', e.target.value)}
                     />
-
-                    <InputError message={errors.password} className="mt-2" />
+                    {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
 
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Confirm
-                    </PrimaryButton>
-                </div>
+                <Button type="submit" className="w-full" disabled={processing}>
+                    {processing ? 'Confirming…' : 'Confirm'}
+                </Button>
             </form>
         </GuestLayout>
     );
