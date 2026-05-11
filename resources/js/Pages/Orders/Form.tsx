@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Combobox, ComboOption } from '@/components/ui/combobox';
 import type { CustomerLite, Order, TransporterLite } from '@/types/entities';
 
 const STATUSES = ['new_order', 'confirmed', 'stock_check', 'packing', 'packed', 'ready_for_dispatch', 'dispatched', 'delivered', 'closed', 'on_hold', 'cancelled'];
@@ -120,6 +122,11 @@ export default function OrderForm({
     const isEdit = !!order?.id;
     const form = useForm<FormShape>(init(order, { order_code: nextOrderCode }));
 
+    const setDate = (key: keyof FormShape) => (d: Date | undefined) => {
+        if (!d) return;
+        form.setData(key, d.toISOString().split('T')[0] as never);
+    };
+
     const submit = (e: FormEvent) => {
         e.preventDefault();
         form.transform((d) => ({
@@ -152,7 +159,7 @@ export default function OrderForm({
                             <Input id="order_code" value={form.data.order_code} readOnly className="font-mono text-xs bg-muted" />
                         </Field>
                         <Field label="Order date *" id="order_date" error={form.errors.order_date}>
-                            <Input id="order_date" type="date" value={form.data.order_date} onChange={(e) => form.setData('order_date', e.target.value)} required />
+                            <DatePicker id="order_date" value={form.data.order_date} onChange={setDate('order_date')} />
                         </Field>
                         <Field label="Source" id="order_source" error={form.errors.order_source}>
                             <Select value={form.data.order_source || undefined} onValueChange={(v: string) => form.setData('order_source', v)}>
@@ -165,12 +172,14 @@ export default function OrderForm({
                     </Grid>
                     <Grid cols={3}>
                         <Field label="Customer *" id="customer_id" error={form.errors.customer_id}>
-                            <Select value={form.data.customer_id ? String(form.data.customer_id) : undefined} onValueChange={(v: string) => form.setData('customer_id', Number(v))}>
-                                <SelectTrigger id="customer_id"><SelectValue placeholder="Select customer" /></SelectTrigger>
-                                <SelectContent>
-                                    {customers.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}{c.company ? ` · ${c.company}` : ''}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                id="customer_id"
+                                value={form.data.customer_id ? String(form.data.customer_id) : ''}
+                                onChange={(v) => form.setData('customer_id', Number(v))}
+                                options={customers.map((c): ComboOption => ({ value: String(c.id), label: c.name, sublabel: c.company ?? undefined }))}
+                                placeholder="Select customer"
+                                searchPlaceholder="Search by name or company…"
+                            />
                         </Field>
                         <Field label="Status *" id="status" error={form.errors.status}>
                             <Select value={form.data.status} onValueChange={(v: string) => form.setData('status', v)}>
@@ -229,23 +238,25 @@ export default function OrderForm({
                 <Section title="Dispatch">
                     <Grid cols={3}>
                         <Field label="Pickup scheduled" id="pickup_scheduled_date" error={form.errors.pickup_scheduled_date}>
-                            <Input id="pickup_scheduled_date" type="date" value={form.data.pickup_scheduled_date} onChange={(e) => form.setData('pickup_scheduled_date', e.target.value)} />
+                            <DatePicker id="pickup_scheduled_date" value={form.data.pickup_scheduled_date} onChange={setDate('pickup_scheduled_date')} />
                         </Field>
                         <Field label="Dispatch date" id="dispatch_date" error={form.errors.dispatch_date}>
-                            <Input id="dispatch_date" type="date" value={form.data.dispatch_date} onChange={(e) => form.setData('dispatch_date', e.target.value)} />
+                            <DatePicker id="dispatch_date" value={form.data.dispatch_date} onChange={setDate('dispatch_date')} />
                         </Field>
                         <Field label="Expected delivery" id="expected_delivery" error={form.errors.expected_delivery}>
-                            <Input id="expected_delivery" type="date" value={form.data.expected_delivery} onChange={(e) => form.setData('expected_delivery', e.target.value)} />
+                            <DatePicker id="expected_delivery" value={form.data.expected_delivery} onChange={setDate('expected_delivery')} />
                         </Field>
                     </Grid>
                     <Grid cols={3}>
                         <Field label="Transporter" id="transporter_id" error={form.errors.transporter_id}>
-                            <Select value={form.data.transporter_id ? String(form.data.transporter_id) : undefined} onValueChange={(v: string) => form.setData('transporter_id', Number(v))}>
-                                <SelectTrigger id="transporter_id"><SelectValue placeholder="—" /></SelectTrigger>
-                                <SelectContent>
-                                    {transporters.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                id="transporter_id"
+                                value={form.data.transporter_id ? String(form.data.transporter_id) : ''}
+                                onChange={(v) => form.setData('transporter_id', Number(v))}
+                                options={transporters.map((t): ComboOption => ({ value: String(t.id), label: t.name }))}
+                                placeholder="Select transporter"
+                                searchPlaceholder="Search transporters…"
+                            />
                         </Field>
                         <Field label="Driver name" id="driver_name" error={form.errors.driver_name}>
                             <Input id="driver_name" value={form.data.driver_name} onChange={(e) => form.setData('driver_name', e.target.value)} />
@@ -274,10 +285,10 @@ export default function OrderForm({
                 <Section title="Delivery">
                     <Grid cols={3}>
                         <Field label="Delivered date" id="delivered_date" error={form.errors.delivered_date}>
-                            <Input id="delivered_date" type="date" value={form.data.delivered_date} onChange={(e) => form.setData('delivered_date', e.target.value)} />
+                            <DatePicker id="delivered_date" value={form.data.delivered_date} onChange={setDate('delivered_date')} />
                         </Field>
                         <Field label="Triplicate received date" id="triplicate_received_date" error={form.errors.triplicate_received_date}>
-                            <Input id="triplicate_received_date" type="date" value={form.data.triplicate_received_date} onChange={(e) => form.setData('triplicate_received_date', e.target.value)} />
+                            <DatePicker id="triplicate_received_date" value={form.data.triplicate_received_date} onChange={setDate('triplicate_received_date')} />
                         </Field>
                     </Grid>
                     <Grid cols={2}>
@@ -301,7 +312,7 @@ export default function OrderForm({
                             <Input id="invoice_number" className="font-mono text-xs" value={form.data.invoice_number} onChange={(e) => form.setData('invoice_number', e.target.value)} />
                         </Field>
                         <Field label="Invoice date" id="invoice_date" error={form.errors.invoice_date}>
-                            <Input id="invoice_date" type="date" value={form.data.invoice_date} onChange={(e) => form.setData('invoice_date', e.target.value)} />
+                            <DatePicker id="invoice_date" value={form.data.invoice_date} onChange={setDate('invoice_date')} />
                         </Field>
                         <Field label="Payment terms" id="payment_terms" error={form.errors.payment_terms}>
                             <Select value={form.data.payment_terms || undefined} onValueChange={(v: string) => form.setData('payment_terms', v)}>
@@ -314,7 +325,7 @@ export default function OrderForm({
                     </Grid>
                     <Grid cols={4}>
                         <Field label="Payment due" id="payment_due_date" error={form.errors.payment_due_date}>
-                            <Input id="payment_due_date" type="date" value={form.data.payment_due_date} onChange={(e) => form.setData('payment_due_date', e.target.value)} />
+                            <DatePicker id="payment_due_date" value={form.data.payment_due_date} onChange={setDate('payment_due_date')} />
                         </Field>
                         <Field label="Payment status *" id="payment_status" error={form.errors.payment_status}>
                             <Select value={form.data.payment_status} onValueChange={(v: string) => form.setData('payment_status', v)}>
@@ -338,7 +349,7 @@ export default function OrderForm({
                     </Grid>
                     <Grid cols={1}>
                         <Field label="Payment received date" id="payment_received_date" error={form.errors.payment_received_date}>
-                            <Input id="payment_received_date" type="date" value={form.data.payment_received_date} onChange={(e) => form.setData('payment_received_date', e.target.value)} />
+                            <DatePicker id="payment_received_date" value={form.data.payment_received_date} onChange={setDate('payment_received_date')} />
                         </Field>
                     </Grid>
                 </Section>

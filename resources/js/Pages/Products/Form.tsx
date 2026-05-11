@@ -8,7 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Product } from '@/types/entities';
+
+const UNITS = ['NOS', 'PCS', 'SET', 'PAIR', 'BOX', 'BAG', 'BUNDLE', 'MTR', 'FT', 'RFT', 'KG', 'GRAM', 'TON', 'LTR', 'COIL', 'ROLL'];
 
 type FormShape = {
     sku: string;
@@ -99,8 +102,13 @@ export default function ProductForm({ product }: { product?: Product | null }) {
                         <Field label="HSN code" id="hsn_code" error={form.errors.hsn_code}>
                             <Input id="hsn_code" className="font-mono text-xs" value={form.data.hsn_code} onChange={(e) => form.setData('hsn_code', e.target.value)} />
                         </Field>
-                        <Field label="Unit (NOS, MTR, KG…)" id="unit" error={form.errors.unit}>
-                            <Input id="unit" value={form.data.unit} onChange={(e) => form.setData('unit', e.target.value)} />
+                        <Field label="Unit" id="unit" error={form.errors.unit}>
+                            <Select value={form.data.unit || undefined} onValueChange={(v: string) => form.setData('unit', v)}>
+                                <SelectTrigger id="unit"><SelectValue placeholder="Select unit" /></SelectTrigger>
+                                <SelectContent>
+                                    {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </Field>
                         <Field label="GST rate (%)" id="gst_rate" error={form.errors.gst_rate}>
                             <Input id="gst_rate" type="number" step="0.01" value={form.data.gst_rate} onChange={(e) => form.setData('gst_rate', e.target.value)} />
