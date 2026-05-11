@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gc-crm-postgres
+    environment:
+      POSTGRES_DB: gc_crm
+      POSTGRES_USER: gc_crm
+      POSTGRES_PASSWORD: gc_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - gc_crm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gc_crm -d gc_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: gc-crm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - gc_crm_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gc_crm_pgdata:
+  gc_crm_redisdata:
