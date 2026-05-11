@@ -26,6 +26,7 @@ type FormShape = {
     customer_po_number: string;
     brands: string; // comma-separated input, parsed on submit
     order_value: number | string;
+    discount_amount: number | string;
     status: string;
     priority: string;
     internal_notes: string;
@@ -42,6 +43,7 @@ function init(order?: Order | null, defaults?: { order_code?: string }): FormSha
         customer_po_number: order?.customer_po_number ?? '',
         brands: (order?.brands ?? []).join(', '),
         order_value: order?.order_value ?? '',
+        discount_amount: order?.discount_amount ?? '',
         status: order?.status ?? 'new_order',
         priority: order?.priority ?? 'normal',
         internal_notes: order?.internal_notes ?? '',
@@ -63,9 +65,12 @@ export default function OrderForm({
     const isEdit = !!order?.id;
     const form = useForm<FormShape>(init(order, { order_code: nextOrderCode }));
 
-    const lineTotal = (qty: number, unitPrice: number, taxRate: number): number => {
-        const subtotal = qty * unitPrice;
-        return Math.round((subtotal + subtotal * (taxRate / 100)) * 100) / 100;
+    // Per-line: gross = qty × unit_price; taxable = gross × (1 − disc%/100); line_total = taxable × (1 + tax%/100)
+    const lineTotal = (qty: number, unitPrice: number, discountPct: number, taxRate: number): number => {
+        const gross = qty * unitPrice;
+        const taxable = gross * (1 - discountPct / 100);
+        const total = taxable * (1 + taxRate / 100);
+        return Math.round(total * 100) / 100;
     };
 
     const updateItem = (idx: number, patch: Partial<OrderItem>) => {
@@ -73,8 +78,9 @@ export default function OrderForm({
         const item = next[idx];
         const qty = Number(item.qty_ordered) || 0;
         const price = Number(item.unit_price ?? 0);
+        const disc = Number(item.discount_pct ?? 0);
         const tax = Number(item.tax_rate ?? 0);
-        next[idx] = { ...item, line_total: lineTotal(qty, price, tax) };
+        next[idx] = { ...item, line_total: lineTotal(qty, price, disc, tax) };
         form.setData('items', next);
     };
 
@@ -93,7 +99,7 @@ export default function OrderForm({
     const addItem = () => {
         form.setData('items', [
             ...form.data.items,
-            { product_id: null, product_name: '', qty_ordered: 1, unit_price: 0, tax_rate: 0, line_total: 0 },
+            { product_id: null, product_name: '', qty_ordered: 1, unit_price: 0, discount_pct: 0, tax_rate: 0, line_total: 0 },
         ]);
     };
 
@@ -101,7 +107,11 @@ export default function OrderForm({
         form.setData('items', form.data.items.filter((_, i) => i !== idx));
     };
 
+    // Subtotal across all lines (post-line-discount, post-tax)
     const itemsTotal = form.data.items.reduce((sum, it) => sum + (Number(it.line_total) || 0), 0);
+    // Order-level flat discount comes off the post-tax grand total
+    const orderDiscount = Math.max(0, Number(form.data.discount_amount) || 0);
+    const grandTotal = Math.max(0, Math.round((itemsTotal - orderDiscount) * 100) / 100);
     const itemsCount = form.data.items.length;
 
     const setDate = (key: keyof FormShape) => (d: Date | undefined) => {
@@ -293,11 +303,12 @@ export default function OrderForm({
                                 <thead className="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground">
                                     <tr>
                                         <th className="px-2 py-2 text-left font-medium" style={{ minWidth: 220 }}>Product</th>
-                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 90 }}>Qty</th>
-                                        <th className="px-2 py-2 text-left font-medium" style={{ width: 60 }}>Unit</th>
-                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 110 }}>Unit price</th>
-                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>GST %</th>
-                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 120 }}>Line total</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>Qty</th>
+                                        <th className="px-2 py-2 text-left font-medium" style={{ width: 50 }}>Unit</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 100 }}>Unit price</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 70 }}>Disc %</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 70 }}>GST %</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 110 }}>Line total</th>
                                         <th className="px-2 py-2" style={{ width: 40 }} />
                                     </tr>
                                 </thead>
@@ -339,6 +350,14 @@ export default function OrderForm({
                                                 <td className="px-2 py-2">
                                                     <Input
                                                         type="number" step="0.01" min="0" max="100"
+                                                        value={(it.discount_pct ?? 0) as number}
+                                                        onChange={(e) => updateItem(i, { discount_pct: e.target.value as unknown as number })}
+                                                        className="h-8 text-right tabular-nums"
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <Input
+                                                        type="number" step="0.01" min="0" max="100"
                                                         value={(it.tax_rate ?? 0) as number}
                                                         onChange={(e) => updateItem(i, { tax_rate: e.target.value as unknown as number })}
                                                         className="h-8 text-right tabular-nums"
@@ -356,12 +375,41 @@ export default function OrderForm({
                                 </tbody>
                                 <tfoot className="bg-muted/30">
                                     <tr>
-                                        <td colSpan={5} className="px-2 py-2 text-right text-xs font-medium">Order total</td>
-                                        <td className="px-2 py-2 text-right text-sm font-bold tabular-nums">{formatCurrency(itemsTotal)}</td>
+                                        <td colSpan={6} className="px-2 py-2 text-right text-xs text-muted-foreground">Subtotal (after line discounts + tax)</td>
+                                        <td className="px-2 py-2 text-right text-xs tabular-nums">{formatCurrency(itemsTotal)}</td>
+                                        <td />
+                                    </tr>
+                                    {orderDiscount > 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="px-2 py-2 text-right text-xs text-muted-foreground">Less: order discount</td>
+                                            <td className="px-2 py-2 text-right text-xs tabular-nums text-orange-600">− {formatCurrency(orderDiscount)}</td>
+                                            <td />
+                                        </tr>
+                                    )}
+                                    <tr className="border-t">
+                                        <td colSpan={6} className="px-2 py-2 text-right text-xs font-semibold">Grand total</td>
+                                        <td className="px-2 py-2 text-right text-sm font-bold tabular-nums">{formatCurrency(grandTotal)}</td>
                                         <td />
                                     </tr>
                                 </tfoot>
                             </table>
+                        </div>
+                    )}
+
+                    {itemsCount > 0 && (
+                        <div className="mt-3 flex flex-wrap items-end justify-end gap-3 border-t pt-3">
+                            <Field label="Order discount (₹)" id="discount_amount" help="Flat trade discount off the post-tax grand total" >
+                                <Input
+                                    id="discount_amount"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={form.data.discount_amount}
+                                    onChange={(e) => form.setData('discount_amount', e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-40 text-right tabular-nums"
+                                />
+                            </Field>
                         </div>
                     )}
                 </CardContent>

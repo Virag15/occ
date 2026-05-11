@@ -19,7 +19,7 @@ class OrderItem extends Model
         'order_id', 'product_id', 'product_name',
         'qty_ordered', 'qty_packed', 'qty_dispatched', 'qty_delivered',
         'qty_cancelled', 'qty_returned',
-        'unit', 'unit_price', 'tax_rate', 'line_total',
+        'unit', 'unit_price', 'discount_pct', 'tax_rate', 'line_total',
         'status', 'notes',
     ];
 

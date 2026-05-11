@@ -92,9 +92,11 @@ class OrderController extends Controller
         $items = $this->validatedItems($request);
         $data['order_code'] ??= $this->nextOrderCode();
         $data['created_by'] = Auth::id();
-        // Derive order_value from sum of line totals when items present
+        // Derive order_value from line totals minus the order-level discount
         if (!empty($items)) {
-            $data['order_value'] = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+            $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+            $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? 0));
+            $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
         }
 
         $order = Order::create($data);
@@ -110,7 +112,9 @@ class OrderController extends Controller
         $items = $this->validatedItems($request);
 
         if (!empty($items)) {
-            $data['order_value'] = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+            $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+            $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? $order->discount_amount ?? 0));
+            $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
         }
         $order->update($data);
         $this->syncItems($order, $items);
@@ -137,6 +141,7 @@ class OrderController extends Controller
                 'qty_ordered' => $i['qty_ordered'],
                 'unit' => $i['unit'] ?? $product?->unit,
                 'unit_price' => $i['unit_price'] ?? null,
+                'discount_pct' => $i['discount_pct'] ?? 0,
                 'tax_rate' => $i['tax_rate'] ?? null,
                 'line_total' => $i['line_total'] ?? null,
                 'notes' => $i['notes'] ?? null,
@@ -171,6 +176,7 @@ class OrderController extends Controller
             'items.*.qty_ordered' => ['required_with:items', 'numeric', 'min:0.001'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
             'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.discount_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items.*.tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items.*.line_total' => ['nullable', 'numeric', 'min:0'],
             'items.*.notes' => ['nullable', 'string'],
@@ -192,15 +198,17 @@ class OrderController extends Controller
         $logoBase64 = $this->imageAsDataUri($company->logo_path);
         $signatureBase64 = $this->imageAsDataUri($company->signature_path);
 
-        // Compute the grand total in rupees for "amount in words"
+        // Compute the grand total in rupees for "amount in words" — factor line + order discounts
         $grandTotal = 0.0;
         foreach ($order->items as $it) {
             $qty = (float) $it->qty_ordered;
             $rate = (float) ($it->unit_price ?? 0);
+            $discPct = (float) ($it->discount_pct ?? 0);
             $taxRate = (float) ($it->tax_rate ?? 0);
-            $sub = $qty * $rate;
-            $grandTotal += $sub + ($sub * $taxRate / 100);
+            $taxable = $qty * $rate * (1 - $discPct / 100);
+            $grandTotal += $taxable + ($taxable * $taxRate / 100);
         }
+        $grandTotal = max(0.0, $grandTotal - (float) ($order->discount_amount ?? 0));
         $amountInWords = \App\Support\NumberToWords::rupees($grandTotal);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.order-invoice', [
@@ -412,6 +420,7 @@ class OrderController extends Controller
             'brands' => ['nullable', 'array'],
             'brands.*' => ['string'],
             'order_value' => ['nullable', 'numeric', 'min:0'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'status' => ['required', 'in:new_order,confirmed,stock_check,packing,packed,ready_for_dispatch,dispatched,delivered,closed,on_hold,cancelled'],
             'priority' => ['required', 'in:urgent,high,normal,low'],
 

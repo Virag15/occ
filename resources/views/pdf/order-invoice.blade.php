@@ -70,18 +70,26 @@
     $buyerState = strtoupper(substr(trim($cust->gstin ?? ''), 0, 2));
     $sameState = $sellerState && $buyerState && $sellerState === $buyerState;
 
-    $subtotal = 0.0;
+    $subtotal = 0.0;       // gross qty × price across lines (pre-discount, pre-tax)
+    $lineDiscountTotal = 0.0;
+    $taxableTotal = 0.0;   // taxable value after line discounts
     $taxTotal = 0.0;
     foreach ($order->items as $it) {
         $qty = (float) $it->qty_ordered;
         $rate = (float) ($it->unit_price ?? 0);
+        $discPct = (float) ($it->discount_pct ?? 0);
         $taxRate = (float) ($it->tax_rate ?? 0);
-        $lineSub = $qty * $rate;
-        $lineTax = $lineSub * $taxRate / 100;
-        $subtotal += $lineSub;
+        $gross = $qty * $rate;
+        $lineDisc = $gross * $discPct / 100;
+        $taxable = $gross - $lineDisc;
+        $lineTax = $taxable * $taxRate / 100;
+        $subtotal += $gross;
+        $lineDiscountTotal += $lineDisc;
+        $taxableTotal += $taxable;
         $taxTotal += $lineTax;
     }
-    $grandTotal = $subtotal + $taxTotal;
+    $orderDiscount = max(0.0, (float) ($order->discount_amount ?? 0));
+    $grandTotal = max(0.0, $taxableTotal + $taxTotal - $orderDiscount);
 @endphp
 
 {{-- HEADER --}}
@@ -181,14 +189,15 @@
 <table class="items">
     <thead>
         <tr>
-            <th style="width: 20pt;">Sr</th>
+            <th style="width: 18pt;">Sr</th>
             <th>Description of goods</th>
-            <th style="width: 50pt;">HSN/SAC</th>
-            <th class="num" style="width: 45pt;">Qty</th>
-            <th style="width: 28pt;">Unit</th>
-            <th class="num" style="width: 60pt;">Rate (₹)</th>
+            <th style="width: 48pt;">HSN/SAC</th>
+            <th class="num" style="width: 38pt;">Qty</th>
+            <th style="width: 24pt;">Unit</th>
+            <th class="num" style="width: 56pt;">Rate (₹)</th>
+            <th class="num" style="width: 32pt;">Disc %</th>
             <th class="num" style="width: 30pt;">Tax %</th>
-            <th class="num" style="width: 70pt;">Amount (₹)</th>
+            <th class="num" style="width: 64pt;">Amount (₹)</th>
         </tr>
     </thead>
     <tbody>
@@ -196,10 +205,12 @@
             @php
                 $qty = (float) $it->qty_ordered;
                 $rate = (float) ($it->unit_price ?? 0);
+                $discPct = (float) ($it->discount_pct ?? 0);
                 $taxRate = (float) ($it->tax_rate ?? 0);
-                $lineSub = $qty * $rate;
-                $lineTax = $lineSub * $taxRate / 100;
-                $lineTotal = $lineSub + $lineTax;
+                $gross = $qty * $rate;
+                $taxable = $gross * (1 - $discPct / 100);
+                $lineTax = $taxable * $taxRate / 100;
+                $lineTotal = $taxable + $lineTax;
             @endphp
             <tr>
                 <td class="num">{{ $i + 1 }}</td>
@@ -211,6 +222,7 @@
                 <td class="num">{{ rtrim(rtrim(number_format($qty, 3, '.', ''), '0'), '.') }}</td>
                 <td>{{ $it->unit }}</td>
                 <td class="num">{{ number_format($rate, 2) }}</td>
+                <td class="num">{{ $discPct > 0 ? number_format($discPct, 2) : '—' }}</td>
                 <td class="num">{{ number_format($taxRate, 2) }}</td>
                 <td class="num"><strong>{{ number_format($lineTotal, 2) }}</strong></td>
             </tr>
@@ -218,31 +230,47 @@
 
         {{-- Empty rows to keep the table looking full when there are few items --}}
         @for ($i = count($order->items); $i < 4; $i++)
-            <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
         @endfor
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="7" class="num">Subtotal (taxable)</td>
+            <td colspan="8" class="num">Gross subtotal</td>
             <td class="num">₹ {{ number_format($subtotal, 2) }}</td>
         </tr>
+        @if ($lineDiscountTotal > 0)
+            <tr>
+                <td colspan="8" class="num">Less: line discounts</td>
+                <td class="num">− ₹ {{ number_format($lineDiscountTotal, 2) }}</td>
+            </tr>
+            <tr>
+                <td colspan="8" class="num">Taxable value</td>
+                <td class="num">₹ {{ number_format($taxableTotal, 2) }}</td>
+            </tr>
+        @endif
         @if ($sameState)
             <tr>
-                <td colspan="7" class="num">CGST</td>
+                <td colspan="8" class="num">CGST</td>
                 <td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td>
             </tr>
             <tr>
-                <td colspan="7" class="num">SGST</td>
+                <td colspan="8" class="num">SGST</td>
                 <td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td>
             </tr>
         @else
             <tr>
-                <td colspan="7" class="num">IGST</td>
+                <td colspan="8" class="num">IGST</td>
                 <td class="num">₹ {{ number_format($taxTotal, 2) }}</td>
             </tr>
         @endif
+        @if ($orderDiscount > 0)
+            <tr>
+                <td colspan="8" class="num">Less: trade discount</td>
+                <td class="num">− ₹ {{ number_format($orderDiscount, 2) }}</td>
+            </tr>
+        @endif
         <tr class="grand">
-            <td colspan="7" class="num">GRAND TOTAL</td>
+            <td colspan="8" class="num">GRAND TOTAL</td>
             <td class="num">₹ {{ number_format($grandTotal, 2) }}</td>
         </tr>
     </tfoot>
@@ -282,12 +310,19 @@
         <div class="frame" style="background: #f5f1e8;">
             <p class="label">Summary</p>
             <table style="width: 100%; font-size: 8.5pt; margin-top: 3pt;">
-                <tr><td style="color: #6b6660; padding: 1pt 0;">Subtotal</td><td class="num">₹ {{ number_format($subtotal, 2) }}</td></tr>
+                <tr><td style="color: #6b6660; padding: 1pt 0;">Gross</td><td class="num">₹ {{ number_format($subtotal, 2) }}</td></tr>
+                @if ($lineDiscountTotal > 0)
+                    <tr><td style="color: #6b6660; padding: 1pt 0;">Line discounts</td><td class="num">− ₹ {{ number_format($lineDiscountTotal, 2) }}</td></tr>
+                    <tr><td style="color: #6b6660; padding: 1pt 0;">Taxable</td><td class="num">₹ {{ number_format($taxableTotal, 2) }}</td></tr>
+                @endif
                 @if ($sameState)
                     <tr><td style="color: #6b6660; padding: 1pt 0;">CGST</td><td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td></tr>
                     <tr><td style="color: #6b6660; padding: 1pt 0;">SGST</td><td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td></tr>
                 @else
                     <tr><td style="color: #6b6660; padding: 1pt 0;">IGST</td><td class="num">₹ {{ number_format($taxTotal, 2) }}</td></tr>
+                @endif
+                @if ($orderDiscount > 0)
+                    <tr><td style="color: #6b6660; padding: 1pt 0;">Trade discount</td><td class="num">− ₹ {{ number_format($orderDiscount, 2) }}</td></tr>
                 @endif
                 <tr style="border-top: 0.5pt solid #2a2722;">
                     <td style="padding: 3pt 0;"><strong>Total payable</strong></td>

@@ -142,6 +142,7 @@ export type OrderItem = {
     qty_returned?: number | string;
     unit?: string | null;
     unit_price?: number | string | null;
+    discount_pct?: number | string | null;
     tax_rate?: number | string | null;
     line_total?: number | string | null;
     status?: string;
@@ -160,6 +161,7 @@ export type Order = {
     customer_po_number: string | null;
     brands: string[] | null;
     order_value: string | null;
+    discount_amount: string | null;
     status: string;
     priority: string;
 

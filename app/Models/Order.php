@@ -25,7 +25,7 @@ class Order extends Model
     protected $fillable = [
         'order_code', 'customer_id', 'order_date', 'order_source',
         'customer_reference_number', 'customer_po_number',
-        'brands', 'order_value', 'status', 'priority',
+        'brands', 'order_value', 'discount_amount', 'status', 'priority',
         'packing_slip_generated', 'packed_by', 'items_packed_count',
         'parcel_weight_kg', 'number_of_boxes', 'parcel_photo_url',
         'pickup_scheduled_date', 'transporter_id', 'driver_name',
