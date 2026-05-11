@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerShowController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/', fn () => Inertia::render('Dashboard'))->name('dashboard');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/tasks', fn () => Inertia::render('Placeholder', [
         'title' => "Today's Tasks",
