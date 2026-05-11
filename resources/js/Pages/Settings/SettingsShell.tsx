@@ -16,17 +16,18 @@ type SettingsItem = {
     label: string;
     href: string;
     icon: LucideIcon;
-    iconBg: string; // tailwind bg-* class for the rounded-square icon container
+    iconBg: string;     // translucent tinted background
+    iconColor: string;  // matching saturated text colour for the glyph
     soon?: boolean;
 };
 
 const ITEMS: SettingsItem[] = [
-    { id: 'company', label: 'Company', icon: Building2, iconBg: 'bg-blue-500', href: '/settings/company' },
-    { id: 'branding', label: 'Branding', icon: Palette, iconBg: 'bg-pink-500', href: '/settings/company', soon: true },
-    { id: 'integrations', label: 'Integrations', icon: Plug, iconBg: 'bg-purple-500', href: '/settings/integrations' },
-    { id: 'team', label: 'Users & roles', icon: Users, iconBg: 'bg-indigo-500', href: '/users' },
-    { id: 'audit', label: 'Activity log', icon: History, iconBg: 'bg-gray-500', href: '/audit-logs' },
-    { id: 'profile', label: 'Profile', icon: UserCog, iconBg: 'bg-emerald-500', href: '/profile' },
+    { id: 'company', label: 'Company', icon: Building2, iconBg: 'bg-blue-500/15', iconColor: 'text-blue-600', href: '/settings/company' },
+    { id: 'branding', label: 'Branding', icon: Palette, iconBg: 'bg-pink-500/15', iconColor: 'text-pink-600', href: '/settings/company', soon: true },
+    { id: 'integrations', label: 'Integrations', icon: Plug, iconBg: 'bg-purple-500/15', iconColor: 'text-purple-600', href: '/settings/integrations' },
+    { id: 'team', label: 'Users & roles', icon: Users, iconBg: 'bg-indigo-500/15', iconColor: 'text-indigo-600', href: '/users' },
+    { id: 'audit', label: 'Activity log', icon: History, iconBg: 'bg-gray-500/15', iconColor: 'text-gray-600', href: '/audit-logs' },
+    { id: 'profile', label: 'Profile', icon: UserCog, iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-600', href: '/profile' },
 ];
 
 export function SettingsShell({ active, children }: { active: SettingsItemId | null; children: React.ReactNode }) {
@@ -48,8 +49,8 @@ export function SettingsShell({ active, children }: { active: SettingsItemId | n
                                     : 'text-foreground hover:bg-muted/60',
                             )}
                         >
-                            <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md', it.iconBg)}>
-                                <Icon className="h-3.5 w-3.5 text-white" />
+                            <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', it.iconBg)}>
+                                <Icon className={cn('h-3.5 w-3.5', it.iconColor)} />
                             </span>
                             <span className="flex flex-1 items-center gap-1.5 font-medium">
                                 {it.label}
@@ -89,10 +90,11 @@ export function SettingsRowGroup({ children }: { children: React.ReactNode }) {
 }
 
 export function SettingsRow({
-    icon: Icon, iconBg = 'bg-gray-500', label, sublabel, href, onClick,
+    icon: Icon, iconBg = 'bg-gray-500/15', iconColor = 'text-gray-600', label, sublabel, href, onClick,
 }: {
     icon: LucideIcon;
     iconBg?: string;
+    iconColor?: string;
     label: string;
     sublabel?: string;
     href?: string;
@@ -100,8 +102,8 @@ export function SettingsRow({
 }) {
     const inner = (
         <>
-            <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-md', iconBg)}>
-                <Icon className="h-4 w-4 text-white" />
+            <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', iconBg)}>
+                <Icon className={cn('h-4 w-4', iconColor)} />
             </span>
             <span className="flex flex-1 flex-col">
                 <span className="text-sm font-medium">{label}</span>
