@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Phone, Mail, Building2, MapPin, ShoppingCart, IndianRupee, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Pencil, Phone, Mail, Building2, MapPin, ShoppingCart, IndianRupee, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Customer, Order } from '@/types/entities';
+
+type MonthPoint = { month: string; label: string; orders: number; value: number };
 
 type Stats = {
     total_orders: number;
@@ -46,15 +49,18 @@ export default function CustomerShow({
     orders,
     stats,
     brand_frequency,
+    monthly_trend = [],
 }: {
     customer: Customer;
     orders: Order[];
     stats: Stats;
     brand_frequency: Record<string, number>;
+    monthly_trend?: MonthPoint[];
 }) {
     const topBrands = Object.entries(brand_frequency).slice(0, 5);
     const collected = stats.amount_received;
     const collectionRate = stats.lifetime_value > 0 ? (collected / stats.lifetime_value) * 100 : 0;
+    const hasTrendData = monthly_trend.some((m) => m.value > 0 || m.orders > 0);
 
     return (
         <AdminLayout breadcrumbs={[{ label: 'Customers', href: '/customers' }, { label: customer.name }]}>
@@ -115,6 +121,42 @@ export default function CustomerShow({
 
                 {/* Right column */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* Monthly order trend (last 12 months) */}
+                    <Card>
+                        <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                Monthly value (last 12 months)
+                            </CardTitle>
+                            <span className="text-[10px] text-muted-foreground">
+                                {hasTrendData ? `${monthly_trend.reduce((a, m) => a + m.orders, 0)} orders · ${formatCurrency(monthly_trend.reduce((a, m) => a + m.value, 0))}` : 'No order activity in this window'}
+                            </span>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2">
+                            <div className="h-[160px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={monthly_trend} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="custTrend" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
+                                                <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                        <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                                        <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} width={32} />
+                                        <RTooltip
+                                            contentStyle={{ fontSize: 11, padding: 6 }}
+                                            formatter={(value, name) => name === 'value' ? [formatCurrency(value as number), 'Value'] : [value, 'Orders']}
+                                            labelClassName="text-xs"
+                                        />
+                                        <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} fill="url(#custTrend)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     {/* Status mix + top brands */}
                     <div className="grid gap-6 sm:grid-cols-2">
                         <Card>

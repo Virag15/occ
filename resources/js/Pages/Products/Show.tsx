@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Package, IndianRupee, AlertTriangle, Warehouse, Info, TrendingDown, ShoppingCart, ClipboardList, History } from 'lucide-react';
+import { ArrowLeft, Pencil, Package, IndianRupee, AlertTriangle, Warehouse, Info, TrendingDown, TrendingUp, ShoppingCart, ClipboardList, History, Users } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,15 +15,27 @@ type Stats = {
     godown_count: number;
     is_below_min: boolean;
     is_below_reorder: boolean;
+    total_qty_sold: number;
+    total_revenue: number;
+    order_count: number;
+    avg_sale_price: number;
 };
+
+type TopBuyer = { id: number; name: string; company: string | null; qty: string | number; revenue: string | number; orders: number };
+type MonthPoint = { month: string; label: string; qty: number; revenue: number };
 
 export default function ProductShow({
     product,
     stats,
+    top_buyers = [],
+    monthly_sales = [],
 }: {
     product: Product & { stock_items?: StockItem[] };
     stats: Stats;
+    top_buyers?: TopBuyer[];
+    monthly_sales?: MonthPoint[];
 }) {
+    const hasSalesActivity = monthly_sales.some((m) => m.qty > 0);
     const total = stats.total_stock;
     const negative = total < 0;
     const min = product.min_order_level ? Number(product.min_order_level) : null;
@@ -250,30 +263,83 @@ export default function ProductShow({
                         </CardContent>
                     </Card>
 
-                    {/* Purchase & sale history — Tally bridge placeholder */}
+                    {/* Sales summary — KPIs derived from OCC's own order lines */}
                     <Card>
                         <CardHeader className="p-4 pb-2">
                             <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                                <History className="h-4 w-4 text-muted-foreground" /> Purchase &amp; sale history
+                                <TrendingUp className="h-4 w-4 text-muted-foreground" /> Sales summary
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 pt-2">
-                            <div className="flex items-start gap-2 rounded-md border bg-muted/30 px-3 py-3 text-xs">
-                                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                                <div className="space-y-1.5">
-                                    <p className="font-medium">Awaiting Tally bridge</p>
-                                    <p className="text-muted-foreground">
-                                        Once Tally vouchers sync, this card shows:
-                                    </p>
-                                    <ul className="space-y-0.5 text-muted-foreground list-disc list-inside ml-1">
-                                        <li>Latest purchase price + vendor + date</li>
-                                        <li>Latest sale price + customer + date</li>
-                                        <li>Price-trend chart (last 12 months)</li>
-                                        <li>Volume-trend chart (monthly turnover)</li>
-                                        <li>Top customers buying this product</li>
-                                    </ul>
-                                </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Kpi label="Units sold" value={stats.total_qty_sold > 0 ? `${stats.total_qty_sold.toLocaleString('en-IN')} ${product.unit ?? ''}` : '0'} />
+                                <Kpi label="Revenue" value={formatCurrency(stats.total_revenue)} />
+                                <Kpi label="Orders" value={String(stats.order_count)} />
+                                <Kpi label="Avg sale price" value={stats.avg_sale_price > 0 ? formatCurrency(stats.avg_sale_price) : '—'} />
                             </div>
+                            {!hasSalesActivity && (
+                                <p className="mt-3 rounded border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                                    No sale activity in the last 12 months — chart and top-buyers will populate as orders come in.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Monthly volume — last 12 months */}
+                    <Card>
+                        <CardHeader className="p-4 pb-2">
+                            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                                <History className="h-4 w-4 text-muted-foreground" /> Monthly volume
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2">
+                            <div className="h-[160px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={monthly_sales} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                        <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                                        <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={28} />
+                                        <RTooltip
+                                            contentStyle={{ fontSize: 11, padding: 6 }}
+                                            formatter={(value, name) => name === 'qty' ? [`${value} ${product.unit ?? ''}`, 'Qty'] : [formatCurrency(value as number), 'Revenue']}
+                                        />
+                                        <Bar dataKey="qty" fill="var(--primary)" radius={[2, 2, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Top buyers */}
+                    <Card>
+                        <CardHeader className="p-4 pb-2">
+                            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                                <Users className="h-4 w-4 text-muted-foreground" /> Top buyers
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {top_buyers.length === 0 ? (
+                                <p className="px-4 pb-4 text-sm text-muted-foreground">No buyers yet for this product.</p>
+                            ) : (
+                                <div className="divide-y">
+                                    {top_buyers.map((b) => (
+                                        <Link
+                                            key={b.id}
+                                            href={route('customers.show', { customer: b.id })}
+                                            className="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-muted/40"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate font-medium">{b.name}</p>
+                                                {b.company && <p className="truncate text-[10px] text-muted-foreground">{b.company}</p>}
+                                            </div>
+                                            <div className="ml-3 text-right">
+                                                <p className="font-mono tabular-nums">{Number(b.qty).toLocaleString('en-IN')} {product.unit ?? ''}</p>
+                                                <p className="text-[10px] tabular-nums text-muted-foreground">{formatCurrency(b.revenue)} · {b.orders} order{b.orders === 1 ? '' : 's'}</p>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
