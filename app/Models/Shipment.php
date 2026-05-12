@@ -71,10 +71,14 @@ class Shipment extends Model
      */
     public static function generateCode(): string
     {
-        $year = now()->year;
-        $prefix = "SHP-{$year}-";
-        $last = static::query()->where('shipment_code', 'like', "{$prefix}%")->orderByDesc('id')->value('shipment_code');
-        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        // Serialize across concurrent shipment creates so two requests can't claim
+        // the same SHP-YYYY-NNNN. See OrderController::nextOrderCode for the same pattern.
+        return \Illuminate\Support\Facades\Cache::lock('shipment-code:next', 10)->block(5, function () {
+            $year = now()->year;
+            $prefix = "SHP-{$year}-";
+            $last = static::query()->where('shipment_code', 'like', "{$prefix}%")->orderByDesc('id')->value('shipment_code');
+            $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
+            return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        });
     }
 }

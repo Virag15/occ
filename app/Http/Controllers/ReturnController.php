@@ -202,10 +202,14 @@ class ReturnController extends Controller
 
     private function nextCaseCode(): string
     {
-        $year = now()->year;
-        $prefix = "RET-{$year}-";
-        $last = DB::table('returns')->where('case_code', 'like', "{$prefix}%")->orderByDesc('id')->value('case_code');
-        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        // Serialize across concurrent return-case creates so two requests can't claim
+        // the same RET-YYYY-NNNN. See OrderController::nextOrderCode for the same pattern.
+        return \Illuminate\Support\Facades\Cache::lock('return-code:next', 10)->block(5, function () {
+            $year = now()->year;
+            $prefix = "RET-{$year}-";
+            $last = DB::table('returns')->where('case_code', 'like', "{$prefix}%")->orderByDesc('id')->value('case_code');
+            $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
+            return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        });
     }
 }

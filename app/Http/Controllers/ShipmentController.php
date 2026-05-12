@@ -273,12 +273,4 @@ class ShipmentController extends Controller
         ];
     }
 
-    private function nextShipmentCode(): string
-    {
-        $year = now()->year;
-        $prefix = "SHP-{$year}-";
-        $last = DB::table('shipments')->where('shipment_code', 'like', "{$prefix}%")->orderByDesc('id')->value('shipment_code');
-        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
-    }
 }

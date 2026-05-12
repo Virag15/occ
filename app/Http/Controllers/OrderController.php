@@ -104,17 +104,21 @@ class OrderController extends Controller
     {
         $data = $this->validated($request);
         $items = $this->validatedItems($request);
-        $data['order_code'] ??= $this->nextOrderCode();
-        $data['created_by'] = Auth::id();
-        // Derive order_value from line totals minus the order-level discount
-        if (!empty($items)) {
-            $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
-            $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? 0));
-            $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
-        }
 
-        $order = Order::create($data);
-        $this->syncItems($order, $items);
+        // Order header + line items must persist together or not at all — otherwise
+        // a mid-write failure leaves an empty order claiming a code in the sequence.
+        DB::transaction(function () use ($data, $items) {
+            $data['order_code'] ??= $this->nextOrderCode();
+            $data['created_by'] = Auth::id();
+            if (!empty($items)) {
+                $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+                $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? 0));
+                $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
+            }
+
+            $order = Order::create($data);
+            $this->syncItems($order, $items);
+        });
 
         // AuditObserver handles 'created' automatically.
         return redirect()->route('orders.index');
@@ -125,13 +129,15 @@ class OrderController extends Controller
         $data = $this->validated($request);
         $items = $this->validatedItems($request);
 
-        if (!empty($items)) {
-            $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
-            $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? $order->discount_amount ?? 0));
-            $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
-        }
-        $order->update($data);
-        $this->syncItems($order, $items);
+        DB::transaction(function () use ($order, $data, $items) {
+            if (!empty($items)) {
+                $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
+                $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? $order->discount_amount ?? 0));
+                $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
+            }
+            $order->update($data);
+            $this->syncItems($order, $items);
+        });
 
         // AuditObserver handles 'updated' / 'status_changed' / 'payment_status_changed' automatically.
         return redirect()->route('orders.index');
@@ -361,17 +367,20 @@ class OrderController extends Controller
             'lr_number' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $path = $request->file('photo')->store("orders/{$order->id}/{$kind}", 'public');
+        // Evidence (POD / triplicate / LR) is private — store on the local disk and
+        // serve via the gated orders.evidence-download route. We never expose these
+        // through /storage because they're commercial documents.
+        $path = $request->file('photo')->store("orders/{$order->id}/{$kind}", 'local');
 
         // Compress the uploaded photo in place (auto-rotate, resize to 2000px max, JPEG q82)
-        $absolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($path);
+        $absolutePath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
         $compressedPath = \App\Support\ImageCompressor::compress($absolutePath);
         if ($compressedPath !== $absolutePath) {
             $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
             if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
         }
 
-        $url = \Illuminate\Support\Facades\Storage::url($path);
+        $url = route('orders.evidence-download', ['order' => $order->id, 'path' => $path]);
 
         // The photo storage moved to shipments. Each evidence type writes to the latest shipment,
         // creating a planning shipment on the fly if none exists yet (LR can be captured before
@@ -432,6 +441,24 @@ class OrderController extends Controller
         return back();
     }
 
+    /**
+     * Stream a private evidence file (POD/triplicate/LR/parcel photo) to an
+     * authenticated user. The path must live under orders/{order}/ so the user
+     * can't traverse outside the order's directory.
+     */
+    public function downloadEvidence(Request $request, Order $order): \Symfony\Component\HttpFoundation\Response
+    {
+        $path = (string) $request->query('path', '');
+        $expected = "orders/{$order->id}/";
+        if (!str_starts_with($path, $expected) || str_contains($path, '..')) {
+            abort(404);
+        }
+        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+            abort(404);
+        }
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($path);
+    }
+
     public function quickUpdate(Request $request, Order $order): RedirectResponse
     {
         // Per-shipment fields (LR / dispatch / vehicle / driver) are no longer
@@ -443,6 +470,19 @@ class OrderController extends Controller
             'internal_notes' => ['nullable', 'string'],
         ];
 
+        // Per-role field whitelist (defence in depth: route middleware already gates
+        // who can hit this endpoint, but accounts shouldn't be able to flip priority
+        // and warehouse shouldn't be able to touch payment_status).
+        $role = $request->user()?->role;
+        $allowed = match ($role) {
+            'owner', 'manager' => ['invoice_number', 'payment_status', 'priority', 'internal_notes'],
+            'accounts' => ['invoice_number', 'payment_status', 'internal_notes'],
+            'warehouse' => ['priority', 'internal_notes'],
+            default => [],
+        };
+        if (empty($allowed)) abort(403, 'Your role cannot quick-update orders.');
+
+        $rules = array_intersect_key($rules, array_flip($allowed));
         $data = $request->validate(array_intersect_key($rules, $request->all()));
         $order->update($data);
 
@@ -451,15 +491,20 @@ class OrderController extends Controller
 
     private function nextOrderCode(): string
     {
-        $year = now()->year;
-        $prefix = "ORD-{$year}-";
-        $lastNum = DB::table('orders')
-            ->where('order_code', 'like', "{$prefix}%")
-            ->orderByDesc('id')
-            ->value('order_code');
+        // Serialize code allocation across concurrent requests. Cache::lock works on
+        // file/redis drivers; the read+compute+return runs inside the lock so two
+        // simultaneous order creates can't claim the same ORD-YYYY-NNNN.
+        return \Illuminate\Support\Facades\Cache::lock('order-code:next', 10)->block(5, function () {
+            $year = now()->year;
+            $prefix = "ORD-{$year}-";
+            $lastNum = DB::table('orders')
+                ->where('order_code', 'like', "{$prefix}%")
+                ->orderByDesc('id')
+                ->value('order_code');
 
-        $next = $lastNum ? (int) substr($lastNum, strlen($prefix)) + 1 : 1;
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+            $next = $lastNum ? (int) substr($lastNum, strlen($prefix)) + 1 : 1;
+            return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        });
     }
 
     private function validated(Request $request): array

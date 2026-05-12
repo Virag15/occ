@@ -36,12 +36,13 @@ class RbacTest extends TestCase
         $this->get('/audit-logs')->assertOk();
     }
 
-    public function test_allows_manager_full_access(): void
+    public function test_allows_manager_audit_but_not_users(): void
     {
+        // Per RBAC matrix: user management is owner-only; manager has audit log access.
         $manager = User::factory()->create(['role' => 'manager']);
         $this->actingAs($manager);
 
-        $this->get('/users')->assertOk();
+        $this->get('/users')->assertForbidden();
         $this->get('/audit-logs')->assertOk();
     }
 

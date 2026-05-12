@@ -10,15 +10,21 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
+    // Public registration is OFF by default — OCC is a B2B internal tool. Owner creates
+    // users via the Users page. To re-enable for dev, set ALLOW_PUBLIC_REGISTRATION=true
+    // in .env.
+    if (env('ALLOW_PUBLIC_REGISTRATION', false)) {
+        Route::get('register', [RegisteredUserController::class, 'create'])
+            ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+        Route::post('register', [RegisteredUserController::class, 'store']);
+    }
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:6,1');
 });
 
 Route::middleware('auth')->group(function () {
