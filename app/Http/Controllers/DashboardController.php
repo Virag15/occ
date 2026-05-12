@@ -5,15 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\Shipment;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(): Response
+    public function index(): Response|RedirectResponse
     {
+        // Role-based landing: warehouse heads straight to their queue, accounts
+        // to the tasks board (payments + triplicate chase live there). Owner /
+        // manager / viewer land on the dashboard below.
+        $role = Auth::user()?->role;
+        if ($role === 'warehouse') return redirect()->route('warehouse.queue');
+        if ($role === 'accounts') return redirect()->route('tasks');
+
         $today = now()->toDateString();
         $monthStart = now()->startOfMonth()->toDateString();
 

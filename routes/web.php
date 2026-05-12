@@ -23,6 +23,7 @@ use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // ───── Read routes — open to every authed role ────────────────────────
+    // Role-based landing is enforced inside DashboardController::index.
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
     Route::get('/warehouse', [\App\Http\Controllers\WarehouseController::class, 'index'])->name('warehouse.queue');
