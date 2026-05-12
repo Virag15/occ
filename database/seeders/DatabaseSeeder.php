@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\Shipment;
 use App\Models\StockItem;
 use App\Models\Transporter;
 use App\Models\User;
@@ -29,11 +30,15 @@ class DatabaseSeeder extends Seeder
 
     private function seedOrders(): void
     {
-        if (Order::query()->exists()) return;
+        if (Order::query()->exists()) {
+            return;
+        }
 
         $customerIds = Customer::query()->pluck('id')->all();
         $transporterIds = Transporter::query()->pluck('id')->all();
-        if (empty($customerIds) || empty($transporterIds)) return;
+        if (empty($customerIds) || empty($transporterIds)) {
+            return;
+        }
 
         $samples = [
             ['status' => 'new_order',          'payment_status' => 'not_due', 'priority' => 'normal',  'value' => 75000,  'brands' => ['C&S Electric'],            'days_ago' => 0],
@@ -47,7 +52,9 @@ class DatabaseSeeder extends Seeder
         ];
 
         $products = Product::query()->get();
-        if ($products->isEmpty()) return;
+        if ($products->isEmpty()) {
+            return;
+        }
 
         $year = now()->year;
         foreach ($samples as $i => $s) {
@@ -70,8 +77,8 @@ class DatabaseSeeder extends Seeder
             // so the order's accessors (transporter / lr_number / dispatch_date / delivered_date)
             // have something to return.
             if (in_array($s['status'], ['dispatched', 'delivered', 'closed'], true)) {
-                \App\Models\Shipment::create([
-                    'shipment_code' => \App\Models\Shipment::generateCode(),
+                Shipment::create([
+                    'shipment_code' => Shipment::generateCode(),
                     'order_id' => $order->id,
                     'transporter_id' => $transporterIds[$i % count($transporterIds)],
                     'status' => $s['status'] === 'closed' ? 'closed' : ($s['status'] === 'delivered' ? 'delivered' : 'dispatched'),

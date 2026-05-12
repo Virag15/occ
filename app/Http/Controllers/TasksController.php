@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\ReturnCase;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,7 +48,7 @@ class TasksController extends Controller
             ->whereIn('payment_status', ['pending', 'partial', 'overdue'])
             ->where(function ($q) use ($today) {
                 $q->where('payment_status', 'overdue')
-                  ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $today));
+                    ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $today));
             })
             ->with('customer:id,name,company,phone')
             ->orderBy('payment_due_date')

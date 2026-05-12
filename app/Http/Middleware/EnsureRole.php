@@ -15,8 +15,12 @@ class EnsureRole
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
-        if (!$user) abort(401);
-        if (!in_array($user->role, $roles, true)) abort(403);
+        if (! $user) {
+            abort(401);
+        }
+        if (! in_array($user->role, $roles, true)) {
+            abort(403);
+        }
 
         return $next($request);
     }

@@ -1,8 +1,14 @@
 <?php
 
+use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,16 +18,16 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureRole::class,
+            'role' => EnsureRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $exception, \Illuminate\Http\Request $request) {
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             $status = $response->getStatusCode();
 
             // 419 = CSRF token expired (session timed out). Send the user to login with a flash.
@@ -31,8 +37,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             // Render the branded Inertia Error page for known HTTP errors.
-            if ($request->header('X-Inertia') || (!$request->expectsJson() && in_array($status, [403, 404, 500, 503], true))) {
-                return \Inertia\Inertia::render('Error', [
+            if ($request->header('X-Inertia') || (! $request->expectsJson() && in_array($status, [403, 404, 500, 503], true))) {
+                return Inertia::render('Error', [
                     'status' => $status,
                     'message' => app()->hasDebugModeEnabled() && $status === 500 ? $exception->getMessage() : null,
                 ])->toResponse($request)->setStatusCode($status);

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Order extends Model
 {
@@ -30,7 +31,7 @@ class Order extends Model
         // existing rows, this covers all new ones.
         static::creating(function (Order $order) {
             if (empty($order->tracking_uuid)) {
-                $order->tracking_uuid = (string) \Illuminate\Support\Str::uuid();
+                $order->tracking_uuid = (string) Str::uuid();
             }
         });
     }
@@ -120,7 +121,10 @@ class Order extends Model
      */
     protected function shipmentField(string $field)
     {
-        if (!$this->relationLoaded('shipments')) return null;
+        if (! $this->relationLoaded('shipments')) {
+            return null;
+        }
+
         return $this->shipments
             ->filter(fn ($s) => $s->{$field} !== null)
             ->sortByDesc('id')
@@ -155,8 +159,11 @@ class Order extends Model
 
     public function getTransporterAttribute(): ?Transporter
     {
-        if (!$this->relationLoaded('shipments')) return null;
+        if (! $this->relationLoaded('shipments')) {
+            return null;
+        }
         $latest = $this->shipments->sortByDesc('id')->first(fn ($s) => $s->transporter_id !== null);
+
         return $latest?->transporter;
     }
 

@@ -33,7 +33,10 @@ class CompanySetting extends Model
      */
     public function isSameState(?string $buyerStateCode): bool
     {
-        if (!$this->state_code || !$buyerStateCode) return true; // Conservative default
+        if (! $this->state_code || ! $buyerStateCode) {
+            return true;
+        } // Conservative default
+
         return strtoupper(trim($this->state_code)) === strtoupper(trim($buyerStateCode));
     }
 }

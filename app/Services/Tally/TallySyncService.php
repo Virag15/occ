@@ -47,7 +47,9 @@ class TallySyncService
      */
     public function pushSingleOrder(Order $order): ?string
     {
-        if ($order->tally_voucher_id) return $order->tally_voucher_id; // already pushed
+        if ($order->tally_voucher_id) {
+            return $order->tally_voucher_id;
+        } // already pushed
         $order->loadMissing(['customer', 'items']);
 
         $res = $this->client->pushSalesVoucher([
@@ -72,8 +74,10 @@ class TallySyncService
             AuditLog::record('tally_voucher_created', $order, [
                 'voucher_id' => ['from' => null, 'to' => $res['tally_id']],
             ]);
+
             return $res['tally_id'];
         }
+
         return null;
     }
 
@@ -84,7 +88,9 @@ class TallySyncService
      */
     public function pushSinglePayment(Payment $payment): ?string
     {
-        if ($payment->tally_voucher_id) return $payment->tally_voucher_id;
+        if ($payment->tally_voucher_id) {
+            return $payment->tally_voucher_id;
+        }
         $payment->loadMissing('order.customer');
 
         $res = $this->client->pushReceiptVoucher([
@@ -105,8 +111,10 @@ class TallySyncService
             AuditLog::record('tally_receipt_created', $payment, [
                 'voucher_id' => ['from' => null, 'to' => $res['tally_id']],
             ]);
+
             return $res['tally_id'];
         }
+
         return null;
     }
 
@@ -211,6 +219,7 @@ class TallySyncService
     {
         return $this->runSync('sales_vouchers', $triggeredBy, function () {
             $rows = $this->client->fetchSalesVouchers();
+
             // We don't persist these yet — they show up in Customer/Product analytics
             // once we add a tally_vouchers table. For now just count + sample so the
             // sync log audit trail is right.
@@ -228,6 +237,7 @@ class TallySyncService
     {
         return $this->runSync('purchase_vouchers', $triggeredBy, function () {
             $rows = $this->client->fetchPurchaseVouchers();
+
             return [
                 'processed' => count($rows),
                 'created' => count($rows),
@@ -246,7 +256,11 @@ class TallySyncService
 
             foreach ($rows as $row) {
                 $product = Product::query()->where('tally_id', $row['tally_id'])->first();
-                if (!$product) { $failed++; continue; }
+                if (! $product) {
+                    $failed++;
+
+                    continue;
+                }
 
                 $stock = StockItem::query()
                     ->where('product_id', $product->id)
@@ -315,7 +329,11 @@ class TallySyncService
                         ->where('tally_id', $res['tally_id'])
                         ->where('id', '!=', $c->id)
                         ->exists();
-                    if ($clash) { $failed++; continue; }
+                    if ($clash) {
+                        $failed++;
+
+                        continue;
+                    }
                     $c->forceFill(['tally_id' => $res['tally_id'], 'tally_synced_at' => now()])->save();
                     $created++;
                 } else {
@@ -361,7 +379,11 @@ class TallySyncService
                         'tax_rate' => (float) ($i->tax_rate ?? 0),
                     ])->all(),
                 ]);
-                if ($res['ok']) $created++; else $failed++;
+                if ($res['ok']) {
+                    $created++;
+                } else {
+                    $failed++;
+                }
             }
 
             return [
@@ -395,7 +417,11 @@ class TallySyncService
                     'customer_name' => $p->order?->customer?->name ?? 'Unknown',
                     'customer_tally_id' => $p->order?->customer?->tally_id,
                 ]);
-                if ($res['ok']) $created++; else $failed++;
+                if ($res['ok']) {
+                    $created++;
+                } else {
+                    $failed++;
+                }
             }
 
             return [
@@ -457,11 +483,15 @@ class TallySyncService
     private function generateCustomerCode(): string
     {
         $last = DB::table('customers')->orderByDesc('id')->value('customer_code');
-        if (!$last) return 'GC-001';
+        if (! $last) {
+            return 'GC-001';
+        }
         if (preg_match('/(\d+)$/', $last, $m)) {
             $next = (int) $m[1] + 1;
+
             return sprintf('GC-%03d', $next);
         }
-        return 'GC-' . (Customer::count() + 1);
+
+        return 'GC-'.(Customer::count() + 1);
     }
 }

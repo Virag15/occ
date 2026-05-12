@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Order;
-use App\Models\Shipment;
+use App\Models\ReturnCase;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -20,8 +19,12 @@ class DashboardController extends Controller
         // to the tasks board (payments + triplicate chase live there). Owner /
         // manager / viewer land on the dashboard below.
         $role = Auth::user()?->role;
-        if ($role === 'warehouse') return redirect()->route('warehouse.queue');
-        if ($role === 'accounts') return redirect()->route('tasks');
+        if ($role === 'warehouse') {
+            return redirect()->route('warehouse.queue');
+        }
+        if ($role === 'accounts') {
+            return redirect()->route('tasks');
+        }
 
         $today = now()->toDateString();
         $monthStart = now()->startOfMonth()->toDateString();
@@ -48,7 +51,7 @@ class DashboardController extends Controller
             ->whereIn('payment_status', ['pending', 'partial', 'overdue'])
             ->where(function ($q) use ($today) {
                 $q->where('payment_status', 'overdue')
-                  ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $today));
+                    ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $today));
             })
             ->selectRaw('COALESCE(SUM(order_value - COALESCE(amount_received, 0)), 0) AS due')
             ->value('due');
@@ -88,9 +91,9 @@ class DashboardController extends Controller
                 ->whereIn('payment_status', ['pending', 'partial', 'overdue'])
                 ->where(function ($q) use ($today) {
                     $q->where('payment_status', 'overdue')
-                      ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $today));
+                        ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $today));
                 })->count(),
-            'returns_open' => \App\Models\ReturnCase::query()->whereIn('case_status', ['reported', 'under_inspection'])->count(),
+            'returns_open' => ReturnCase::query()->whereIn('case_status', ['reported', 'under_inspection'])->count(),
         ];
 
         $recentActivity = AuditLog::query()

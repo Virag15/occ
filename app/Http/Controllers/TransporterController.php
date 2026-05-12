@@ -35,18 +35,21 @@ class TransporterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         Transporter::create($this->validated($request));
+
         return redirect()->route('transporters.index');
     }
 
     public function update(Request $request, Transporter $transporter): RedirectResponse
     {
         $transporter->update($this->validated($request));
+
         return redirect()->route('transporters.index');
     }
 
     public function destroy(Transporter $transporter): RedirectResponse
     {
         $transporter->delete();
+
         return redirect()->route('transporters.index');
     }
 

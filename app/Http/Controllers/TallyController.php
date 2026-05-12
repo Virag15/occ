@@ -9,10 +9,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class TallyController extends Controller
 {
-    public function index(TallyClient $client): \Inertia\Response
+    public function index(TallyClient $client): Response
     {
         $logs = TallySyncLog::query()
             ->with('trigger:id,name')
@@ -25,7 +27,7 @@ class TallyController extends Controller
             ->groupBy('entity_type')
             ->pluck('last_at', 'entity_type');
 
-        return \Inertia\Inertia::render('Settings/Integrations', [
+        return Inertia::render('Settings/Integrations', [
             'tally' => $client->summary(),
             'tally_logs' => $logs,
             'tally_last_synced' => $byEntity,
@@ -62,6 +64,7 @@ class TallyController extends Controller
     public function ping(TallyClient $client): RedirectResponse
     {
         $ok = $client->isEnabled() ? $client->ping() : false;
+
         return back()->with('tally_ping', [
             'enabled' => $client->isEnabled(),
             'ok' => $ok,

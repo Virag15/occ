@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
+use App\Models\CompanySetting;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,10 +28,10 @@ class ShipmentController extends Controller
     {
         $monthStr = (string) $request->query('month', now()->format('Y-m'));
         // Hard-validate the format so junk input doesn't slip into Carbon::createFromFormat
-        if (!preg_match('/^\d{4}-\d{2}$/', $monthStr)) {
+        if (! preg_match('/^\d{4}-\d{2}$/', $monthStr)) {
             $monthStr = now()->format('Y-m');
         }
-        $cursor = \Illuminate\Support\Carbon::createFromFormat('Y-m', $monthStr)->startOfMonth();
+        $cursor = Carbon::createFromFormat('Y-m', $monthStr)->startOfMonth();
         $start = $cursor->copy()->startOfMonth();
         $end = $cursor->copy()->endOfMonth();
 
@@ -129,10 +133,10 @@ class ShipmentController extends Controller
             $old = $shipment->status;
 
             $payload = ['status' => $target];
-            if ($target === 'dispatched' && !$shipment->dispatch_date) {
+            if ($target === 'dispatched' && ! $shipment->dispatch_date) {
                 $payload['dispatch_date'] = now()->toDateString();
             }
-            if ($target === 'delivered' && !$shipment->delivered_date) {
+            if ($target === 'delivered' && ! $shipment->delivered_date) {
                 $payload['delivered_date'] = now()->toDateString();
             }
             $shipment->update($payload);
@@ -141,7 +145,9 @@ class ShipmentController extends Controller
             $shipment->load('items');
             foreach ($shipment->items as $si) {
                 $oi = OrderItem::lockForUpdate()->find($si->order_item_id);
-                if (!$oi) continue;
+                if (! $oi) {
+                    continue;
+                }
 
                 if ($target === 'dispatched' && $old !== 'dispatched') {
                     $oi->qty_dispatched = (float) $oi->qty_dispatched + (float) $si->qty;
@@ -178,14 +184,20 @@ class ShipmentController extends Controller
      */
     private function syncOrderStatus(int $orderId): void
     {
-        $order = \App\Models\Order::with('items')->find($orderId);
-        if (!$order) return;
+        $order = Order::with('items')->find($orderId);
+        if (! $order) {
+            return;
+        }
 
         // Leave these alone — they're deliberate end-states
-        if (in_array($order->status, ['on_hold', 'cancelled', 'closed'], true)) return;
+        if (in_array($order->status, ['on_hold', 'cancelled', 'closed'], true)) {
+            return;
+        }
 
         $items = $order->items;
-        if ($items->isEmpty()) return;
+        if ($items->isEmpty()) {
+            return;
+        }
 
         $allOrdered = $items->sum(fn ($it) => (float) $it->qty_ordered);
         $allDelivered = $items->sum(fn ($it) => (float) $it->qty_delivered);
@@ -194,21 +206,27 @@ class ShipmentController extends Controller
         $allCancelled = $items->sum(fn ($it) => (float) $it->qty_cancelled);
 
         $effectiveOrdered = $allOrdered - $allCancelled;
-        if ($effectiveOrdered <= 0) return;
+        if ($effectiveOrdered <= 0) {
+            return;
+        }
 
         $payload = [];
 
         if ($allDelivered >= $effectiveOrdered - 0.001 && $order->status !== 'delivered') {
             $payload['status'] = 'delivered';
-            if (!$order->delivered_date) $payload['delivered_date'] = now()->toDateString();
-        } elseif ($allDispatched >= $effectiveOrdered - 0.001 && !in_array($order->status, ['delivered'], true)) {
+            if (! $order->delivered_date) {
+                $payload['delivered_date'] = now()->toDateString();
+            }
+        } elseif ($allDispatched >= $effectiveOrdered - 0.001 && ! in_array($order->status, ['delivered'], true)) {
             $payload['status'] = 'dispatched';
-            if (!$order->dispatch_date) $payload['dispatch_date'] = now()->toDateString();
+            if (! $order->dispatch_date) {
+                $payload['dispatch_date'] = now()->toDateString();
+            }
         } elseif ($allPacked >= $effectiveOrdered - 0.001 && in_array($order->status, ['new_order', 'confirmed', 'stock_check', 'packing'], true)) {
             $payload['status'] = 'packed';
         }
 
-        if (!empty($payload)) {
+        if (! empty($payload)) {
             $order->update($payload);
         }
     }
@@ -220,7 +238,9 @@ class ShipmentController extends Controller
             $shipment->load('items');
             foreach ($shipment->items as $si) {
                 $oi = OrderItem::lockForUpdate()->find($si->order_item_id);
-                if (!$oi) continue;
+                if (! $oi) {
+                    continue;
+                }
 
                 if (in_array($shipment->status, ['delivered'], true)) {
                     $oi->qty_delivered = max(0, (float) $oi->qty_delivered - (float) $si->qty);
@@ -246,11 +266,11 @@ class ShipmentController extends Controller
             'items.orderItem.product:id,sku',
         ]);
 
-        if (!$shipment->picking_slip_generated_at) {
+        if (! $shipment->picking_slip_generated_at) {
             $shipment->forceFill(['picking_slip_generated_at' => now()])->save();
         }
 
-        \App\Models\AuditLog::record('picking_slip_printed', $shipment, [
+        AuditLog::record('picking_slip_printed', $shipment, [
             'shipment_code' => ['from' => null, 'to' => $shipment->shipment_code],
         ]);
 
@@ -268,11 +288,11 @@ class ShipmentController extends Controller
             'items.orderItem.product:id,sku',
         ]);
 
-        if (!$shipment->packing_slip_generated_at) {
+        if (! $shipment->packing_slip_generated_at) {
             $shipment->forceFill(['packing_slip_generated_at' => now()])->save();
         }
 
-        \App\Models\AuditLog::record('packing_slip_printed', $shipment, [
+        AuditLog::record('packing_slip_printed', $shipment, [
             'shipment_code' => ['from' => null, 'to' => $shipment->shipment_code],
         ]);
 
@@ -289,13 +309,14 @@ class ShipmentController extends Controller
      */
     private function companyPayload(): array
     {
-        $cs = \App\Models\CompanySetting::current();
+        $cs = CompanySetting::current();
         $logoDataUri = null;
-        if ($cs->logo_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($cs->logo_path)) {
-            $absolute = \Illuminate\Support\Facades\Storage::disk('public')->path($cs->logo_path);
+        if ($cs->logo_path && Storage::disk('public')->exists($cs->logo_path)) {
+            $absolute = Storage::disk('public')->path($cs->logo_path);
             $mime = mime_content_type($absolute) ?: 'image/png';
-            $logoDataUri = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolute));
+            $logoDataUri = 'data:'.$mime.';base64,'.base64_encode(file_get_contents($absolute));
         }
+
         return [
             'company_name' => $cs->company_name,
             'address_line_1' => $cs->address_line_1,
@@ -309,5 +330,4 @@ class ShipmentController extends Controller
             'logo_data_uri' => $logoDataUri,
         ];
     }
-
 }

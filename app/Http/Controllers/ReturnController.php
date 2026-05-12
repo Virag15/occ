@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\OrderItem;
 use App\Models\ReturnCase;
 use App\Models\ReturnItem;
+use App\Models\SavedView;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -25,8 +27,8 @@ class ReturnController extends Controller
             ->with(['customer:id,name,company', 'order:id,order_code'])
             ->when($q !== '', fn ($qq) => $qq->where(function ($w) use ($q) {
                 $w->where('case_code', 'like', "%{$q}%")
-                  ->orWhere('case_title', 'like', "%{$q}%")
-                  ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%"));
+                    ->orWhere('case_title', 'like', "%{$q}%")
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%"));
             }))
             ->when($status !== '', fn ($qq) => $qq->where('case_status', $status))
             ->latest('date_reported')
@@ -36,7 +38,7 @@ class ReturnController extends Controller
         return Inertia::render('Returns/Index', [
             'rows' => $rows,
             'filters' => ['q' => $q, 'status' => $status],
-            'savedViews' => \App\Models\SavedView::query()
+            'savedViews' => SavedView::query()
                 ->where('user_id', Auth::id())
                 ->where('database_type', 'return')
                 ->orderByDesc('is_default')
@@ -82,7 +84,7 @@ class ReturnController extends Controller
         $valueAtRisk = 0.0;
         foreach ($data['items'] as $row) {
             $oi = OrderItem::with('order:id,order_value')->find($row['order_item_id']);
-            if (!$oi || $oi->order_id !== (int) $data['related_order_id']) {
+            if (! $oi || $oi->order_id !== (int) $data['related_order_id']) {
                 throw ValidationException::withMessages([
                     'items' => 'One or more line items do not belong to this order.',
                 ]);
@@ -153,7 +155,7 @@ class ReturnController extends Controller
 
     public function resolve(Request $request, ReturnCase $return): RedirectResponse
     {
-        abort_if(!in_array($return->case_status, ['reported', 'under_inspection'], true), 422, "Case is already {$return->case_status}.");
+        abort_if(! in_array($return->case_status, ['reported', 'under_inspection'], true), 422, "Case is already {$return->case_status}.");
 
         $data = $request->validate([
             'resolution_type' => ['required', Rule::in(ReturnCase::RESOLUTION_TYPES)],
@@ -178,7 +180,7 @@ class ReturnController extends Controller
 
     public function reject(Request $request, ReturnCase $return): RedirectResponse
     {
-        abort_if(!in_array($return->case_status, ['reported', 'under_inspection'], true), 422, "Case is already {$return->case_status}.");
+        abort_if(! in_array($return->case_status, ['reported', 'under_inspection'], true), 422, "Case is already {$return->case_status}.");
 
         $data = $request->validate([
             'internal_notes' => ['nullable', 'string'],
@@ -189,7 +191,9 @@ class ReturnController extends Controller
             $return->load('items');
             foreach ($return->items as $ri) {
                 $oi = OrderItem::lockForUpdate()->find($ri->order_item_id);
-                if (!$oi) continue;
+                if (! $oi) {
+                    continue;
+                }
                 $oi->qty_returned = max(0, (float) $oi->qty_returned - (float) $ri->qty_returned);
                 $oi->status = $oi->deriveStatus();
                 $oi->save();
@@ -210,12 +214,13 @@ class ReturnController extends Controller
     {
         // Serialize across concurrent return-case creates so two requests can't claim
         // the same RET-YYYY-NNNN. See OrderController::nextOrderCode for the same pattern.
-        return \Illuminate\Support\Facades\Cache::lock('return-code:next', 10)->block(5, function () {
+        return Cache::lock('return-code:next', 10)->block(5, function () {
             $year = now()->year;
             $prefix = "RET-{$year}-";
             $last = DB::table('returns')->where('case_code', 'like', "{$prefix}%")->orderByDesc('id')->value('case_code');
             $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
-            return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+
+            return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
         });
     }
 }

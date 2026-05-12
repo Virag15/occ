@@ -78,7 +78,7 @@ class EvidenceUploadTest extends TestCase
     public function test_evidence_upload_rejects_unknown_kind(): void
     {
         $file = UploadedFile::fake()->image('foo.jpg');
-        $this->post('/orders/' . $this->order->id . '/evidence/unknown', ['photo' => $file])
+        $this->post('/orders/'.$this->order->id.'/evidence/unknown', ['photo' => $file])
             ->assertStatus(404); // route doesn't match because of whereIn constraint
     }
 }

@@ -5,11 +5,15 @@ import {
     ListChecks,
     Users,
     Package,
+    PackageCheck,
     Truck,
     AlertOctagon,
     ShoppingCart,
+    CalendarDays,
     LogOut,
     Menu,
+    Moon,
+    Sun,
     PanelLeftClose,
     PanelLeft,
     Settings,
@@ -18,6 +22,7 @@ import {
     History,
     FileText,
 } from 'lucide-react';
+import { useTheme } from '@/hooks/use-theme';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -106,6 +111,8 @@ const navGroups: NavGroup[] = [
         items: [
             { name: 'Orders', href: '/orders', icon: ShoppingCart },
             { name: 'Returns', href: '/returns', icon: AlertOctagon },
+            { name: 'Dispatch calendar', href: '/shipments/calendar', icon: CalendarDays },
+            { name: 'Warehouse queue', href: '/warehouse', icon: PackageCheck, roles: ['owner', 'manager', 'warehouse'] },
             { name: 'Daily report', href: '/reports/daily', icon: FileText, roles: ['owner', 'manager', 'accounts'] },
         ],
     },
@@ -186,6 +193,7 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
     const [collapsed, setCollapsed] = useState(false);
     const [renderCollapsed, setRenderCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const { theme, toggle: toggleTheme } = useTheme();
 
     const currentPath = url.split('?')[0];
 
@@ -298,6 +306,10 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
                                 <UserCog className="h-4 w-4 mr-2" />
                                 Profile
                             </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+                            {theme === 'dark' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+                            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
                             <LogOut className="h-4 w-4 mr-2" />

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Auth;
 
 class AuditLog extends Model
 {
@@ -40,7 +41,7 @@ class AuditLog extends Model
     public static function record(string $action, ?Model $entity = null, array $meta = []): self
     {
         return static::create([
-            'user_id' => \Illuminate\Support\Facades\Auth::id(),
+            'user_id' => Auth::id(),
             'entity_type' => $entity ? static::deriveEntityType($entity) : 'system',
             'entity_id' => $entity?->getKey() ?? 0,
             'action' => $action,
@@ -52,6 +53,7 @@ class AuditLog extends Model
     private static function deriveEntityType(Model $entity): string
     {
         $base = class_basename($entity);
+
         return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $base));
     }
 }

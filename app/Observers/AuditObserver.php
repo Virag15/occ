@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\AuditLog;
+use App\Models\ReturnCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,30 +21,38 @@ class AuditObserver
 
     public function created(Model $model): void
     {
-        if (!self::$enabled) return;
+        if (! self::$enabled) {
+            return;
+        }
 
         $this->log($model, 'created', $this->snapshot($model));
     }
 
     public function updated(Model $model): void
     {
-        if (!self::$enabled) return;
+        if (! self::$enabled) {
+            return;
+        }
 
         $changes = [];
         foreach ($model->getChanges() as $field => $newValue) {
-            if (in_array($field, self::SKIP_FIELDS, true)) continue;
+            if (in_array($field, self::SKIP_FIELDS, true)) {
+                continue;
+            }
             $changes[$field] = [
                 'from' => $this->cast($model->getOriginal($field)),
                 'to' => $this->cast($newValue),
             ];
         }
 
-        if (empty($changes)) return;
+        if (empty($changes)) {
+            return;
+        }
 
         // Promote important transitions to specific action labels — readers should
         // see 'Inspection started' not 'Status changed: reported → under_inspection'
         $action = match (true) {
-            $model instanceof \App\Models\ReturnCase && isset($changes['case_status']) => match ($changes['case_status']['to'] ?? null) {
+            $model instanceof ReturnCase && isset($changes['case_status']) => match ($changes['case_status']['to'] ?? null) {
                 'under_inspection' => 'return_inspection_started',
                 'resolved' => 'return_resolved',
                 'rejected' => 'return_rejected',
@@ -61,7 +70,9 @@ class AuditObserver
 
     public function deleted(Model $model): void
     {
-        if (!self::$enabled) return;
+        if (! self::$enabled) {
+            return;
+        }
 
         // Capture key identifying fields before they're gone
         $key = $this->keyFields($model);
@@ -72,9 +83,12 @@ class AuditObserver
     {
         $out = [];
         foreach ($model->getAttributes() as $field => $value) {
-            if (in_array($field, self::SKIP_FIELDS, true)) continue;
+            if (in_array($field, self::SKIP_FIELDS, true)) {
+                continue;
+            }
             $out[$field] = ['from' => null, 'to' => $this->cast($value)];
         }
+
         return $out;
     }
 
@@ -87,6 +101,7 @@ class AuditObserver
                 $out[$f] = ['from' => $this->cast($model->getAttribute($f)), 'to' => null];
             }
         }
+
         return $out ?: ['id' => ['from' => $model->getKey(), 'to' => null]];
     }
 
@@ -104,6 +119,7 @@ class AuditObserver
     private function entityType(Model $model): string
     {
         $base = class_basename(get_class($model));
+
         return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $base));
     }
 
@@ -112,7 +128,10 @@ class AuditObserver
      */
     private function cast($value)
     {
-        if (is_null($value) || is_scalar($value) || is_array($value)) return $value;
+        if (is_null($value) || is_scalar($value) || is_array($value)) {
+            return $value;
+        }
+
         return (string) $value;
     }
 }

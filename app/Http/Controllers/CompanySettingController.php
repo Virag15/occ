@@ -60,7 +60,9 @@ class CompanySettingController extends Controller
             $compressed = ImageCompressor::compress($absolute, 600, 90);
             if ($compressed !== $absolute) {
                 $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
-                if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
+                if (! str_ends_with(strtolower($path), '.jpg')) {
+                    $path .= '.jpg';
+                }
             }
             $data['logo_path'] = $path;
         }
@@ -76,7 +78,9 @@ class CompanySettingController extends Controller
             $compressed = ImageCompressor::compress($absolute, 800, 92);
             if ($compressed !== $absolute) {
                 $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
-                if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
+                if (! str_ends_with(strtolower($path), '.jpg')) {
+                    $path .= '.jpg';
+                }
             }
             $data['signature_path'] = $path;
         }

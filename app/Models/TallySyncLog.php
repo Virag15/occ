@@ -11,6 +11,7 @@ class TallySyncLog extends Model
     use HasFactory;
 
     public const STATUSES = ['running', 'success', 'partial', 'failed', 'demo'];
+
     public const ENTITY_TYPES = ['customers', 'products', 'stock', 'vouchers', 'all'];
 
     protected $fillable = [
@@ -36,7 +37,10 @@ class TallySyncLog extends Model
 
     public function getDurationSecondsAttribute(): ?float
     {
-        if (!$this->started_at || !$this->completed_at) return null;
+        if (! $this->started_at || ! $this->completed_at) {
+            return null;
+        }
+
         return round($this->completed_at->diffInMilliseconds($this->started_at) / 1000, 2);
     }
 }

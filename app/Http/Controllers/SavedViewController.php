@@ -23,7 +23,7 @@ class SavedViewController extends Controller
 
         DB::transaction(function () use ($data) {
             // Only one default per (user, database_type)
-            if (!empty($data['is_default'])) {
+            if (! empty($data['is_default'])) {
                 SavedView::where('user_id', Auth::id())
                     ->where('database_type', $data['database_type'])
                     ->update(['is_default' => false]);
@@ -53,7 +53,7 @@ class SavedViewController extends Controller
         ]);
 
         DB::transaction(function () use ($data, $savedView) {
-            if (!empty($data['is_default'])) {
+            if (! empty($data['is_default'])) {
                 SavedView::where('user_id', Auth::id())
                     ->where('database_type', $savedView->database_type)
                     ->where('id', '!=', $savedView->id)
@@ -69,6 +69,7 @@ class SavedViewController extends Controller
     {
         abort_if($savedView->user_id !== Auth::id(), 403);
         $savedView->delete();
+
         return back();
     }
 }

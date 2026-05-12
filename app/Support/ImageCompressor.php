@@ -24,30 +24,39 @@ class ImageCompressor
      */
     public static function compress(string $sourcePath, int $maxDimension = 2000, int $quality = 82): string
     {
-        if (!file_exists($sourcePath)) return $sourcePath;
+        if (! file_exists($sourcePath)) {
+            return $sourcePath;
+        }
 
         $info = @getimagesize($sourcePath);
-        if ($info === false) return $sourcePath; // not an image
+        if ($info === false) {
+            return $sourcePath;
+        } // not an image
 
         [$origW, $origH, $type] = $info;
 
         $src = match ($type) {
             IMAGETYPE_JPEG => @imagecreatefromjpeg($sourcePath),
-            IMAGETYPE_PNG  => @imagecreatefrompng($sourcePath),
+            IMAGETYPE_PNG => @imagecreatefrompng($sourcePath),
             IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($sourcePath) : null,
             default => null,
         };
 
-        if (!$src) return $sourcePath;
+        if (! $src) {
+            return $sourcePath;
+        }
 
         // EXIF auto-rotate (JPEGs from phones almost always need this)
         if ($type === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
             $exif = @exif_read_data($sourcePath);
             $orientation = $exif['Orientation'] ?? 1;
             switch ($orientation) {
-                case 3: $src = imagerotate($src, 180, 0); break;
-                case 6: $src = imagerotate($src, -90, 0); break;
-                case 8: $src = imagerotate($src, 90, 0); break;
+                case 3: $src = imagerotate($src, 180, 0);
+                    break;
+                case 6: $src = imagerotate($src, -90, 0);
+                    break;
+                case 8: $src = imagerotate($src, 90, 0);
+                    break;
             }
         }
 
@@ -68,7 +77,7 @@ class ImageCompressor
 
         // Always emit JPEG — better compression for photos
         $newPath = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $sourcePath);
-        if (!str_ends_with(strtolower($newPath), '.jpg')) {
+        if (! str_ends_with(strtolower($newPath), '.jpg')) {
             $newPath .= '.jpg';
         }
 

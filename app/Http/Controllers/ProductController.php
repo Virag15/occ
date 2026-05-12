@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SyncEntityToTally;
 use App\Models\Product;
+use App\Models\SavedView;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,8 +26,8 @@ class ProductController extends Controller
             'pagination' => ['total' => $rows->count(), 'per_page' => 50, 'current_page' => 1, 'last_page' => 1],
             'filters' => ['q' => $request->string('q')->value()],
             'peek' => null,
-            'savedViews' => \App\Models\SavedView::query()
-                ->where('user_id', \Illuminate\Support\Facades\Auth::id())
+            'savedViews' => SavedView::query()
+                ->where('user_id', Auth::id())
                 ->where('database_type', 'product')
                 ->orderByDesc('is_default')
                 ->orderBy('name')
@@ -46,7 +48,7 @@ class ProductController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
-        $data['tally_id'] ??= 'LOCAL-' . Str::upper(Str::random(10));
+        $data['tally_id'] ??= 'LOCAL-'.Str::upper(Str::random(10));
 
         $product = Product::create($data);
         SyncEntityToTally::dispatch($product, 'created');

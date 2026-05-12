@@ -17,10 +17,16 @@ class TallyOrderObserver
 {
     public function updated(Order $order): void
     {
-        if (!$order->wasChanged('status')) return;
-        if ($order->tally_voucher_id) return; // already pushed
+        if (! $order->wasChanged('status')) {
+            return;
+        }
+        if ($order->tally_voucher_id) {
+            return;
+        } // already pushed
 
-        if (!in_array($order->status, ['delivered', 'closed'], true)) return;
+        if (! in_array($order->status, ['delivered', 'closed'], true)) {
+            return;
+        }
 
         try {
             $client = app(TallyClient::class);
@@ -30,7 +36,7 @@ class TallyOrderObserver
         } catch (\Throwable $e) {
             // Swallow — never block the order update because Tally hiccuped.
             // The user can manually trigger a push from Settings → Integrations.
-            \Log::warning('Tally auto-push failed for order ' . $order->order_code . ': ' . $e->getMessage());
+            \Log::warning('Tally auto-push failed for order '.$order->order_code.': '.$e->getMessage());
         }
     }
 }

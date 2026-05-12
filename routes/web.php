@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CompanySettingController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerShowController;
 use App\Http\Controllers\DailyReportController;
@@ -12,12 +13,14 @@ use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SavedViewController;
-use App\Http\Controllers\TallyController;
 use App\Http\Controllers\ShipmentController;
+use App\Http\Controllers\TallyController;
 use App\Http\Controllers\TasksController;
+use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\TransporterShowController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -26,7 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Role-based landing is enforced inside DashboardController::index.
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
-    Route::get('/warehouse', [\App\Http\Controllers\WarehouseController::class, 'index'])->name('warehouse.queue');
+    Route::get('/warehouse', [WarehouseController::class, 'index'])->name('warehouse.queue');
     Route::get('/reports/daily', [DailyReportController::class, 'show'])->name('reports.daily');
 
     // Saved views are scoped to the current user — every role manages their own
@@ -137,8 +140,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Bare /settings → first item (Company). Keeps a stable canonical entry point.
         Route::get('/settings', fn () => redirect()->route('settings.company'))->name('settings.index');
-        Route::get('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'edit'])->name('settings.company');
-        Route::post('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'update'])->name('settings.company.update');
+        Route::get('/settings/company', [CompanySettingController::class, 'edit'])->name('settings.company');
+        Route::post('/settings/company', [CompanySettingController::class, 'update'])->name('settings.company.update');
         Route::get('/settings/integrations', [TallyController::class, 'index'])->name('settings.integrations');
         Route::post('/settings/tally/sync', [TallyController::class, 'sync'])->name('settings.tally.sync');
         Route::post('/settings/tally/ping', [TallyController::class, 'ping'])->name('settings.tally.ping');
@@ -156,7 +159,7 @@ Route::get('/welcome', fn () => Inertia::render('Welcome', [
 ]));
 
 // Public order tracking — unguessable UUID acts as the access token. No auth.
-Route::get('/track/{uuid}', [\App\Http\Controllers\TrackingController::class, 'show'])
+Route::get('/track/{uuid}', [TrackingController::class, 'show'])
     ->where('uuid', '[0-9a-fA-F-]{36}')
     ->name('tracking.show');
 

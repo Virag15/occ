@@ -23,42 +23,51 @@ class TallySync extends Command
         if ($this->option('check')) {
             $ok = $client->isEnabled() ? $client->ping() : false;
             $this->line('');
-            if (!$client->isEnabled()) {
+            if (! $client->isEnabled()) {
                 $this->warn('Tally is DISABLED (TALLY_ENABLED=false). The connection won\'t be probed.');
             } elseif ($ok) {
                 $this->info('Tally gateway responded OK.');
             } else {
                 $this->error('Tally gateway is unreachable or returned an invalid response.');
+
                 return self::FAILURE;
             }
+
             return self::SUCCESS;
         }
 
         $type = $this->option('type');
         $direction = $this->option('direction');
         $valid = ['customers', 'products', 'stock', 'sales_vouchers', 'purchase_vouchers', 'orders', 'payments', 'all', 'reconcile'];
-        if (!in_array($type, $valid, true)) {
-            $this->error("Unknown --type={$type}. Valid: " . implode(', ', $valid));
+        if (! in_array($type, $valid, true)) {
+            $this->error("Unknown --type={$type}. Valid: ".implode(', ', $valid));
+
             return self::FAILURE;
         }
-        if (!in_array($direction, ['pull', 'push'], true)) {
+        if (! in_array($direction, ['pull', 'push'], true)) {
             $this->error("Unknown --direction={$direction}. Use pull or push.");
+
             return self::FAILURE;
         }
 
         $this->line('');
         $this->info("Starting Tally sync (type={$type}, direction={$direction})…");
-        if (!$client->isEnabled()) {
+        if (! $client->isEnabled()) {
             $this->warn('  Tally is DISABLED — running in DEMO mode. No data leaves OCC and no real Tally calls happen.');
         }
 
         // 'reconcile' runs both directions
         if ($type === 'reconcile') {
             $result = $svc->reconcile();
-            foreach ($result['pull'] as $name => $log) $this->printLog("pull/{$name}", $log);
-            foreach ($result['push'] as $name => $log) $this->printLog("push/{$name}", $log);
+            foreach ($result['pull'] as $name => $log) {
+                $this->printLog("pull/{$name}", $log);
+            }
+            foreach ($result['push'] as $name => $log) {
+                $this->printLog("push/{$name}", $log);
+            }
             $this->line('');
             $this->info('Done.');
+
             return self::SUCCESS;
         }
 
@@ -67,7 +76,7 @@ class TallySync extends Command
             : ($type === 'all' ? ['customers', 'orders', 'payments'] : [$type]);
 
         foreach ($methods as $m) {
-            $method = match ($direction . ':' . $m) {
+            $method = match ($direction.':'.$m) {
                 'pull:customers' => 'syncCustomers',
                 'pull:products' => 'syncProducts',
                 'pull:stock' => 'syncStock',
@@ -78,8 +87,9 @@ class TallySync extends Command
                 'push:payments' => 'pushPayments',
                 default => null,
             };
-            if (!$method) {
+            if (! $method) {
                 $this->error("Combination not supported: direction={$direction}, type={$m}");
+
                 continue;
             }
             $this->printLog("{$direction}/{$m}", $svc->$method());
@@ -87,6 +97,7 @@ class TallySync extends Command
 
         $this->line('');
         $this->info('Done.');
+
         return self::SUCCESS;
     }
 
@@ -102,7 +113,7 @@ class TallySync extends Command
             $log->duration_seconds ?? 0,
         ));
         if ($log->error_message) {
-            $this->error('    Error: ' . $log->error_message);
+            $this->error('    Error: '.$log->error_message);
         }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CompanySetting;
 use App\Models\Order;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,7 +30,7 @@ class TrackingController extends Controller
                 'status', 'lr_shared_with_customer', 'pod_received', 'triplicate_received',
             ]);
 
-        $company = \App\Models\CompanySetting::current();
+        $company = CompanySetting::current();
 
         return Inertia::render('Tracking/Show', [
             'order' => $order,

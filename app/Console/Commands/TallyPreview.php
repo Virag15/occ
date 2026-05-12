@@ -22,8 +22,9 @@ class TallyPreview extends Command
 
         if ($type === 'sales-voucher') {
             $order = Order::with('customer', 'items')->find($id);
-            if (!$order) {
+            if (! $order) {
                 $this->error("Order #{$id} not found.");
+
                 return self::FAILURE;
             }
 
@@ -48,13 +49,15 @@ class TallyPreview extends Command
             $this->line($client->previewSalesVoucherXml($payload));
             $this->line('');
             $this->comment('Copy the XML above and POST it to your Tally gateway (http://TALLY_HOST:9000) to test manually.');
+
             return self::SUCCESS;
         }
 
         if ($type === 'receipt-voucher') {
             $payment = Payment::with('order.customer')->find($id);
-            if (!$payment) {
+            if (! $payment) {
                 $this->error("Payment #{$id} not found.");
+
                 return self::FAILURE;
             }
 
@@ -75,10 +78,12 @@ class TallyPreview extends Command
             $this->line($client->previewReceiptVoucherXml($payload));
             $this->line('');
             $this->comment('Copy the XML above and POST it to your Tally gateway to test manually.');
+
             return self::SUCCESS;
         }
 
         $this->error("Unknown type '{$type}'. Use sales-voucher or receipt-voucher.");
+
         return self::FAILURE;
     }
 

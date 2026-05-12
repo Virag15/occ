@@ -2,15 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
+use App\Models\CompanySetting;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\SavedView;
+use App\Models\Shipment;
 use App\Models\Transporter;
+use App\Support\ImageCompressor;
+use App\Support\NumberToWords;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,8 +42,8 @@ class OrderController extends Controller
                 ->orderByDesc('order_date')
                 ->orderByDesc('id')
                 ->get(),
-            'savedViews' => \App\Models\SavedView::query()
-                ->where('user_id', \Illuminate\Support\Facades\Auth::id())
+            'savedViews' => SavedView::query()
+                ->where('user_id', Auth::id())
                 ->where('database_type', 'order')
                 ->orderByDesc('is_default')
                 ->orderBy('name')
@@ -72,7 +83,7 @@ class OrderController extends Controller
             'payments.creator:id,name',
         ]);
 
-        $auditLog = \App\Models\AuditLog::query()
+        $auditLog = AuditLog::query()
             ->where('entity_type', 'order')
             ->where('entity_id', $order->id)
             ->orderByDesc('created_at')
@@ -108,7 +119,7 @@ class OrderController extends Controller
         ]);
     }
 
-    private function productOptions(): \Illuminate\Support\Collection
+    private function productOptions(): Collection
     {
         return Product::query()
             ->where('is_active', true)
@@ -126,7 +137,7 @@ class OrderController extends Controller
         DB::transaction(function () use ($data, $items) {
             $data['order_code'] ??= $this->nextOrderCode();
             $data['created_by'] = Auth::id();
-            if (!empty($items)) {
+            if (! empty($items)) {
                 $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
                 $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? 0));
                 $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
@@ -146,7 +157,7 @@ class OrderController extends Controller
         $items = $this->validatedItems($request);
 
         DB::transaction(function () use ($order, $data, $items) {
-            if (!empty($items)) {
+            if (! empty($items)) {
                 $lineSum = collect($items)->sum(fn ($i) => (float) ($i['line_total'] ?? 0));
                 $orderDiscount = max(0.0, (float) ($data['discount_amount'] ?? $order->discount_amount ?? 0));
                 $data['order_value'] = max(0.0, round($lineSum - $orderDiscount, 2));
@@ -166,7 +177,9 @@ class OrderController extends Controller
      */
     private function syncItems(Order $order, array $items): void
     {
-        if (empty($items)) return;
+        if (empty($items)) {
+            return;
+        }
 
         $keepIds = [];
         foreach ($items as $i) {
@@ -183,11 +196,12 @@ class OrderController extends Controller
                 'notes' => $i['notes'] ?? null,
             ];
 
-            if (!empty($i['id'])) {
+            if (! empty($i['id'])) {
                 $oi = OrderItem::where('order_id', $order->id)->find($i['id']);
                 if ($oi) {
                     $oi->update($payload);
                     $keepIds[] = $oi->id;
+
                     continue;
                 }
             }
@@ -202,7 +216,9 @@ class OrderController extends Controller
 
     private function validatedItems(Request $request): array
     {
-        if (!$request->has('items')) return [];
+        if (! $request->has('items')) {
+            return [];
+        }
 
         return $request->validate([
             'items' => ['nullable', 'array'],
@@ -222,6 +238,7 @@ class OrderController extends Controller
     public function destroy(Order $order): RedirectResponse
     {
         $order->delete();
+
         return redirect()->route('orders.index');
     }
 
@@ -230,7 +247,7 @@ class OrderController extends Controller
      * Order Form line item "info" popover so the user can quote a price that's
      * consistent with history (or deliberately deviate).
      */
-    public function priceHistory(Request $request): \Illuminate\Http\JsonResponse
+    public function priceHistory(Request $request): JsonResponse
     {
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
@@ -268,11 +285,11 @@ class OrderController extends Controller
     private function renderOrderPdf(Order $order, string $mode): \Symfony\Component\HttpFoundation\Response
     {
         $order->load(['customer', 'items.product:id,name,sku,hsn_code', 'creator:id,name']);
-        $company = \App\Models\CompanySetting::current();
+        $company = CompanySetting::current();
 
         // Log the download as a discrete action — the user did something (got a file)
         // even though no model was mutated.
-        \App\Models\AuditLog::record(
+        AuditLog::record(
             $mode === 'quotation' ? 'quotation_downloaded' : 'invoice_downloaded',
             $order,
             ['order_code' => ['from' => null, 'to' => $order->order_code]],
@@ -293,9 +310,9 @@ class OrderController extends Controller
             $grandTotal += $taxable + ($taxable * $taxRate / 100);
         }
         $grandTotal = max(0.0, $grandTotal - (float) ($order->discount_amount ?? 0));
-        $amountInWords = \App\Support\NumberToWords::rupees($grandTotal);
+        $amountInWords = NumberToWords::rupees($grandTotal);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.order-invoice', [
+        $pdf = Pdf::loadView('pdf.order-invoice', [
             'order' => $order,
             'company' => $company,
             'logoBase64' => $logoBase64,
@@ -313,12 +330,17 @@ class OrderController extends Controller
 
     private function imageAsDataUri(?string $relativePath): ?string
     {
-        if (!$relativePath) return null;
-        $disk = \Illuminate\Support\Facades\Storage::disk('public');
-        if (!$disk->exists($relativePath)) return null;
+        if (! $relativePath) {
+            return null;
+        }
+        $disk = Storage::disk('public');
+        if (! $disk->exists($relativePath)) {
+            return null;
+        }
         $absolute = $disk->path($relativePath);
         $mime = mime_content_type($absolute) ?: 'image/png';
-        return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolute));
+
+        return 'data:'.$mime.';base64,'.base64_encode(file_get_contents($absolute));
     }
 
     /**
@@ -354,21 +376,25 @@ class OrderController extends Controller
         $skipped = 0;
         $orders = Order::whereIn('id', $data['order_ids'])->with('shipments')->get();
         foreach ($orders as $order) {
-            if (!empty($orderPayload)) {
+            if (! empty($orderPayload)) {
                 $order->update($orderPayload);
             }
             if ($transporterId !== null) {
                 $shipment = $order->shipments->sortByDesc('id')->first();
-                if (!$shipment) {
+                if (! $shipment) {
                     $skipped++;
+
                     continue;
                 }
                 $shipment->update(['transporter_id' => $transporterId]);
             }
         }
 
-        $msg = ($orders->count() - $skipped) . ' orders updated';
-        if ($skipped > 0) $msg .= " · {$skipped} skipped (no shipment yet)";
+        $msg = ($orders->count() - $skipped).' orders updated';
+        if ($skipped > 0) {
+            $msg .= " · {$skipped} skipped (no shipment yet)";
+        }
+
         return back()->with('success', $msg);
     }
 
@@ -382,7 +408,7 @@ class OrderController extends Controller
         $hasAnyLr = $order->shipments()->whereNotNull('lr_number')->exists();
 
         $errors = [];
-        if ($data['status'] === 'dispatched' && !$hasAnyLr) {
+        if ($data['status'] === 'dispatched' && ! $hasAnyLr) {
             $errors['status'] = 'Add an LR number on a shipment before marking dispatched.';
         }
         if ($data['status'] === 'closed' && $order->payment_status !== 'paid') {
@@ -393,6 +419,7 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => $data['status']]);
+
         // dispatch_date / delivered_date are now derived from shipments; nothing to write on the order.
         return back();
     }
@@ -400,26 +427,29 @@ class OrderController extends Controller
     public function toggleLrShared(Order $order): RedirectResponse
     {
         $hasAnyLr = $order->shipments()->whereNotNull('lr_number')->exists();
-        if (!$hasAnyLr) {
+        if (! $hasAnyLr) {
             return back()->withErrors(['lr_shared' => 'No LR number to share yet — add one on a shipment first.']);
         }
 
-        $next = !$order->lr_shared_with_customer;
+        $next = ! $order->lr_shared_with_customer;
         $order->update(['lr_shared_with_customer' => $next]);
+
         return back();
     }
 
     public function toggleTriplicate(Order $order): RedirectResponse
     {
-        $next = !$order->triplicate_received;
+        $next = ! $order->triplicate_received;
         $order->update(['triplicate_received' => $next]);
+
         return back();
     }
 
     public function togglePod(Order $order): RedirectResponse
     {
-        $next = !$order->pod_received;
+        $next = ! $order->pod_received;
         $order->update(['pod_received' => $next]);
+
         return back();
     }
 
@@ -440,11 +470,13 @@ class OrderController extends Controller
         $path = $request->file('photo')->store("orders/{$order->id}/{$kind}", 'local');
 
         // Compress the uploaded photo in place (auto-rotate, resize to 2000px max, JPEG q82)
-        $absolutePath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
-        $compressedPath = \App\Support\ImageCompressor::compress($absolutePath);
+        $absolutePath = Storage::disk('local')->path($path);
+        $compressedPath = ImageCompressor::compress($absolutePath);
         if ($compressedPath !== $absolutePath) {
             $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
-            if (!str_ends_with(strtolower($path), '.jpg')) $path .= '.jpg';
+            if (! str_ends_with(strtolower($path), '.jpg')) {
+                $path .= '.jpg';
+            }
         }
 
         $url = route('orders.evidence-download', ['order' => $order->id, 'path' => $path]);
@@ -453,11 +485,11 @@ class OrderController extends Controller
         // creating a planning shipment on the fly if none exists yet (LR can be captured before
         // a shipment has been formally created).
         $shipment = $order->shipments()->latest('id')->first();
-        if (!$shipment) {
+        if (! $shipment) {
             $shipment = $order->shipments()->create([
-                'shipment_code' => \App\Models\Shipment::generateCode(),
+                'shipment_code' => Shipment::generateCode(),
                 'status' => 'planning',
-                'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                'created_by' => Auth::id(),
             ]);
         }
 
@@ -473,7 +505,9 @@ class OrderController extends Controller
             // Auto-advance order status if upstream
             if (in_array($order->status, ['packed', 'ready_for_dispatch'], true)) {
                 $orderPayload['status'] = 'dispatched';
-                if (!$shipment->dispatch_date) $shipmentPayload['dispatch_date'] = now()->toDateString();
+                if (! $shipment->dispatch_date) {
+                    $shipmentPayload['dispatch_date'] = now()->toDateString();
+                }
             }
         }
 
@@ -482,7 +516,9 @@ class OrderController extends Controller
             $shipmentPayload['pod_received'] = true;
             if ($order->status === 'dispatched') {
                 $orderPayload['status'] = 'delivered';
-                if (!$shipment->delivered_date) $shipmentPayload['delivered_date'] = now()->toDateString();
+                if (! $shipment->delivered_date) {
+                    $shipmentPayload['delivered_date'] = now()->toDateString();
+                }
             }
         }
 
@@ -497,10 +533,14 @@ class OrderController extends Controller
 
         // The photo URLs are now ephemeral — stored as an action note in audit log.
         // (When we re-add per-shipment photo columns these can persist again.)
-        if (!empty($shipmentPayload)) $shipment->update($shipmentPayload);
-        if (!empty($orderPayload)) $order->update($orderPayload);
+        if (! empty($shipmentPayload)) {
+            $shipment->update($shipmentPayload);
+        }
+        if (! empty($orderPayload)) {
+            $order->update($orderPayload);
+        }
 
-        \App\Models\AuditLog::record('evidence_uploaded', $order, [
+        AuditLog::record('evidence_uploaded', $order, [
             'kind' => ['from' => null, 'to' => $kind],
             'file' => ['from' => null, 'to' => $url],
         ]);
@@ -517,13 +557,14 @@ class OrderController extends Controller
     {
         $path = (string) $request->query('path', '');
         $expected = "orders/{$order->id}/";
-        if (!str_starts_with($path, $expected) || str_contains($path, '..')) {
+        if (! str_starts_with($path, $expected) || str_contains($path, '..')) {
             abort(404);
         }
-        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('local')->exists($path)) {
             abort(404);
         }
-        return \Illuminate\Support\Facades\Storage::disk('local')->response($path);
+
+        return Storage::disk('local')->response($path);
     }
 
     public function quickUpdate(Request $request, Order $order): RedirectResponse
@@ -547,7 +588,9 @@ class OrderController extends Controller
             'warehouse' => ['priority', 'internal_notes'],
             default => [],
         };
-        if (empty($allowed)) abort(403, 'Your role cannot quick-update orders.');
+        if (empty($allowed)) {
+            abort(403, 'Your role cannot quick-update orders.');
+        }
 
         $rules = array_intersect_key($rules, array_flip($allowed));
         $data = $request->validate(array_intersect_key($rules, $request->all()));
@@ -561,7 +604,7 @@ class OrderController extends Controller
         // Serialize code allocation across concurrent requests. Cache::lock works on
         // file/redis drivers; the read+compute+return runs inside the lock so two
         // simultaneous order creates can't claim the same ORD-YYYY-NNNN.
-        return \Illuminate\Support\Facades\Cache::lock('order-code:next', 10)->block(5, function () {
+        return Cache::lock('order-code:next', 10)->block(5, function () {
             $year = now()->year;
             $prefix = "ORD-{$year}-";
             $lastNum = DB::table('orders')
@@ -570,7 +613,8 @@ class OrderController extends Controller
                 ->value('order_code');
 
             $next = $lastNum ? (int) substr($lastNum, strlen($prefix)) + 1 : 1;
-            return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+
+            return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
         });
     }
 

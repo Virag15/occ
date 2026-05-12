@@ -65,7 +65,7 @@ class UserController extends Controller
             'email' => $data['email'],
             'role' => $data['role'],
         ];
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $update['password'] = Hash::make($data['password']);
         }
         $user->update($update);
@@ -80,6 +80,7 @@ class UserController extends Controller
             return back()->withErrors(['user' => 'You cannot delete your own account.']);
         }
         $user->delete();
+
         // AuditObserver writes 'deleted' automatically.
         return redirect()->route('users.index');
     }

@@ -32,7 +32,7 @@ class PaymentController extends Controller
             $this->recompute($order);
 
             AuditLog::record('payment_recorded', $order, [
-                'amount' => ['from' => null, 'to' => '₹ ' . number_format((float) $data['amount'], 2)],
+                'amount' => ['from' => null, 'to' => '₹ '.number_format((float) $data['amount'], 2)],
                 'mode' => ['from' => null, 'to' => $data['mode']],
                 'reference' => ['from' => null, 'to' => $data['reference'] ?? '—'],
             ]);
@@ -47,7 +47,7 @@ class PaymentController extends Controller
     {
         $order = $payment->order;
         $snapshot = [
-            'amount' => ['from' => '₹ ' . number_format((float) $payment->amount, 2), 'to' => null],
+            'amount' => ['from' => '₹ '.number_format((float) $payment->amount, 2), 'to' => null],
             'paid_on' => ['from' => $payment->paid_on?->toDateString(), 'to' => null],
             'mode' => ['from' => $payment->mode, 'to' => null],
         ];

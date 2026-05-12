@@ -65,10 +65,13 @@ class TallyClient
      */
     public function ping(): bool
     {
-        if (!$this->isEnabled()) return false;
+        if (! $this->isEnabled()) {
+            return false;
+        }
 
         try {
             $resp = $this->postXml($this->envelope('CollectionName', 'Company Collection', $this->companyCollectionTdl()));
+
             return str_contains($resp, '<COMPANY');
         } catch (\Throwable $e) {
             return false;
@@ -82,7 +85,9 @@ class TallyClient
      */
     public function fetchCustomers(): array
     {
-        if (!$this->isEnabled()) return $this->demoCustomers();
+        if (! $this->isEnabled()) {
+            return $this->demoCustomers();
+        }
 
         // TODO: real implementation
         // $xml = $this->postXml($this->envelope('CollectionName', 'Customer Ledgers', $this->customerLedgersTdl()));
@@ -97,7 +102,9 @@ class TallyClient
      */
     public function fetchProducts(): array
     {
-        if (!$this->isEnabled()) return $this->demoProducts();
+        if (! $this->isEnabled()) {
+            return $this->demoProducts();
+        }
 
         // TODO: real implementation — Stock Item collection
         return $this->demoProducts();
@@ -110,7 +117,9 @@ class TallyClient
      */
     public function fetchStock(): array
     {
-        if (!$this->isEnabled()) return $this->demoStock();
+        if (! $this->isEnabled()) {
+            return $this->demoStock();
+        }
 
         // TODO: real implementation — Stock Summary with godown breakdown
         return $this->demoStock();
@@ -125,7 +134,9 @@ class TallyClient
      */
     public function fetchSalesVouchers(?string $fromDate = null, ?string $toDate = null): array
     {
-        if (!$this->isEnabled()) return $this->demoSalesVouchers();
+        if (! $this->isEnabled()) {
+            return $this->demoSalesVouchers();
+        }
 
         // TODO: real implementation — POST a 'Voucher Collection' filtered by VoucherType=Sales
         return $this->demoSalesVouchers();
@@ -141,7 +152,9 @@ class TallyClient
      */
     public function fetchPurchaseVouchers(?string $fromDate = null, ?string $toDate = null): array
     {
-        if (!$this->isEnabled()) return $this->demoPurchaseVouchers();
+        if (! $this->isEnabled()) {
+            return $this->demoPurchaseVouchers();
+        }
 
         // TODO: real implementation — Voucher Collection filtered by VoucherType=Purchase
         return $this->demoPurchaseVouchers();
@@ -159,7 +172,9 @@ class TallyClient
      */
     public function pushCustomer(array $customer): array
     {
-        if (!$this->isEnabled()) return $this->demoPushResult('TALLY-DEMO-CUST-' . substr(md5($customer['name']), 0, 6));
+        if (! $this->isEnabled()) {
+            return $this->demoPushResult('TALLY-DEMO-CUST-'.substr(md5($customer['name']), 0, 6));
+        }
 
         // TODO: real implementation — POST a Master IMPORT envelope:
         //   <ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
@@ -168,7 +183,7 @@ class TallyClient
         //   </REQUESTDESC><REQUESTDATA><TALLYMESSAGE><LEDGER NAME="…" ACTION="Create">
         //   <PARENT>Sundry Debtors</PARENT>… <GSTREGISTRATIONTYPE>…</GSTREGISTRATIONTYPE>
         //   </LEDGER></TALLYMESSAGE></REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>
-        return $this->demoPushResult('TALLY-DEMO-CUST-' . substr(md5($customer['name']), 0, 6));
+        return $this->demoPushResult('TALLY-DEMO-CUST-'.substr(md5($customer['name']), 0, 6));
     }
 
     /**
@@ -181,10 +196,12 @@ class TallyClient
      */
     public function pushSalesVoucher(array $voucher): array
     {
-        if (!$this->isEnabled()) return $this->demoPushResult('TALLY-DEMO-VCH-' . $voucher['order_code']);
+        if (! $this->isEnabled()) {
+            return $this->demoPushResult('TALLY-DEMO-VCH-'.$voucher['order_code']);
+        }
 
         // TODO: real implementation — Sales voucher import envelope
-        return $this->demoPushResult('TALLY-DEMO-VCH-' . $voucher['order_code']);
+        return $this->demoPushResult('TALLY-DEMO-VCH-'.$voucher['order_code']);
     }
 
     /**
@@ -197,10 +214,12 @@ class TallyClient
      */
     public function pushReceiptVoucher(array $receipt): array
     {
-        if (!$this->isEnabled()) return $this->demoPushResult('TALLY-DEMO-RCT-' . substr(md5(json_encode($receipt)), 0, 8));
+        if (! $this->isEnabled()) {
+            return $this->demoPushResult('TALLY-DEMO-RCT-'.substr(md5(json_encode($receipt)), 0, 8));
+        }
 
         // TODO: real implementation — Receipt voucher import envelope
-        return $this->demoPushResult('TALLY-DEMO-RCT-' . substr(md5(json_encode($receipt)), 0, 8));
+        return $this->demoPushResult('TALLY-DEMO-RCT-'.substr(md5(json_encode($receipt)), 0, 8));
     }
 
     // ─── Low-level XML helpers ──────────────────────────────────────
@@ -209,7 +228,7 @@ class TallyClient
      * POST raw XML to the Tally gateway and return the response body as a string.
      *
      * @throws ConnectionException When Tally is unreachable.
-     * @throws RequestException    When Tally responds with a non-200 status.
+     * @throws RequestException When Tally responds with a non-200 status.
      */
     protected function postXml(string $xml): string
     {
@@ -251,7 +270,7 @@ XML;
 
     protected function companyCollectionTdl(): string
     {
-        return <<<XML
+        return <<<'XML'
             <COLLECTION NAME="Company Collection">
                 <TYPE>Company</TYPE>
                 <FETCH>NAME</FETCH>
@@ -322,7 +341,7 @@ XML;
             $name = htmlspecialchars($li['name'], ENT_XML1);
             $qty = $li['qty'];
             $rate = $li['rate'];
-            $amount = number_format($qty * $rate * (1 + ((float)($li['tax_rate'] ?? 0)) / 100), 2, '.', '');
+            $amount = number_format($qty * $rate * (1 + ((float) ($li['tax_rate'] ?? 0)) / 100), 2, '.', '');
             $lines .= "
                 <ALLINVENTORYENTRIES.LIST>
                     <STOCKITEMNAME>{$name}</STOCKITEMNAME>

@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -11,17 +12,21 @@ use Illuminate\Support\Facades\Schema;
  * that compute from the loaded shipments collection, so JSON-facing reads
  * remain backward-compatible.
  */
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
-        $driver = \Illuminate\Support\Facades\DB::getDriverName();
+        $driver = DB::getDriverName();
 
         // SQLite: turn FK enforcement off so dropping transporter_id doesn't fail
         // because of its referencing FK, and clear orphan indexes the drop touches.
         if ($driver === 'sqlite') {
-            \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = OFF');
+            DB::statement('PRAGMA foreign_keys = OFF');
             foreach (['orders_dispatch_date_index', 'orders_lr_number_index'] as $idx) {
-                try { \Illuminate\Support\Facades\DB::statement("DROP INDEX IF EXISTS {$idx}"); } catch (\Throwable $e) { /* ignore */ }
+                try {
+                    DB::statement("DROP INDEX IF EXISTS {$idx}");
+                } catch (Throwable $e) { /* ignore */
+                }
             }
         }
 
@@ -51,7 +56,7 @@ return new class extends Migration {
         }
 
         if ($driver === 'sqlite') {
-            \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = ON');
+            DB::statement('PRAGMA foreign_keys = ON');
         }
     }
 

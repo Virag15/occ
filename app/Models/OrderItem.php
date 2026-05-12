@@ -67,11 +67,21 @@ class OrderItem extends Model
         $delivered = (float) $this->qty_delivered;
         $cancelled = (float) $this->qty_cancelled;
 
-        if ($cancelled >= $ordered) return 'cancelled';
-        if ($delivered >= $ordered - $cancelled) return 'delivered';
-        if ($dispatched >= $ordered - $cancelled) return 'dispatched';
-        if ($packed >= $ordered - $cancelled) return 'packed';
-        if ($packed > 0) return 'partially_packed';
+        if ($cancelled >= $ordered) {
+            return 'cancelled';
+        }
+        if ($delivered >= $ordered - $cancelled) {
+            return 'delivered';
+        }
+        if ($dispatched >= $ordered - $cancelled) {
+            return 'dispatched';
+        }
+        if ($packed >= $ordered - $cancelled) {
+            return 'packed';
+        }
+        if ($packed > 0) {
+            return 'partially_packed';
+        }
 
         return 'pending';
     }

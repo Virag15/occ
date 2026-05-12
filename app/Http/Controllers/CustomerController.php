@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SyncEntityToTally;
 use App\Models\Customer;
+use App\Models\SavedView;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,8 +23,8 @@ class CustomerController extends Controller
             'pagination' => ['total' => $rows->count(), 'per_page' => 50, 'current_page' => 1, 'last_page' => 1],
             'filters' => ['q' => $request->string('q')->value()],
             'peek' => null,
-            'savedViews' => \App\Models\SavedView::query()
-                ->where('user_id', \Illuminate\Support\Facades\Auth::id())
+            'savedViews' => SavedView::query()
+                ->where('user_id', Auth::id())
                 ->where('database_type', 'customer')
                 ->orderByDesc('is_default')
                 ->orderBy('name')
@@ -44,7 +46,7 @@ class CustomerController extends Controller
     {
         $data = $this->validated($request);
         // Webapp-created customers get a synthetic tally_id until the bridge assigns a real one.
-        $data['tally_id'] ??= 'LOCAL-' . Str::upper(Str::random(10));
+        $data['tally_id'] ??= 'LOCAL-'.Str::upper(Str::random(10));
 
         $customer = Customer::create($data);
         SyncEntityToTally::dispatch($customer, 'created');

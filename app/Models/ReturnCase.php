@@ -15,6 +15,7 @@ class ReturnCase extends Model
     protected $table = 'returns';
 
     public const STATUSES = ['reported', 'under_inspection', 'resolved', 'rejected'];
+
     public const RESOLUTION_TYPES = ['replacement', 'credit_note', 'refund', 'repair'];
 
     protected $fillable = [

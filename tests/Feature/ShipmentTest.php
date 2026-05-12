@@ -17,8 +17,11 @@ class ShipmentTest extends TestCase
     use RefreshDatabase;
 
     private User $owner;
+
     private Order $order;
+
     private OrderItem $line;
+
     private Transporter $transporter;
 
     protected function setUp(): void

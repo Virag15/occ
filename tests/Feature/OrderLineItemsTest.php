@@ -15,8 +15,11 @@ class OrderLineItemsTest extends TestCase
     use RefreshDatabase;
 
     private User $owner;
+
     private Customer $customer;
+
     private Product $product;
+
     private Product $product2;
 
     protected function setUp(): void

@@ -27,6 +27,7 @@ export function SavedViewSwitcher({
     currentConfig,
     onApplyView,
     onClearView,
+    allLabel = 'All rows (no filters)',
 }: {
     databaseType: string;
     views: SavedView[];
@@ -34,6 +35,8 @@ export function SavedViewSwitcher({
     currentConfig: ViewConfig;
     onApplyView: (config: ViewConfig, viewId: number | null) => void;
     onClearView: () => void;
+    /** Label shown for the "no active view" entry. Defaults to "All rows (no filters)". */
+    allLabel?: string;
 }) {
     const [saveDialogOpen, setSaveDialogOpen] = useState(false);
     const activeView = views.find((v) => v.id === activeViewId) ?? null;
@@ -94,7 +97,7 @@ export function SavedViewSwitcher({
                         <Button variant="outline" size="sm" className="gap-1.5">
                             <Eye className="h-3.5 w-3.5" />
                             <span className="max-w-[120px] truncate">
-                                {activeView ? activeView.name : 'All orders'}
+                                {activeView ? activeView.name : allLabel}
                             </span>
                             <ChevronDown className="h-3 w-3 opacity-60" />
                         </Button>
@@ -109,7 +112,7 @@ export function SavedViewSwitcher({
                         >
                             <span className="flex flex-1 items-center gap-2">
                                 {!activeView && <Check className="h-3.5 w-3.5 text-primary" />}
-                                <span className={cn(!activeView ? 'ml-0' : 'ml-5')}>All orders (no filters)</span>
+                                <span className={cn(!activeView ? 'ml-0' : 'ml-5')}>{allLabel}</span>
                             </span>
                         </DropdownMenuItem>
                         {views.length > 0 && <DropdownMenuSeparator />}

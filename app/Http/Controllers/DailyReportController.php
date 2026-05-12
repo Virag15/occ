@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CompanySetting;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\ReturnCase;
@@ -40,7 +41,7 @@ class DailyReportController extends Controller
         $tomorrowPlanned = Order::query()
             ->whereIn('status', ['packed', 'ready_for_dispatch', 'confirmed', 'packing'])
             ->whereHas('shipments', fn ($q) => $q->whereDate('pickup_scheduled_date', $tomorrowStr))
-            ->orWhere(function ($q) use ($tomorrowStr) {
+            ->orWhere(function ($q) {
                 $q->whereIn('status', ['packed', 'ready_for_dispatch']);
             })
             ->with(['customer:id,name'])
@@ -73,7 +74,7 @@ class DailyReportController extends Controller
             ->whereIn('payment_status', ['pending', 'partial', 'overdue'])
             ->where(function ($q) use ($dateStr) {
                 $q->where('payment_status', 'overdue')
-                  ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $dateStr));
+                    ->orWhere(fn ($q2) => $q2->whereDate('payment_due_date', '<', $dateStr));
             })
             ->with(['customer:id,name'])
             ->get();
@@ -102,9 +103,9 @@ class DailyReportController extends Controller
             $oldest = $paymentsOverdue->sortBy('payment_due_date')->first();
             $alerts[] = [
                 'severity' => 'red',
-                'title' => "{$paymentsOverdue->count()} overdue payment" . ($paymentsOverdue->count() > 1 ? 's' : ''),
-                'detail' => 'Total amount stuck: ₹ ' . number_format($paymentsOverdueAmount, 0) .
-                    ($oldest ? '. Oldest overdue: ' . ($oldest->customer?->name ?? 'Unknown') : ''),
+                'title' => "{$paymentsOverdue->count()} overdue payment".($paymentsOverdue->count() > 1 ? 's' : ''),
+                'detail' => 'Total amount stuck: ₹ '.number_format($paymentsOverdueAmount, 0).
+                    ($oldest ? '. Oldest overdue: '.($oldest->customer?->name ?? 'Unknown') : ''),
             ];
         }
         $critical = $openReturns->where('severity', 'critical')->count();
@@ -112,14 +113,14 @@ class DailyReportController extends Controller
             $criticalValue = (float) $openReturns->where('severity', 'critical')->sum('value_at_risk');
             $alerts[] = [
                 'severity' => 'red',
-                'title' => "{$critical} critical return case" . ($critical > 1 ? 's' : '') . ' open',
-                'detail' => 'Value at risk: ₹ ' . number_format($criticalValue, 0) . '. Requires immediate attention.',
+                'title' => "{$critical} critical return case".($critical > 1 ? 's' : '').' open',
+                'detail' => 'Value at risk: ₹ '.number_format($criticalValue, 0).'. Requires immediate attention.',
             ];
         }
         if ($lrSharingPending->count() > 0) {
             $alerts[] = [
                 'severity' => 'amber',
-                'title' => "{$lrSharingPending->count()} LR" . ($lrSharingPending->count() > 1 ? 's' : '') . ' not shared with customers',
+                'title' => "{$lrSharingPending->count()} LR".($lrSharingPending->count() > 1 ? 's' : '').' not shared with customers',
                 'detail' => "These customers don't know where their orders are. Share LR photos on WhatsApp before close of day.",
             ];
         }
@@ -150,6 +151,7 @@ class DailyReportController extends Controller
                   ?? $o->shipments->whereNotNull('dispatch_date')->sortByDesc('dispatch_date')->first();
             $ref = $latest?->dispatch_date;
             $days = $ref ? $date->diffInDays(Carbon::parse($ref)) : 0;
+
             return [
                 'order_code' => $o->order_code,
                 'order_id' => $o->id,
@@ -164,6 +166,7 @@ class DailyReportController extends Controller
             $due = $o->payment_due_date;
             $days = $due ? $date->diffInDays(Carbon::parse($due)) : 0;
             $outstanding = max(0, (float) $o->order_value - (float) $o->amount_received);
+
             return [
                 'order_code' => $o->order_code,
                 'order_id' => $o->id,
@@ -203,11 +206,14 @@ class DailyReportController extends Controller
             ->get(['order_value', 'brands'])
             ->reduce(function ($acc, $o) {
                 $brands = is_array($o->brands) ? $o->brands : [];
-                if (empty($brands)) return $acc;
+                if (empty($brands)) {
+                    return $acc;
+                }
                 $share = (float) $o->order_value / count($brands);
                 foreach ($brands as $brand) {
                     $acc[$brand] = ($acc[$brand] ?? 0) + $share;
                 }
+
                 return $acc;
             }, []);
 
@@ -231,9 +237,9 @@ class DailyReportController extends Controller
             'open_returns' => $returnsRows,
             'brand_revenue' => $brandRevenueList,
             'company' => [
-                'name' => \App\Models\CompanySetting::current()->company_name,
-                'tagline' => \App\Models\CompanySetting::current()->invoice_footer_note,
-                'city' => \App\Models\CompanySetting::current()->city,
+                'name' => CompanySetting::current()->company_name,
+                'tagline' => CompanySetting::current()->invoice_footer_note,
+                'city' => CompanySetting::current()->city,
             ],
         ]);
     }

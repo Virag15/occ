@@ -22,7 +22,9 @@ class LogAuthEvents
 
     public function handleLogout(Logout $event): void
     {
-        if (!$event->user) return;
+        if (! $event->user) {
+            return;
+        }
 
         AuditLog::create([
             'user_id' => $event->user->getKey(),
