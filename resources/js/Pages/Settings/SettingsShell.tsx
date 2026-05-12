@@ -1,15 +1,11 @@
 import { Link } from '@inertiajs/react';
 import {
-    Building2, Plug, Users, History, UserCog, Palette,
+    Building2, Plug,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type SettingsItemId =
-    | 'company' | 'branding'
-    | 'integrations'
-    | 'team' | 'audit'
-    | 'profile';
+type SettingsItemId = 'company' | 'integrations';
 
 type SettingsItem = {
     id: SettingsItemId;
@@ -23,11 +19,7 @@ type SettingsItem = {
 
 const ITEMS: SettingsItem[] = [
     { id: 'company', label: 'Company', icon: Building2, iconBg: 'bg-blue-500/15', iconColor: 'text-blue-600', href: '/settings/company' },
-    { id: 'branding', label: 'Branding', icon: Palette, iconBg: 'bg-pink-500/15', iconColor: 'text-pink-600', href: '/settings/company', soon: true },
     { id: 'integrations', label: 'Integrations', icon: Plug, iconBg: 'bg-purple-500/15', iconColor: 'text-purple-600', href: '/settings/integrations' },
-    { id: 'team', label: 'Users & roles', icon: Users, iconBg: 'bg-indigo-500/15', iconColor: 'text-indigo-600', href: '/users' },
-    { id: 'audit', label: 'Activity log', icon: History, iconBg: 'bg-gray-500/15', iconColor: 'text-gray-600', href: '/audit-logs' },
-    { id: 'profile', label: 'Profile', icon: UserCog, iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-600', href: '/profile' },
 ];
 
 export function SettingsShell({ active, children }: { active: SettingsItemId | null; children: React.ReactNode }) {

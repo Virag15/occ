@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
     Plug, FileSpreadsheet, MessageCircle, Webhook, RefreshCw, CircleCheck, CircleAlert, Play, Database, Users, Package, Boxes, Clock,
+    ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee, Repeat,
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +23,7 @@ type TallySummary = {
 type TallyLog = {
     id: number;
     entity_type: string;
-    direction: string;
+    direction: 'pull' | 'push';
     status: 'running' | 'success' | 'partial' | 'failed' | 'demo';
     records_processed: number;
     records_created: number;
@@ -46,8 +47,24 @@ const ENTITY_ICON: Record<string, React.ComponentType<{ className?: string }>> =
     customers: Users,
     products: Package,
     stock: Boxes,
+    orders: ShoppingCart,
+    payments: IndianRupee,
     all: Database,
 };
+
+type Tile = { entity: string; label: string; description: string };
+
+const PULL_TILES: Tile[] = [
+    { entity: 'customers', label: 'Customers', description: 'Ledgers under Sundry Debtors' },
+    { entity: 'products', label: 'Products', description: 'Stock items + HSN + GST' },
+    { entity: 'stock', label: 'Stock levels', description: 'Per godown, current balances' },
+];
+
+const PUSH_TILES: Tile[] = [
+    { entity: 'customers', label: 'Customers', description: 'OCC-origin customers as ledgers' },
+    { entity: 'orders', label: 'Orders', description: 'Sales vouchers per order' },
+    { entity: 'payments', label: 'Payments', description: 'Receipt vouchers per payment' },
+];
 
 export default function Integrations({
     tally,
@@ -60,11 +77,22 @@ export default function Integrations({
 }) {
     const [syncing, setSyncing] = useState<string | null>(null);
 
-    const triggerSync = (type: string) => {
-        setSyncing(type);
-        router.post(route('settings.tally.sync'), { type }, {
+    const triggerSync = (type: string, direction: 'pull' | 'push' = 'pull') => {
+        const key = `${direction}:${type}`;
+        setSyncing(key);
+        router.post(route('settings.tally.sync'), { type, direction }, {
             preserveScroll: true,
-            onSuccess: () => toast.success(`Tally ${type} sync complete`),
+            onSuccess: () => toast.success(`Tally ${direction} ${type} complete`),
+            onError: (e) => toast.error(Object.values(e).join(', ')),
+            onFinish: () => setSyncing(null),
+        });
+    };
+
+    const triggerReconcile = () => {
+        setSyncing('reconcile');
+        router.post(route('settings.tally.sync'), { type: 'reconcile' }, {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Full Tally reconciliation complete'),
             onError: (e) => toast.error(Object.values(e).join(', ')),
             onFinish: () => setSyncing(null),
         });
@@ -106,42 +134,47 @@ export default function Integrations({
                                 </Button>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-4 pt-2">
-                            {/* Sync actions */}
-                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                {(['customers', 'products', 'stock', 'all'] as const).map((entity) => {
-                                    const Icon = ENTITY_ICON[entity];
-                                    const last = tally_last_synced[entity] ?? null;
-                                    const isThisSyncing = syncing === entity;
-                                    return (
-                                        <div key={entity} className="rounded-md border p-3">
-                                            <div className="flex items-center gap-2">
-                                                <Icon className="h-4 w-4 text-muted-foreground" />
-                                                <span className="text-sm font-medium capitalize">{entity === 'all' ? 'Full sync' : entity}</span>
-                                            </div>
-                                            <p className="mt-1 text-[10px] text-muted-foreground">
-                                                {last
-                                                    ? <>Last synced {new Date(last).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</>
-                                                    : <>Never synced</>}
-                                            </p>
-                                            <Button
-                                                size="sm"
-                                                variant={entity === 'all' ? 'default' : 'outline'}
-                                                disabled={!!syncing}
-                                                onClick={() => triggerSync(entity)}
-                                                className="mt-2 w-full"
-                                            >
-                                                {isThisSyncing
-                                                    ? <><RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> Syncing…</>
-                                                    : <><Play className="h-3.5 w-3.5 mr-1" /> Sync now</>}
-                                            </Button>
-                                        </div>
-                                    );
-                                })}
+                        <CardContent className="space-y-5 p-4 pt-2">
+                            {/* Full reconcile (both directions) */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/20 bg-primary/5 p-3">
+                                <div className="flex items-start gap-2">
+                                    <Repeat className="mt-0.5 h-4 w-4 text-primary" />
+                                    <div>
+                                        <p className="text-sm font-medium">Full reconciliation</p>
+                                        <p className="text-[11px] text-muted-foreground">Pulls masters + stock, then pushes any new OCC customers, orders and payments to Tally.</p>
+                                    </div>
+                                </div>
+                                <Button size="sm" disabled={!!syncing} onClick={triggerReconcile}>
+                                    {syncing === 'reconcile'
+                                        ? <><RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> Reconciling…</>
+                                        : <><Repeat className="h-3.5 w-3.5 mr-1" /> Reconcile now</>}
+                                </Button>
+                            </div>
+
+                            {/* Two-way sync — split into Pull and Push sections */}
+                            <div className="grid gap-4 lg:grid-cols-2">
+                                <DirectionSection
+                                    direction="pull"
+                                    title="Pull from Tally"
+                                    description="Tally is the source of truth for masters."
+                                    tiles={PULL_TILES}
+                                    lastSynced={tally_last_synced}
+                                    syncing={syncing}
+                                    onSync={triggerSync}
+                                />
+                                <DirectionSection
+                                    direction="push"
+                                    title="Push to Tally"
+                                    description="OCC pushes operational events back."
+                                    tiles={PUSH_TILES}
+                                    lastSynced={tally_last_synced}
+                                    syncing={syncing}
+                                    onSync={triggerSync}
+                                />
                             </div>
 
                             {/* Sync log */}
-                            <div className="mt-4">
+                            <div>
                                 <div className="flex items-center justify-between">
                                     <h3 className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                         <Clock className="h-3.5 w-3.5" /> Recent sync activity
@@ -152,7 +185,7 @@ export default function Integrations({
                                 </div>
                                 {tally_logs.length === 0 ? (
                                     <p className="mt-2 rounded-md border border-dashed bg-muted/20 p-6 text-center text-xs text-muted-foreground">
-                                        No sync runs yet. Hit "Sync now" above to try it out — runs in demo mode if Tally isn't connected.
+                                        No sync runs yet. Try any "Sync now" button above — runs in demo mode if Tally isn't connected.
                                     </p>
                                 ) : (
                                     <div className="mt-2 overflow-hidden rounded-md border">
@@ -160,6 +193,7 @@ export default function Integrations({
                                             <thead className="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground">
                                                 <tr>
                                                     <th className="px-3 py-2 text-left font-semibold">When</th>
+                                                    <th className="px-3 py-2 text-left font-semibold">Direction</th>
                                                     <th className="px-3 py-2 text-left font-semibold">Entity</th>
                                                     <th className="px-3 py-2 text-left font-semibold">Status</th>
                                                     <th className="px-3 py-2 text-right font-semibold">Created</th>
@@ -173,6 +207,17 @@ export default function Integrations({
                                                     <tr key={log.id} className="border-b last:border-0 hover:bg-muted/30">
                                                         <td className="px-3 py-2 text-muted-foreground tabular-nums">
                                                             {new Date(log.started_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <span className={cn(
+                                                                'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                                                                log.direction === 'pull' ? 'bg-blue-500/10 text-blue-700' : 'bg-purple-500/10 text-purple-700',
+                                                            )}>
+                                                                {log.direction === 'pull'
+                                                                    ? <ArrowDownToLine className="h-3 w-3" />
+                                                                    : <ArrowUpFromLine className="h-3 w-3" />}
+                                                                {log.direction}
+                                                            </span>
                                                         </td>
                                                         <td className="px-3 py-2 capitalize">{log.entity_type}</td>
                                                         <td className="px-3 py-2">
@@ -230,6 +275,63 @@ export default function Integrations({
                 </div>
             </SettingsShell>
         </AdminLayout>
+    );
+}
+
+function DirectionSection({
+    direction, title, description, tiles, lastSynced, syncing, onSync,
+}: {
+    direction: 'pull' | 'push';
+    title: string;
+    description: string;
+    tiles: Tile[];
+    lastSynced: Record<string, string | null>;
+    syncing: string | null;
+    onSync: (entity: string, dir: 'pull' | 'push') => void;
+}) {
+    const Icon = direction === 'pull' ? ArrowDownToLine : ArrowUpFromLine;
+    return (
+        <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+            <div className="flex items-center gap-2">
+                <Icon className={cn('h-4 w-4', direction === 'pull' ? 'text-blue-600' : 'text-purple-600')} />
+                <h3 className="text-sm font-semibold">{title}</h3>
+            </div>
+            <p className="text-[11px] text-muted-foreground">{description}</p>
+
+            <div className="space-y-2">
+                {tiles.map((tile) => {
+                    const TileIcon = ENTITY_ICON[tile.entity] ?? Database;
+                    const last = lastSynced[tile.entity] ?? null;
+                    const key = `${direction}:${tile.entity}`;
+                    const isSyncing = syncing === key;
+                    return (
+                        <div key={tile.entity} className="flex items-center justify-between gap-3 rounded-md border bg-card p-2.5">
+                            <div className="flex min-w-0 items-center gap-2">
+                                <TileIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium">{tile.label}</p>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        {tile.description}
+                                        {last && <> · last {new Date(last).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</>}
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!!syncing}
+                                onClick={() => onSync(tile.entity, direction)}
+                                className="shrink-0"
+                            >
+                                {isSyncing
+                                    ? <><RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> {direction === 'pull' ? 'Pulling…' : 'Pushing…'}</>
+                                    : <><Play className="h-3.5 w-3.5 mr-1" /> {direction === 'pull' ? 'Pull' : 'Push'}</>}
+                            </Button>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 }
 

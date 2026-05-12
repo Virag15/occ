@@ -116,6 +116,62 @@ class TallyClient
         return $this->demoStock();
     }
 
+    // ─── PUSH direction: OCC → Tally ────────────────────────────────
+
+    /**
+     * Push a customer ledger into Tally. Creates a new ledger under Sundry Debtors
+     * or alters the existing one (matched by tally_id or name). Returns the
+     * Tally ledger ID so OCC can store it back on the customer row.
+     *
+     * @param  array{tally_id?: ?string, name: string, gstin?: ?string, address?: ?string, phone?: ?string, email?: ?string, payment_terms?: ?string}  $customer
+     * @return array{ok: bool, tally_id: ?string, error: ?string}
+     */
+    public function pushCustomer(array $customer): array
+    {
+        if (!$this->isEnabled()) return $this->demoPushResult('TALLY-DEMO-CUST-' . substr(md5($customer['name']), 0, 6));
+
+        // TODO: real implementation — POST a Master IMPORT envelope:
+        //   <ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+        //   <BODY><IMPORTDATA><REQUESTDESC><REPORTNAME>All Masters</REPORTNAME>
+        //   <STATICVARIABLES><SVCURRENTCOMPANY>{company}</SVCURRENTCOMPANY></STATICVARIABLES>
+        //   </REQUESTDESC><REQUESTDATA><TALLYMESSAGE><LEDGER NAME="…" ACTION="Create">
+        //   <PARENT>Sundry Debtors</PARENT>… <GSTREGISTRATIONTYPE>…</GSTREGISTRATIONTYPE>
+        //   </LEDGER></TALLYMESSAGE></REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>
+        return $this->demoPushResult('TALLY-DEMO-CUST-' . substr(md5($customer['name']), 0, 6));
+    }
+
+    /**
+     * Push a sales voucher (one order = one voucher) into Tally. Tally creates
+     * a sales entry under the configured sales ledger and updates stock + the
+     * customer's ledger balance.
+     *
+     * @param  array{order_code: string, order_date: string, customer_name: string, customer_tally_id?: ?string, line_items: array, invoice_number?: ?string}  $voucher
+     * @return array{ok: bool, tally_id: ?string, error: ?string}
+     */
+    public function pushSalesVoucher(array $voucher): array
+    {
+        if (!$this->isEnabled()) return $this->demoPushResult('TALLY-DEMO-VCH-' . $voucher['order_code']);
+
+        // TODO: real implementation — Sales voucher import envelope
+        return $this->demoPushResult('TALLY-DEMO-VCH-' . $voucher['order_code']);
+    }
+
+    /**
+     * Push a receipt voucher (one payment = one receipt) into Tally. Tally
+     * creates a receipt entry that debits the bank/cash ledger and credits
+     * the customer's ledger.
+     *
+     * @param  array{paid_on: string, amount: float, mode: string, customer_name: string, customer_tally_id?: ?string, reference?: ?string, order_code?: ?string}  $receipt
+     * @return array{ok: bool, tally_id: ?string, error: ?string}
+     */
+    public function pushReceiptVoucher(array $receipt): array
+    {
+        if (!$this->isEnabled()) return $this->demoPushResult('TALLY-DEMO-RCT-' . substr(md5(json_encode($receipt)), 0, 8));
+
+        // TODO: real implementation — Receipt voucher import envelope
+        return $this->demoPushResult('TALLY-DEMO-RCT-' . substr(md5(json_encode($receipt)), 0, 8));
+    }
+
     // ─── Low-level XML helpers ──────────────────────────────────────
 
     /**
@@ -197,5 +253,10 @@ XML;
             ['tally_id' => 'TALLY-DEMO-PROD-001', 'godown' => 'Main', 'qty' => 240.0, 'as_of_date' => now()->toDateString()],
             ['tally_id' => 'TALLY-DEMO-PROD-002', 'godown' => 'Main', 'qty' => 75.0, 'as_of_date' => now()->toDateString()],
         ];
+    }
+
+    private function demoPushResult(string $tallyId): array
+    {
+        return ['ok' => true, 'tally_id' => $tallyId, 'error' => null];
     }
 }

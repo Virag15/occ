@@ -35,16 +35,23 @@ class TallyController extends Controller
     public function sync(Request $request, TallySyncService $svc): RedirectResponse
     {
         $data = $request->validate([
-            'type' => ['required', Rule::in(['customers', 'products', 'stock', 'all'])],
+            'type' => ['required', Rule::in(['customers', 'products', 'stock', 'orders', 'payments', 'all', 'reconcile'])],
+            'direction' => ['nullable', Rule::in(['pull', 'push'])],
         ]);
 
         $userId = Auth::id();
+        $direction = $data['direction'] ?? 'pull';
 
-        match ($data['type']) {
-            'customers' => $svc->syncCustomers($userId),
-            'products' => $svc->syncProducts($userId),
-            'stock' => $svc->syncStock($userId),
-            'all' => $svc->syncAll($userId),
+        match (true) {
+            $data['type'] === 'reconcile' => $svc->reconcile($userId),
+            $data['type'] === 'all' && $direction === 'pull' => $svc->syncAll($userId),
+            $direction === 'push' && $data['type'] === 'customers' => $svc->pushCustomers($userId),
+            $direction === 'push' && $data['type'] === 'orders' => $svc->pushOrders($userId),
+            $direction === 'push' && $data['type'] === 'payments' => $svc->pushPayments($userId),
+            $data['type'] === 'customers' => $svc->syncCustomers($userId),
+            $data['type'] === 'products' => $svc->syncProducts($userId),
+            $data['type'] === 'stock' => $svc->syncStock($userId),
+            default => null,
         };
 
         return back();

@@ -4,6 +4,8 @@ namespace App\Services\Tally;
 
 use App\Models\AuditLog;
 use App\Models\Customer;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\StockItem;
 use App\Models\TallySyncLog;
@@ -32,6 +34,23 @@ class TallySyncService
             'customers' => $this->syncCustomers($triggeredBy),
             'products' => $this->syncProducts($triggeredBy),
             'stock' => $this->syncStock($triggeredBy),
+        ];
+    }
+
+    /**
+     * Run both directions for a full reconciliation:
+     *   1. Pull masters + stock from Tally
+     *   2. Push pending OCC customers + orders + payments to Tally
+     */
+    public function reconcile(?int $triggeredBy = null): array
+    {
+        return [
+            'pull' => $this->syncAll($triggeredBy),
+            'push' => [
+                'customers' => $this->pushCustomers($triggeredBy),
+                'orders' => $this->pushOrders($triggeredBy),
+                'payments' => $this->pushPayments($triggeredBy),
+            ],
         ];
     }
 
@@ -157,15 +176,143 @@ class TallySyncService
         });
     }
 
+    // ─── PUSH direction: OCC → Tally ────────────────────────────────
+
+    /**
+     * Push any customer not yet present in Tally (no tally_id) up as a ledger.
+     * Stores the returned tally_id back on the customer so future syncs match.
+     */
+    public function pushCustomers(?int $triggeredBy = null): TallySyncLog
+    {
+        return $this->runSync('customers', $triggeredBy, function () {
+            // Only push customers that originated in OCC (no Tally id, or a DEV- placeholder from the seeder).
+            // Customers with a TALLY- prefix already exist in Tally from a prior pull/push and are skipped.
+            $customers = Customer::query()
+                ->where(function ($q) {
+                    $q->whereNull('tally_id')->orWhere('tally_id', 'like', 'DEV-%');
+                })
+                ->get();
+
+            $created = $failed = 0;
+            foreach ($customers as $c) {
+                $res = $this->client->pushCustomer([
+                    'tally_id' => $c->tally_id,
+                    'name' => $c->name,
+                    'gstin' => $c->gstin,
+                    'address' => $c->billing_address,
+                    'phone' => $c->phone,
+                    'email' => $c->email,
+                    'payment_terms' => $c->payment_terms,
+                ]);
+                if ($res['ok'] && $res['tally_id']) {
+                    // If another customer already owns this tally_id (rare in production,
+                    // common in demo mode where IDs are derived from name hash), skip.
+                    $clash = Customer::query()
+                        ->where('tally_id', $res['tally_id'])
+                        ->where('id', '!=', $c->id)
+                        ->exists();
+                    if ($clash) { $failed++; continue; }
+                    $c->forceFill(['tally_id' => $res['tally_id'], 'tally_synced_at' => now()])->save();
+                    $created++;
+                } else {
+                    $failed++;
+                }
+            }
+
+            return [
+                'processed' => $customers->count(),
+                'created' => $created,
+                'updated' => 0,
+                'failed' => $failed,
+                'sample' => $customers->take(3)->map(fn ($c) => ['name' => $c->name, 'gstin' => $c->gstin])->all(),
+            ];
+        }, direction: 'push');
+    }
+
+    /**
+     * Push orders that are dispatched / delivered / closed and don't yet have
+     * a Tally voucher (we'd track this with an `external_tally_id` column on
+     * orders in a follow-up; for now we push everything in those statuses).
+     */
+    public function pushOrders(?int $triggeredBy = null): TallySyncLog
+    {
+        return $this->runSync('vouchers', $triggeredBy, function () {
+            $orders = Order::query()
+                ->whereIn('status', ['dispatched', 'delivered', 'closed'])
+                ->with('customer', 'items')
+                ->get();
+
+            $created = $failed = 0;
+            foreach ($orders as $o) {
+                $res = $this->client->pushSalesVoucher([
+                    'order_code' => $o->order_code,
+                    'order_date' => $o->order_date?->toDateString() ?? now()->toDateString(),
+                    'customer_name' => $o->customer?->name ?? 'Unknown',
+                    'customer_tally_id' => $o->customer?->tally_id,
+                    'invoice_number' => $o->invoice_number,
+                    'line_items' => $o->items->map(fn ($i) => [
+                        'name' => $i->product_name,
+                        'qty' => (float) $i->qty_ordered,
+                        'rate' => (float) ($i->unit_price ?? 0),
+                        'tax_rate' => (float) ($i->tax_rate ?? 0),
+                    ])->all(),
+                ]);
+                if ($res['ok']) $created++; else $failed++;
+            }
+
+            return [
+                'processed' => $orders->count(),
+                'created' => $created,
+                'updated' => 0,
+                'failed' => $failed,
+                'sample' => $orders->take(3)->map(fn ($o) => ['order_code' => $o->order_code, 'value' => $o->order_value])->all(),
+            ];
+        }, direction: 'push');
+    }
+
+    /**
+     * Push every payment recorded in OCC to Tally as a receipt voucher.
+     */
+    public function pushPayments(?int $triggeredBy = null): TallySyncLog
+    {
+        return $this->runSync('vouchers', $triggeredBy, function () {
+            $payments = Payment::query()
+                ->with('order.customer')
+                ->get();
+
+            $created = $failed = 0;
+            foreach ($payments as $p) {
+                $res = $this->client->pushReceiptVoucher([
+                    'paid_on' => $p->paid_on?->toDateString() ?? now()->toDateString(),
+                    'amount' => (float) $p->amount,
+                    'mode' => $p->mode,
+                    'reference' => $p->reference,
+                    'order_code' => $p->order?->order_code,
+                    'customer_name' => $p->order?->customer?->name ?? 'Unknown',
+                    'customer_tally_id' => $p->order?->customer?->tally_id,
+                ]);
+                if ($res['ok']) $created++; else $failed++;
+            }
+
+            return [
+                'processed' => $payments->count(),
+                'created' => $created,
+                'updated' => 0,
+                'failed' => $failed,
+                'sample' => $payments->take(3)->map(fn ($p) => ['amount' => $p->amount, 'mode' => $p->mode])->all(),
+            ];
+        }, direction: 'push');
+    }
+
     /**
      * Open a TallySyncLog row, run the callback, close the log with the result.
      * The callback should return ['processed', 'created', 'updated', 'failed', 'sample'].
      */
-    private function runSync(string $entityType, ?int $triggeredBy, \Closure $work): TallySyncLog
+    private function runSync(string $entityType, ?int $triggeredBy, \Closure $work, string $direction = 'pull'): TallySyncLog
     {
         $log = TallySyncLog::create([
             'entity_type' => $entityType,
-            'direction' => 'pull',
+            'direction' => $direction,
             'status' => 'running',
             'started_at' => now(),
             'triggered_by' => $triggeredBy ?? Auth::id(),
