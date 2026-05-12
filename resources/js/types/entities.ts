@@ -256,6 +256,21 @@ export type ReturnCase = {
     created_at: string;
 };
 
+export type SavedView = {
+    id: number;
+    user_id: number;
+    database_type: string;
+    name: string;
+    view_type: string;
+    config: {
+        search?: string;
+        filters?: Record<string, string>;
+        sort?: { field: string; dir: 'asc' | 'desc' };
+    };
+    is_default: boolean;
+    created_at: string;
+};
+
 export type Pagination = {
     total: number;
     per_page: number;

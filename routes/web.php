@@ -11,6 +11,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReturnController;
+use App\Http\Controllers\SavedViewController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TransporterController;
@@ -24,6 +25,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
     Route::get('/reports/daily', [DailyReportController::class, 'show'])->name('reports.daily');
+
+    // Saved views — per-user filter/sort presets for entity lists
+    Route::post('/saved-views', [SavedViewController::class, 'store'])->name('saved-views.store');
+    Route::patch('/saved-views/{savedView}', [SavedViewController::class, 'update'])->name('saved-views.update');
+    Route::delete('/saved-views/{savedView}', [SavedViewController::class, 'destroy'])->name('saved-views.destroy');
 
     Route::resource('customers', CustomerController::class)->except(['show']);
     Route::get('/customers/{customer}', CustomerShowController::class)->name('customers.show');

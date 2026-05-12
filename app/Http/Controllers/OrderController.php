@@ -31,6 +31,12 @@ class OrderController extends Controller
                 ->orderByDesc('order_date')
                 ->orderByDesc('id')
                 ->get(),
+            'savedViews' => \App\Models\SavedView::query()
+                ->where('user_id', \Illuminate\Support\Facades\Auth::id())
+                ->where('database_type', 'order')
+                ->orderByDesc('is_default')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 

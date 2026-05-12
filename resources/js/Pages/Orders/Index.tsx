@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { Order } from '@/types/entities';
+import type { Order, SavedView } from '@/types/entities';
+import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
 
 const STATUSES = [
     'new_order', 'confirmed', 'stock_check', 'packing', 'packed',
@@ -252,13 +253,43 @@ function FlagChips({ order }: { order: Order }) {
 }
 
 // ------- Main page -------
-export default function OrderIndex({ rows }: { rows: Order[] }) {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
-    const [paymentFilter, setPaymentFilter] = useState('');
-    const [priorityFilter, setPriorityFilter] = useState('');
+export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; savedViews?: SavedView[] }) {
+    // If the user has a default view, prefill from it on first mount
+    const defaultView = savedViews.find((v) => v.is_default) ?? null;
+    const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
+
+    const [search, setSearch] = useState(dc.search ?? '');
+    const [statusFilter, setStatusFilter] = useState(dc.filters?.status ?? '');
+    const [paymentFilter, setPaymentFilter] = useState(dc.filters?.payment_status ?? '');
+    const [priorityFilter, setPriorityFilter] = useState(dc.filters?.priority ?? '');
+    const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [processing, setProcessing] = useState(false);
+
+    const currentConfig = {
+        search: search || undefined,
+        filters: {
+            ...(statusFilter && { status: statusFilter }),
+            ...(paymentFilter && { payment_status: paymentFilter }),
+            ...(priorityFilter && { priority: priorityFilter }),
+        },
+    };
+
+    const applyView = (config: { search?: string; filters?: Record<string, string> }, viewId: number | null) => {
+        setSearch(config.search ?? '');
+        setStatusFilter(config.filters?.status ?? '');
+        setPaymentFilter(config.filters?.payment_status ?? '');
+        setPriorityFilter(config.filters?.priority ?? '');
+        setActiveViewId(viewId);
+    };
+
+    const clearView = () => {
+        setSearch('');
+        setStatusFilter('');
+        setPaymentFilter('');
+        setPriorityFilter('');
+        setActiveViewId(null);
+    };
 
     const filteredRows = useMemo(() => {
         let result = rows;
@@ -278,7 +309,10 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
     }, [search, statusFilter, paymentFilter, priorityFilter, rows]);
 
     const hasActiveFilters = !!search || !!statusFilter || !!paymentFilter || !!priorityFilter;
-    const clearFilters = () => { setSearch(''); setStatusFilter(''); setPaymentFilter(''); setPriorityFilter(''); };
+    const clearFilters = () => {
+        setSearch(''); setStatusFilter(''); setPaymentFilter(''); setPriorityFilter('');
+        setActiveViewId(null); // resetting filters also clears the active view
+    };
 
     // ---- Mutations ----
     const changeStatus = (orderId: number, status: string) => {
@@ -515,6 +549,14 @@ export default function OrderIndex({ rows }: { rows: Order[] }) {
     const toolbar = (
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2 flex-1">
+                <SavedViewSwitcher
+                    databaseType="order"
+                    views={savedViews}
+                    activeViewId={activeViewId}
+                    currentConfig={currentConfig}
+                    onApplyView={applyView}
+                    onClearView={clearView}
+                />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search code, customer, LR, invoice…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
