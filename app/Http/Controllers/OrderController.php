@@ -305,6 +305,35 @@ class OrderController extends Controller
         return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absolute));
     }
 
+    /**
+     * Bulk update priority and/or payment_status on multiple orders. Status changes
+     * are NOT bulk-applicable because each transition has its own preconditions
+     * (LR required for dispatched, payment paid for closed, etc.) — the row-level
+     * updateStatus enforces those. Bulk is reserved for "label" fields.
+     */
+    public function bulkUpdate(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'exists:orders,id'],
+            'priority' => ['nullable', 'in:urgent,high,normal,low'],
+            'payment_status' => ['nullable', 'in:not_due,pending,partial,paid,overdue'],
+        ]);
+
+        $payload = array_filter(
+            ['priority' => $data['priority'] ?? null, 'payment_status' => $data['payment_status'] ?? null],
+            fn ($v) => $v !== null,
+        );
+        if (empty($payload)) {
+            return back()->withErrors(['priority' => 'Choose at least one field to change.']);
+        }
+
+        // Update one-at-a-time so AuditObserver fires per row.
+        Order::whereIn('id', $data['order_ids'])->get()->each(fn ($o) => $o->update($payload));
+
+        return back()->with('success', count($data['order_ids']) . ' orders updated');
+    }
+
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         $data = $request->validate([

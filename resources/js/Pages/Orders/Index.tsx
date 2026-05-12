@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import { DataTable, SortableHeader } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -19,6 +20,7 @@ import {
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Order, SavedView } from '@/types/entities';
+import type { PageProps } from '@/types';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
 
 const STATUSES = [
@@ -254,6 +256,9 @@ function FlagChips({ order }: { order: Order }) {
 
 // ------- Main page -------
 export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; savedViews?: SavedView[] }) {
+    const { auth } = usePage<PageProps>().props;
+    const canBulkEdit = auth.user.role === 'owner' || auth.user.role === 'manager';
+
     // If the user has a default view, prefill from it on first mount
     const defaultView = savedViews.find((v) => v.is_default) ?? null;
     const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
@@ -265,6 +270,8 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
     const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [bulkProcessing, setBulkProcessing] = useState(false);
 
     const currentConfig = {
         search: search || undefined,
@@ -370,7 +377,68 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
         });
     };
 
+    // Filtered ids — used by header checkbox + select-all
+    const filteredIds = useMemo(() => new Set(filteredRows.map((r) => r.id)), [filteredRows]);
+    const allFilteredSelected = filteredIds.size > 0 && [...filteredIds].every((id) => selectedIds.has(id));
+    const someFilteredSelected = !allFilteredSelected && [...filteredIds].some((id) => selectedIds.has(id));
+
+    const toggleRow = (id: number) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleAllFiltered = () => {
+        setSelectedIds((prev) => {
+            if (allFilteredSelected) {
+                const next = new Set(prev);
+                filteredIds.forEach((id) => next.delete(id));
+                return next;
+            }
+            return new Set([...prev, ...filteredIds]);
+        });
+    };
+
+    const clearSelection = () => setSelectedIds(new Set());
+
+    const bulkApply = (payload: { priority?: string; payment_status?: string }) => {
+        const order_ids = Array.from(selectedIds);
+        if (order_ids.length === 0) return;
+        setBulkProcessing(true);
+        router.patch(route('orders.bulk-update'), { order_ids, ...payload }, {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['rows'],
+            onSuccess: () => {
+                toast.success(`${order_ids.length} order${order_ids.length === 1 ? '' : 's'} updated`);
+                clearSelection();
+            },
+            onError: (errs) => toast.error(Object.values(errs).join(', ')),
+            onFinish: () => setBulkProcessing(false),
+        });
+    };
+
     const columns = useMemo((): ColumnDef<Order>[] => [
+        ...(canBulkEdit ? [{
+            id: '__select',
+            header: () => (
+                <Checkbox
+                    checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
+                    onCheckedChange={() => toggleAllFiltered()}
+                    aria-label="Select all visible"
+                />
+            ),
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={selectedIds.has(row.original.id)}
+                    onCheckedChange={() => toggleRow(row.original.id)}
+                    aria-label={`Select ${row.original.order_code}`}
+                />
+            ),
+            enableSorting: false,
+        } as ColumnDef<Order>] : []),
         {
             accessorKey: 'order_code',
             header: ({ column }) => <SortableHeader column={column} title="Code" />,
@@ -544,7 +612,7 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
             },
         },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], []);
+    ], [selectedIds, allFilteredSelected, someFilteredSelected, canBulkEdit]);
 
     const toolbar = (
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center">
@@ -597,6 +665,55 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
     return (
         <AdminLayout breadcrumbs={[{ label: 'Orders' }]}>
             <Head title="Orders" />
+
+            {canBulkEdit && selectedIds.size > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                    <span className="font-medium">
+                        {selectedIds.size} selected
+                    </span>
+                    <span className="text-muted-foreground">·</span>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" disabled={bulkProcessing}>
+                                Set priority…
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Apply priority to {selectedIds.size}
+                            </DropdownMenuLabel>
+                            {PRIORITIES.map((p) => (
+                                <DropdownMenuItem key={p} onClick={() => bulkApply({ priority: p })}>
+                                    {p}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" disabled={bulkProcessing}>
+                                Set payment…
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Apply payment status to {selectedIds.size}
+                            </DropdownMenuLabel>
+                            {PAYMENT_STATUSES.map((p) => (
+                                <DropdownMenuItem key={p} onClick={() => bulkApply({ payment_status: p })}>
+                                    {p}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button size="sm" variant="ghost" onClick={clearSelection} className="ml-auto">
+                        <X className="h-3.5 w-3.5 mr-1" /> Clear
+                    </Button>
+                </div>
+            )}
 
             <DataTable columns={columns} data={filteredRows} toolbar={toolbar} emptyMessage="No orders match the current filters." />
 

@@ -71,6 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::match(['put', 'patch'], 'transporters/{transporter}', [TransporterController::class, 'update'])->name('transporters.update');
         Route::delete('transporters/{transporter}', [TransporterController::class, 'destroy'])->name('transporters.destroy');
 
+        // Bulk admin tags — priority / payment_status across many orders at once.
+        // MUST come before the {order} routes so 'bulk' isn't interpreted as an id.
+        Route::patch('/orders/bulk', [OrderController::class, 'bulkUpdate'])->name('orders.bulk-update');
+
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
         Route::match(['put', 'patch'], 'orders/{order}', [OrderController::class, 'update'])->name('orders.update');
         Route::delete('orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
