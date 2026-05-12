@@ -16,6 +16,7 @@ import {
     UserCog,
     UsersRound,
     History,
+    FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -105,6 +106,7 @@ const navGroups: NavGroup[] = [
         items: [
             { name: 'Orders', href: '/orders', icon: ShoppingCart },
             { name: 'Returns', href: '/returns', icon: AlertOctagon },
+            { name: 'Daily report', href: '/reports/daily', icon: FileText, roles: ['owner', 'manager', 'accounts'] },
         ],
     },
     {

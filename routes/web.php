@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerShowController;
+use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
@@ -21,6 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
+    Route::get('/reports/daily', [DailyReportController::class, 'show'])->name('reports.daily');
 
     Route::resource('customers', CustomerController::class)->except(['show']);
     Route::get('/customers/{customer}', CustomerShowController::class)->name('customers.show');
