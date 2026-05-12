@@ -1,7 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 import {
-    ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, MapPin,
+    ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, MapPin, Link2,
     Zap, MessageSquare, CheckCircle2, ChevronRight, Upload, Image as ImageIcon, Printer, ClipboardList,
     RotateCcw, AlertTriangle, ExternalLink, Plus, Download, Trash2,
 } from 'lucide-react';
@@ -446,6 +446,22 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
                     <Badge className={orderStatusClasses(order.status)}>{order.status.replace(/_/g, ' ')}</Badge>
                     <Badge className={paymentStatusClasses(order.payment_status)}>payment: {order.payment_status}</Badge>
                     {order.priority !== 'normal' && <Badge variant="outline">{order.priority}</Badge>}
+                    {order.tracking_uuid && (
+                        <Button
+                            variant="outline"
+                            type="button"
+                            onClick={() => {
+                                const url = `${window.location.origin}/track/${order.tracking_uuid}`;
+                                navigator.clipboard.writeText(url).then(
+                                    () => toast.success('Tracking link copied'),
+                                    () => toast.error('Couldn\'t copy — copy from the address bar'),
+                                );
+                            }}
+                            title="Copy public tracking link"
+                        >
+                            <Link2 className="h-4 w-4 mr-1" /> Tracking link
+                        </Button>
+                    )}
                     <Button variant="outline" asChild>
                         <a href={route('orders.quotation-pdf', { order: order.id })} target="_blank" rel="noreferrer">
                             <Download className="h-4 w-4 mr-1" /> Quotation

@@ -23,8 +23,20 @@ class Order extends Model
 
     public const PAYMENT_STATUSES = ['not_due', 'pending', 'partial', 'paid', 'overdue'];
 
+    protected static function booted(): void
+    {
+        // Auto-assign the public tracking UUID at create time so every order
+        // can be linked to without an extra step. The migration backfills
+        // existing rows, this covers all new ones.
+        static::creating(function (Order $order) {
+            if (empty($order->tracking_uuid)) {
+                $order->tracking_uuid = (string) \Illuminate\Support\Str::uuid();
+            }
+        });
+    }
+
     protected $fillable = [
-        'order_code', 'customer_id', 'order_date', 'order_source',
+        'order_code', 'tracking_uuid', 'customer_id', 'order_date', 'order_source',
         'customer_reference_number', 'customer_po_number',
         'brands', 'order_value', 'discount_amount', 'status', 'priority',
         // Order-level aggregate flags (not duplicates of shipment data — manually maintained)

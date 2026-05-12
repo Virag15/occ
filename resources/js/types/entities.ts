@@ -153,6 +153,7 @@ export type OrderItem = {
 export type Order = {
     id: number;
     order_code: string;
+    tracking_uuid?: string | null;
     customer_id: number;
     customer?: CustomerLite;
     order_date: string;

@@ -153,4 +153,9 @@ Route::get('/welcome', fn () => Inertia::render('Welcome', [
     'canRegister' => Route::has('register'),
 ]));
 
+// Public order tracking — unguessable UUID acts as the access token. No auth.
+Route::get('/track/{uuid}', [\App\Http\Controllers\TrackingController::class, 'show'])
+    ->where('uuid', '[0-9a-fA-F-]{36}')
+    ->name('tracking.show');
+
 require __DIR__.'/auth.php';
