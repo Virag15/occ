@@ -25,6 +25,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ───── Read routes — open to every authed role ────────────────────────
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
+    Route::get('/warehouse', [\App\Http\Controllers\WarehouseController::class, 'index'])->name('warehouse.queue');
     Route::get('/reports/daily', [DailyReportController::class, 'show'])->name('reports.daily');
 
     // Saved views are scoped to the current user — every role manages their own
