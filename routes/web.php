@@ -14,6 +14,7 @@ use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TransporterController;
+use App\Http\Controllers\TransporterShowController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -29,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('products', ProductController::class)->except(['show']);
     Route::get('/products/{product}', ProductShowController::class)->name('products.show');
     Route::resource('transporters', TransporterController::class)->except(['show']);
+    Route::get('/transporters/{transporter}', TransporterShowController::class)->name('transporters.show');
 
     // Admin-only — RBAC enforced via role middleware
     Route::middleware('role:owner,manager')->group(function () {

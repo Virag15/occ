@@ -59,7 +59,11 @@ export default function TransporterIndex({ rows }: IndexPageProps<Transporter>) 
         {
             accessorKey: 'name',
             header: ({ column }) => <SortableHeader column={column} title="Name" />,
-            cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+            cell: ({ row }) => (
+                <Link href={route('transporters.show', { transporter: row.original.id })} className="font-medium hover:underline">
+                    {row.original.name}
+                </Link>
+            ),
         },
         { accessorKey: 'city', header: 'City', cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.city)}</span> },
         { accessorKey: 'contact_person', header: 'Contact', cell: ({ row }) => <span className="text-muted-foreground">{nullable(row.original.contact_person)}</span> },
