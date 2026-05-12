@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: PHP + Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ───── PHP ───────────────────────────────────────────────
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          # gd is required by ImageCompressor (POD/triplicate compression);
+          # intl + sqlite handle Carbon locale + the test DB respectively.
+          extensions: gd, intl, sqlite, pdo_sqlite, mbstring, fileinfo, dom, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP deps
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Bootstrap env + key + DB
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+          # Use an on-disk sqlite file so artisan migrate writes once and tests reuse it
+          mkdir -p database
+          touch database/database.sqlite
+          php artisan migrate --force --no-interaction
+
+      - name: Run tests
+        run: php artisan test --without-tty
+
+      - name: Pint (formatting check)
+        run: ./vendor/bin/pint --test
+
+      # ───── Frontend ──────────────────────────────────────────
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Build (tsc + vite)
+        run: npm run build
