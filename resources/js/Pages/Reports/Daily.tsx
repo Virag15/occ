@@ -1,11 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import {
-    ChevronLeft, ChevronRight, Printer, FileText, AlertTriangle, AlertCircle,
+    ChevronLeft, ChevronRight, Printer, AlertTriangle, AlertCircle,
+    ShoppingCart, Truck, IndianRupee, Calendar, MessageSquare, FileCheck, Clock, RotateCcw, BarChart3,
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@/components/ui/date-picker';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -46,7 +47,6 @@ export default function DailyReport(props: Props) {
         setDate(newDate);
         router.get(route('reports.daily'), { date: newDate }, { preserveScroll: false });
     };
-
     const shiftDate = (delta: number) => {
         const d = new Date(date);
         d.setDate(d.getDate() + delta);
@@ -55,7 +55,6 @@ export default function DailyReport(props: Props) {
         const dd = String(d.getDate()).padStart(2, '0');
         navigateDate(`${yyyy}-${mm}-${dd}`);
     };
-
     const setDateFromPicker = (d: Date | undefined) => {
         if (!d) return;
         const yyyy = d.getFullYear();
@@ -76,76 +75,72 @@ export default function DailyReport(props: Props) {
                 }
             `}</style>
 
-            {/* Toolbar */}
-            <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => shiftDate(-1)} title="Previous day">
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                    </Button>
-                    <div className="w-44">
-                        <DatePicker value={date} onChange={setDateFromPicker} />
+            <div className="space-y-5">
+                {/* ─── Header + date toolbar ────────────────────────── */}
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Daily operations report</h1>
+                        <p className="text-xs text-muted-foreground">
+                            {new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                            {' · ' + props.company.name}
+                            {props.company.city ? `, ${props.company.city}` : ''}
+                        </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => shiftDate(1)} title="Next day">
-                        <ChevronRight className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => navigateDate(new Date().toISOString().slice(0, 10))}>
-                        Today
-                    </Button>
+                    <div className="no-print flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => shiftDate(-1)} title="Previous day">
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        <div className="w-44">
+                            <DatePicker value={date} onChange={setDateFromPicker} />
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => shiftDate(1)} title="Next day">
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => navigateDate(new Date().toISOString().slice(0, 10))}>Today</Button>
+                        <Button variant="outline" size="sm" onClick={() => window.print()}>
+                            <Printer className="h-3.5 w-3.5 mr-1" /> Print
+                        </Button>
+                    </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => window.print()}>
-                    <Printer className="h-3.5 w-3.5 mr-1" /> Print / Save as PDF
-                </Button>
-            </div>
 
-            {/* ─── Digest ─────────────────────────────────────────── */}
-            <div className="mx-auto max-w-[880px] space-y-8 rounded-lg border bg-white p-6 print:max-w-none print:border-0 print:p-0">
-                {/* Header */}
-                <header className="border-b-[3px] border-foreground pb-4">
-                    <h1 className="text-xl font-bold tracking-tight">{props.company.name} — Daily Operations Report</h1>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                        {' · Generated ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                </header>
-
-                {/* Today's Snapshot */}
-                <Section title="Today's snapshot">
-                    <StatGrid>
-                        <Stat tone="good" label="New orders" value={props.snapshot.new_orders_count} sub={formatCurrency(props.snapshot.new_orders_value)} />
-                        <Stat tone="good" label="Dispatched" value={props.snapshot.dispatched_count} sub={formatCurrency(props.snapshot.dispatched_value)} />
-                        <Stat tone="good" label="Payments received" value={formatCurrency(props.snapshot.payments_today)} sub={`across ${0}`} />
-                        <Stat label="Tomorrow's dispatches" value={props.snapshot.tomorrow_dispatches_count} sub="Planned pickups" />
-                    </StatGrid>
+                {/* ─── Today's snapshot ─────────────────────────────── */}
+                <Section icon={Calendar} title="Today's snapshot">
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                        <KPI icon={ShoppingCart} tone="emerald" label="New orders" value={props.snapshot.new_orders_count} sub={formatCurrency(props.snapshot.new_orders_value)} />
+                        <KPI icon={Truck} tone="emerald" label="Dispatched" value={props.snapshot.dispatched_count} sub={formatCurrency(props.snapshot.dispatched_value)} />
+                        <KPI icon={IndianRupee} tone="emerald" label="Payments received" value={formatCurrency(props.snapshot.payments_today)} sub="Total received today" />
+                        <KPI icon={Calendar} label="Tomorrow's dispatches" value={props.snapshot.tomorrow_dispatches_count} sub="Planned pickups" />
+                    </div>
                 </Section>
 
-                {/* Pending Actions */}
-                <Section title="Pending actions">
-                    <StatGrid>
-                        <Stat tone={props.pending.lr_sharing_pending_count > 0 ? 'alert' : 'default'}
-                              label="LR sharing pending" value={props.pending.lr_sharing_pending_count}
-                              sub="Dispatched, customer not informed" />
-                        <Stat tone={props.pending.triplicate_pending_count > 5 ? 'alert' : 'default'}
-                              label="Triplicate awaited" value={props.pending.triplicate_pending_count}
-                              sub="Compliance copies pending" />
-                        <Stat tone={props.pending.payments_overdue_amount > 0 ? 'alert' : 'default'}
-                              label="Payments overdue" value={props.pending.payments_overdue_count}
-                              sub={`${formatCurrency(props.pending.payments_overdue_amount)} stuck`} />
-                        <Stat tone={props.pending.open_returns_count > 0 ? 'alert' : 'default'}
-                              label="Open cases" value={props.pending.open_returns_count}
-                              sub={`${formatCurrency(props.pending.open_returns_value)} at risk`} />
-                    </StatGrid>
+                {/* ─── Pending actions ──────────────────────────────── */}
+                <Section icon={Clock} title="Pending actions">
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                        <KPI icon={MessageSquare} tone={props.pending.lr_sharing_pending_count > 0 ? 'red' : 'default'}
+                             label="LR sharing pending" value={props.pending.lr_sharing_pending_count}
+                             sub="Customer not informed" />
+                        <KPI icon={FileCheck} tone={props.pending.triplicate_pending_count > 5 ? 'red' : 'default'}
+                             label="Triplicate awaited" value={props.pending.triplicate_pending_count}
+                             sub="Compliance copies pending" />
+                        <KPI icon={IndianRupee} tone={props.pending.payments_overdue_amount > 0 ? 'red' : 'default'}
+                             label="Payments overdue" value={props.pending.payments_overdue_count}
+                             sub={`${formatCurrency(props.pending.payments_overdue_amount)} stuck`} />
+                        <KPI icon={RotateCcw} tone={props.pending.open_returns_count > 0 ? 'red' : 'default'}
+                             label="Open cases" value={props.pending.open_returns_count}
+                             sub={`${formatCurrency(props.pending.open_returns_value)} at risk`} />
+                    </div>
                 </Section>
 
-                {/* Top Alerts */}
+                {/* ─── Top alerts ──────────────────────────────────── */}
                 {props.alerts.length > 0 && (
-                    <Section title="Top alerts">
+                    <Section icon={AlertTriangle} title="Top alerts">
                         <div className="space-y-2">
                             {props.alerts.map((a, i) => (
                                 <div
                                     key={i}
                                     className={cn(
-                                        'rounded-md border bg-white p-3 border-l-4',
-                                        a.severity === 'red' ? 'border-l-red-600' : 'border-l-yellow-600',
+                                        'rounded-md border-l-4 bg-card p-3 shadow-sm',
+                                        a.severity === 'red' ? 'border-l-red-600' : 'border-l-yellow-500',
                                     )}
                                 >
                                     <div className={cn('mb-1 flex items-center gap-1.5 text-sm font-semibold',
@@ -160,162 +155,175 @@ export default function DailyReport(props: Props) {
                     </Section>
                 )}
 
-                {/* Dispatched today */}
-                {props.dispatched_today.length > 0 && (
-                    <Section title={`Dispatched today (${props.dispatched_today.length})`}>
-                        <Table headers={['Order', 'Customer ref', 'LR number', 'Value', 'LR shared']}>
-                            {props.dispatched_today.map((r, i) => (
-                                <tr key={i} className="border-b last:border-0">
-                                    <Cell><Link href={`/orders/${r.order_id}`} className="font-mono font-medium hover:underline">{r.order_code}</Link></Cell>
-                                    <Cell>{r.customer_ref ?? '—'}</Cell>
-                                    <Cell mono>{r.lr_number ?? '—'}</Cell>
-                                    <Cell>{formatCurrency(r.value)}</Cell>
-                                    <Cell>{r.lr_shared
-                                        ? <span className="font-semibold text-emerald-700">SHARED</span>
-                                        : <span className="font-semibold text-red-600">PENDING</span>}</Cell>
-                                </tr>
-                            ))}
-                        </Table>
-                    </Section>
-                )}
+                {/* ─── Detail tables — 2-col grid on lg ─────────────── */}
+                <div className="grid gap-5 lg:grid-cols-2">
+                    {/* Dispatched today */}
+                    {props.dispatched_today.length > 0 && (
+                        <Section icon={Truck} title="Dispatched today" count={props.dispatched_today.length}>
+                            <Table headers={['Order', 'Customer ref', 'LR', 'Value', 'Shared']}>
+                                {props.dispatched_today.map((r, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                        <Cell><Link href={`/orders/${r.order_id}`} className="font-mono text-xs font-medium hover:underline">{r.order_code}</Link></Cell>
+                                        <Cell><span className="text-xs">{r.customer_ref ?? '—'}</span></Cell>
+                                        <Cell mono>{r.lr_number ?? '—'}</Cell>
+                                        <Cell num>{formatCurrency(r.value)}</Cell>
+                                        <Cell>{r.lr_shared
+                                            ? <span className="text-[10px] font-semibold text-emerald-700">SHARED</span>
+                                            : <span className="text-[10px] font-semibold text-red-600">PENDING</span>}</Cell>
+                                    </tr>
+                                ))}
+                            </Table>
+                        </Section>
+                    )}
 
-                {/* LR sharing pending */}
-                {props.lr_pending.length > 0 && (
-                    <Section
-                        title={`LR sharing pending (${props.lr_pending.length})`}
-                        description="Action: share LR photo and number with each customer on WhatsApp before end of day."
-                    >
-                        <Table headers={['Order', 'Customer ref', 'LR number', 'Dispatched']}>
-                            {props.lr_pending.map((r, i) => (
-                                <tr key={i} className="border-b last:border-0">
-                                    <Cell><Link href={`/orders/${r.order_id}`} className="font-mono font-medium hover:underline">{r.order_code}</Link></Cell>
-                                    <Cell>{r.customer_ref ?? '—'}</Cell>
-                                    <Cell mono>{r.lr_number ?? '—'}</Cell>
-                                    <Cell>{r.dispatch_date ? formatDateIN(r.dispatch_date) : '—'}</Cell>
-                                </tr>
-                            ))}
-                        </Table>
-                    </Section>
-                )}
+                    {/* LR sharing pending */}
+                    {props.lr_pending.length > 0 && (
+                        <Section
+                            icon={MessageSquare}
+                            title="LR sharing pending"
+                            count={props.lr_pending.length}
+                            description="Share LR photo + number on WhatsApp before close of day."
+                        >
+                            <Table headers={['Order', 'Customer ref', 'LR', 'Dispatched']}>
+                                {props.lr_pending.map((r, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                        <Cell><Link href={`/orders/${r.order_id}`} className="font-mono text-xs font-medium hover:underline">{r.order_code}</Link></Cell>
+                                        <Cell><span className="text-xs">{r.customer_ref ?? '—'}</span></Cell>
+                                        <Cell mono>{r.lr_number ?? '—'}</Cell>
+                                        <Cell>{r.dispatch_date ? formatDateIN(r.dispatch_date) : '—'}</Cell>
+                                    </tr>
+                                ))}
+                            </Table>
+                        </Section>
+                    )}
 
-                {/* Triplicate awaited */}
-                {props.triplicate_pending.length > 0 && (
-                    <Section
-                        title={`Triplicate copies awaited (${props.triplicate_pending.length})`}
-                        description="Action: follow up with the transporter for each. Anything older than 15 days needs escalation."
-                    >
-                        <Table headers={['Order', 'Customer ref', 'LR number', 'Dispatched', 'Days ago']}>
-                            {props.triplicate_pending.map((r, i) => (
-                                <tr key={i} className="border-b last:border-0">
-                                    <Cell><Link href={`/orders/${r.order_id}`} className="font-mono font-medium hover:underline">{r.order_code}</Link></Cell>
-                                    <Cell>{r.customer_ref ?? '—'}</Cell>
-                                    <Cell mono>{r.lr_number ?? '—'}</Cell>
-                                    <Cell>{r.dispatch_date ? formatDateIN(r.dispatch_date) : '—'}</Cell>
-                                    <Cell>
-                                        <span className={cn('font-semibold', r.days_ago >= 15 ? 'text-red-600' : r.days_ago >= 7 ? 'text-orange-600' : 'text-muted-foreground')}>
-                                            {r.days_ago}d
-                                        </span>
-                                    </Cell>
-                                </tr>
-                            ))}
-                        </Table>
-                    </Section>
-                )}
+                    {/* Triplicate awaited */}
+                    {props.triplicate_pending.length > 0 && (
+                        <Section
+                            icon={FileCheck}
+                            title="Triplicate copies awaited"
+                            count={props.triplicate_pending.length}
+                            description="Follow up with the transporter. Older than 15 days → escalate."
+                        >
+                            <Table headers={['Order', 'Customer ref', 'LR', 'Dispatched', 'Age']}>
+                                {props.triplicate_pending.map((r, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                        <Cell><Link href={`/orders/${r.order_id}`} className="font-mono text-xs font-medium hover:underline">{r.order_code}</Link></Cell>
+                                        <Cell><span className="text-xs">{r.customer_ref ?? '—'}</span></Cell>
+                                        <Cell mono>{r.lr_number ?? '—'}</Cell>
+                                        <Cell>{r.dispatch_date ? formatDateIN(r.dispatch_date) : '—'}</Cell>
+                                        <Cell>
+                                            <span className={cn('text-xs font-semibold tabular-nums', r.days_ago >= 15 ? 'text-red-600' : r.days_ago >= 7 ? 'text-orange-600' : 'text-muted-foreground')}>
+                                                {r.days_ago}d
+                                            </span>
+                                        </Cell>
+                                    </tr>
+                                ))}
+                            </Table>
+                        </Section>
+                    )}
 
-                {/* Payments overdue */}
-                {props.payments_overdue.length > 0 && (
-                    <Section
-                        title={`Payments overdue (${props.payments_overdue.length})`}
-                        description="Action: collection call from accounts. Anything older than 7 days needs owner intervention."
-                    >
-                        <Table headers={['Order', 'Customer ref', 'Invoice', 'Due date', 'Outstanding', 'Days overdue']}>
-                            {props.payments_overdue.map((r, i) => (
-                                <tr key={i} className="border-b last:border-0">
-                                    <Cell><Link href={`/orders/${r.order_id}`} className="font-mono font-medium hover:underline">{r.order_code}</Link></Cell>
-                                    <Cell>{r.customer_ref ?? '—'}</Cell>
-                                    <Cell mono>{r.invoice_number ?? '—'}</Cell>
-                                    <Cell>{r.due_date ? formatDateIN(r.due_date) : '—'}</Cell>
-                                    <Cell><span className="font-semibold text-red-700">{formatCurrency(r.outstanding)}</span></Cell>
-                                    <Cell>
-                                        <span className={cn('font-semibold', r.days_overdue >= 14 ? 'text-red-600' : 'text-orange-600')}>
-                                            {r.days_overdue}d
-                                        </span>
-                                    </Cell>
-                                </tr>
-                            ))}
-                        </Table>
-                    </Section>
-                )}
+                    {/* Payments overdue */}
+                    {props.payments_overdue.length > 0 && (
+                        <Section
+                            icon={IndianRupee}
+                            title="Payments overdue"
+                            count={props.payments_overdue.length}
+                            description="Collection call from accounts. Older than 7 days needs owner intervention."
+                            tone="red"
+                        >
+                            <Table headers={['Order', 'Customer ref', 'Invoice', 'Due', 'Outstanding', 'Overdue']}>
+                                {props.payments_overdue.map((r, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                        <Cell><Link href={`/orders/${r.order_id}`} className="font-mono text-xs font-medium hover:underline">{r.order_code}</Link></Cell>
+                                        <Cell><span className="text-xs">{r.customer_ref ?? '—'}</span></Cell>
+                                        <Cell mono>{r.invoice_number ?? '—'}</Cell>
+                                        <Cell>{r.due_date ? formatDateIN(r.due_date) : '—'}</Cell>
+                                        <Cell num><span className="font-semibold text-red-700">{formatCurrency(r.outstanding)}</span></Cell>
+                                        <Cell>
+                                            <span className={cn('text-xs font-semibold tabular-nums', r.days_overdue >= 14 ? 'text-red-600' : 'text-orange-600')}>
+                                                {r.days_overdue}d
+                                            </span>
+                                        </Cell>
+                                    </tr>
+                                ))}
+                            </Table>
+                        </Section>
+                    )}
 
-                {/* Tomorrow's dispatches */}
-                {props.tomorrow_dispatches.length > 0 && (
-                    <Section title={`Tomorrow's planned dispatches (${props.tomorrow_dispatches.length})`}>
-                        <Table headers={['Order', 'Customer ref', 'Brands', 'Value', 'Status']}>
-                            {props.tomorrow_dispatches.map((r, i) => (
-                                <tr key={i} className="border-b last:border-0">
-                                    <Cell><Link href={`/orders/${r.order_id}`} className="font-mono font-medium hover:underline">{r.order_code}</Link></Cell>
-                                    <Cell>{r.customer_ref ?? '—'}</Cell>
-                                    <Cell>{r.brands || '—'}</Cell>
-                                    <Cell>{formatCurrency(r.value)}</Cell>
-                                    <Cell>
-                                        <span className={cn('inline-block rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white',
-                                            statusBg(r.status))}>
-                                            {r.status.replace(/_/g, ' ')}
-                                        </span>
-                                    </Cell>
-                                </tr>
-                            ))}
-                        </Table>
-                    </Section>
-                )}
+                    {/* Tomorrow's dispatches */}
+                    {props.tomorrow_dispatches.length > 0 && (
+                        <Section icon={Calendar} title="Tomorrow's planned dispatches" count={props.tomorrow_dispatches.length}>
+                            <Table headers={['Order', 'Customer ref', 'Brands', 'Value', 'Status']}>
+                                {props.tomorrow_dispatches.map((r, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                        <Cell><Link href={`/orders/${r.order_id}`} className="font-mono text-xs font-medium hover:underline">{r.order_code}</Link></Cell>
+                                        <Cell><span className="text-xs">{r.customer_ref ?? '—'}</span></Cell>
+                                        <Cell><span className="text-xs">{r.brands || '—'}</span></Cell>
+                                        <Cell num>{formatCurrency(r.value)}</Cell>
+                                        <Cell>
+                                            <span className={cn('inline-block rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white', statusBg(r.status))}>
+                                                {r.status.replace(/_/g, ' ')}
+                                            </span>
+                                        </Cell>
+                                    </tr>
+                                ))}
+                            </Table>
+                        </Section>
+                    )}
 
-                {/* Open return cases */}
-                {props.open_returns.length > 0 && (
-                    <Section title={`Open return and damage cases (${props.open_returns.length})`}>
-                        <Table headers={['Case', 'Type', 'Brand', 'Severity', 'Status', 'Value at risk']}>
-                            {props.open_returns.map((r, i) => (
-                                <tr key={i} className="border-b last:border-0">
-                                    <Cell>
-                                        <Link href={`/returns/${r.case_id}`} className="font-mono font-medium hover:underline">{r.case_code}</Link>
-                                        {r.case_title && <span className="text-[10px] text-muted-foreground"> {r.case_title}</span>}
-                                    </Cell>
-                                    <Cell>{r.case_type ?? '—'}</Cell>
-                                    <Cell>{r.brand ?? '—'}</Cell>
-                                    <Cell>
-                                        <span className={cn('font-semibold', severityColor(r.severity))}>
-                                            {r.severity ?? '—'}
-                                        </span>
-                                    </Cell>
-                                    <Cell>{r.case_status.replace(/_/g, ' ')}</Cell>
-                                    <Cell>{formatCurrency(r.value_at_risk)}</Cell>
-                                </tr>
-                            ))}
-                        </Table>
-                    </Section>
-                )}
+                    {/* Open return cases */}
+                    {props.open_returns.length > 0 && (
+                        <Section icon={RotateCcw} title="Open return & damage cases" count={props.open_returns.length}>
+                            <Table headers={['Case', 'Type', 'Brand', 'Severity', 'Status', 'At risk']}>
+                                {props.open_returns.map((r, i) => (
+                                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                        <Cell>
+                                            <Link href={`/returns/${r.case_id}`} className="font-mono text-xs font-medium hover:underline">{r.case_code}</Link>
+                                            {r.case_title && <span className="ml-1 text-[10px] text-muted-foreground">{r.case_title}</span>}
+                                        </Cell>
+                                        <Cell><span className="text-xs">{r.case_type ?? '—'}</span></Cell>
+                                        <Cell><span className="text-xs">{r.brand ?? '—'}</span></Cell>
+                                        <Cell>
+                                            <span className={cn('text-xs font-semibold uppercase', severityColor(r.severity))}>
+                                                {r.severity ?? '—'}
+                                            </span>
+                                        </Cell>
+                                        <Cell><span className="text-xs">{r.case_status.replace(/_/g, ' ')}</span></Cell>
+                                        <Cell num>{formatCurrency(r.value_at_risk)}</Cell>
+                                    </tr>
+                                ))}
+                            </Table>
+                        </Section>
+                    )}
+                </div>
 
-                {/* Brand-wise revenue */}
+                {/* ─── Brand-wise revenue ──────────────────────────── */}
                 {props.brand_revenue.length > 0 && (
-                    <Section
-                        title="Brand-wise revenue snapshot"
-                        description="Allocated revenue across orders in the system, weighted by brand share."
-                    >
-                        <div className="rounded-md border bg-white px-4 py-2">
-                            {props.brand_revenue.map((b) => (
-                                <div key={b.brand} className="flex items-center justify-between border-b border-muted py-2 text-sm last:border-0">
-                                    <span className="font-medium">{b.brand}</span>
-                                    <span className="font-mono tabular-nums text-muted-foreground">{formatCurrency(b.revenue)}</span>
-                                </div>
-                            ))}
+                    <Section icon={BarChart3} title="Brand-wise revenue snapshot" description="Allocated revenue across orders, weighted by brand share.">
+                        <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {props.brand_revenue.map((b) => {
+                                const max = Math.max(...props.brand_revenue.map((x) => x.revenue));
+                                const pct = max > 0 ? Math.round((b.revenue / max) * 100) : 0;
+                                return (
+                                    <div key={b.brand} className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-0">
+                                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                                            <span className="truncate text-sm font-medium">{b.brand}</span>
+                                            <div className="h-1.5 max-w-[60px] flex-1 overflow-hidden rounded-full bg-muted">
+                                                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                                            </div>
+                                        </div>
+                                        <span className="font-mono text-xs tabular-nums">{formatCurrency(b.revenue)}</span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </Section>
                 )}
 
-                {/* Footer */}
-                <footer className="mt-8 border-t pt-4 text-[10px] text-muted-foreground">
-                    {props.company.name}{props.company.city ? `, ${props.company.city}` : ''} · B2B Switchgear Distribution<br />
-                    Automated daily report. Live data in the <Link href="/" className="text-blue-600 hover:underline">Operations dashboard</Link>.
-                </footer>
+                <p className="text-center text-[10px] text-muted-foreground">
+                    Automated daily report · Live data in the <Link href="/" className="text-blue-600 hover:underline">Operations dashboard</Link>
+                </p>
             </div>
         </AdminLayout>
     );
@@ -323,49 +331,67 @@ export default function DailyReport(props: Props) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({
+    icon: Icon, title, description, count, tone, children,
+}: {
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    description?: string;
+    count?: number;
+    tone?: 'red' | 'amber';
+    children: React.ReactNode;
+}) {
     return (
-        <section className="space-y-2">
-            <h2 className="border-b pb-1 text-xs font-bold uppercase tracking-wider">{title}</h2>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
-            {children}
-        </section>
+        <Card className={cn(tone === 'red' && 'border-red-200')}>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Icon className={cn('h-4 w-4', tone === 'red' ? 'text-red-600' : 'text-muted-foreground')} />
+                    {title}
+                    {count !== undefined && (
+                        <span className="rounded bg-muted px-1.5 py-px text-[10px] font-semibold tabular-nums text-muted-foreground">{count}</span>
+                    )}
+                </CardTitle>
+                {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+            </CardHeader>
+            <CardContent className="p-4 pt-2">{children}</CardContent>
+        </Card>
     );
 }
 
-function StatGrid({ children }: { children: React.ReactNode }) {
-    return <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{children}</div>;
-}
-
-function Stat({ tone = 'default', label, value, sub }: {
-    tone?: 'default' | 'good' | 'alert';
+function KPI({ icon: Icon, label, value, sub, tone = 'default' }: {
+    icon: React.ComponentType<{ className?: string }>;
     label: string;
     value: React.ReactNode;
     sub?: string;
+    tone?: 'default' | 'emerald' | 'red';
 }) {
     const toneClass: Record<string, string> = {
-        default: 'bg-muted/30 border-border',
-        good: 'bg-emerald-50 border-emerald-200',
-        alert: 'bg-red-50 border-red-200',
-    };
-    const valueClass: Record<string, string> = {
         default: 'text-foreground',
-        good: 'text-emerald-700',
-        alert: 'text-red-700',
+        emerald: 'text-emerald-600',
+        red: 'text-red-600',
     };
     return (
-        <div className={cn('rounded-md border p-3', toneClass[tone])}>
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-            <p className={cn('mt-1 text-xl font-bold tabular-nums', valueClass[tone])}>{value}</p>
-            {sub && <p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p>}
-        </div>
+        <Card>
+            <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-1">
+                    <div className="min-w-0 space-y-0.5">
+                        <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+                        <p className={cn('block text-xl font-bold tabular-nums tracking-tight', toneClass[tone])}>{value}</p>
+                        {sub && <p className="truncate text-[10px] text-muted-foreground">{sub}</p>}
+                    </div>
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <Icon className="size-3.5 text-muted-foreground" />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
 function Table({ headers, children }: { headers: string[]; children: React.ReactNode }) {
     return (
-        <div className="overflow-hidden rounded-md border">
-            <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-sm">
                 <thead>
                     <tr className="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground">
                         {headers.map((h) => (
@@ -379,8 +405,14 @@ function Table({ headers, children }: { headers: string[]; children: React.React
     );
 }
 
-function Cell({ children, mono = false }: { children: React.ReactNode; mono?: boolean }) {
-    return <td className={cn('px-2.5 py-2 align-top', mono && 'font-mono')}>{children}</td>;
+function Cell({ children, mono = false, num = false }: { children: React.ReactNode; mono?: boolean; num?: boolean }) {
+    return (
+        <td className={cn(
+            'px-2.5 py-2 align-top',
+            mono && 'font-mono text-xs',
+            num && 'text-right tabular-nums',
+        )}>{children}</td>
+    );
 }
 
 function statusBg(status: string): string {
