@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Bare literal routes must come BEFORE the orders resource so /{order} doesn't shadow them
     Route::get('/orders/price-history', [OrderController::class, 'priceHistory'])->name('orders.price-history');
+    Route::get('/orders/kanban', [OrderController::class, 'kanban'])->name('orders.kanban');
     Route::resource('orders', OrderController::class)->only(['index', 'show', 'create', 'edit']);
     Route::get('/orders/{order}/invoice.pdf', [OrderController::class, 'invoicePdf'])->name('orders.invoice-pdf');
     Route::get('/orders/{order}/quotation.pdf', [OrderController::class, 'quotationPdf'])->name('orders.quotation-pdf');

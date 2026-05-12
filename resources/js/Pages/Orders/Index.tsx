@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
-    Plus, Pencil, Trash2, Search, X, MoreHorizontal, Truck, MessageSquare, CheckCircle2, FileCheck, AlertOctagon,
+    Plus, Pencil, Trash2, Search, X, MoreHorizontal, Truck, MessageSquare, CheckCircle2, FileCheck, AlertOctagon, LayoutGrid,
 } from 'lucide-react';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -656,9 +656,14 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
                     </Button>
                 )}
             </div>
-            <Button asChild className="sm:ml-auto">
-                <Link href={route('orders.create')}><Plus className="h-4 w-4 mr-1" /> New order</Link>
-            </Button>
+            <div className="flex items-center gap-2 sm:ml-auto">
+                <Button asChild variant="outline">
+                    <Link href={route('orders.kanban')}><LayoutGrid className="h-4 w-4 mr-1" /> Kanban</Link>
+                </Button>
+                <Button asChild>
+                    <Link href={route('orders.create')}><Plus className="h-4 w-4 mr-1" /> New order</Link>
+                </Button>
+            </div>
         </div>
     );
 

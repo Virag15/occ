@@ -40,6 +40,21 @@ class OrderController extends Controller
         ]);
     }
 
+    public function kanban(): Response
+    {
+        return Inertia::render('Orders/Kanban', [
+            'rows' => Order::query()
+                ->with([
+                    'customer:id,name,company',
+                    'shipments:id,order_id,transporter_id,lr_number,dispatch_date,delivered_date,expected_delivery',
+                ])
+                ->orderByDesc('order_date')
+                ->orderByDesc('id')
+                ->limit(500) // Kanban is a workflow view, not an archive — cap so we never haul thousands
+                ->get(),
+        ]);
+    }
+
     public function show(Order $order): Response
     {
         $order->load([
