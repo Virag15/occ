@@ -11,17 +11,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { nullable } from '@/lib/format';
-import type { Customer, IndexPageProps } from '@/types/entities';
+import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
+import type { Customer, IndexPageProps, SavedView } from '@/types/entities';
 
 const STATUSES = ['active', 'inactive', 'credit_hold', 'new'];
 const TYPES = ['dealer', 'contractor', 'oem', 'end_user', 'government'];
 
-export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
-    const [typeFilter, setTypeFilter] = useState('');
+export default function CustomerIndex({ rows, savedViews = [] }: IndexPageProps<Customer> & { savedViews?: SavedView[] }) {
+    // Apply the default saved view on first mount so the user lands in their preferred state.
+    const defaultView = savedViews.find((v) => v.is_default) ?? null;
+    const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
+
+    const [search, setSearch] = useState(dc.search ?? '');
+    const [statusFilter, setStatusFilter] = useState(dc.filters?.status ?? '');
+    const [typeFilter, setTypeFilter] = useState(dc.filters?.customer_type ?? '');
+    const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [processing, setProcessing] = useState(false);
+
+    const currentConfig = {
+        search: search || undefined,
+        filters: {
+            ...(statusFilter && { status: statusFilter }),
+            ...(typeFilter && { customer_type: typeFilter }),
+        },
+    };
+
+    const applyView = (config: { search?: string; filters?: Record<string, string> }, viewId: number | null) => {
+        setSearch(config.search ?? '');
+        setStatusFilter(config.filters?.status ?? '');
+        setTypeFilter(config.filters?.customer_type ?? '');
+        setActiveViewId(viewId);
+    };
+
+    const clearView = () => {
+        setSearch(''); setStatusFilter(''); setTypeFilter('');
+        setActiveViewId(null);
+    };
 
     const filteredRows = useMemo(() => {
         let result = rows;
@@ -41,7 +67,7 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
     }, [search, statusFilter, typeFilter, rows]);
 
     const hasActiveFilters = !!search || !!statusFilter || !!typeFilter;
-    const clearFilters = () => { setSearch(''); setStatusFilter(''); setTypeFilter(''); };
+    const clearFilters = () => { setSearch(''); setStatusFilter(''); setTypeFilter(''); setActiveViewId(null); };
 
     const handleDelete = () => {
         if (!deleteId) return;
@@ -106,6 +132,15 @@ export default function CustomerIndex({ rows }: IndexPageProps<Customer>) {
     const toolbar = (
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2 flex-1">
+                <SavedViewSwitcher
+                    databaseType="customer"
+                    views={savedViews}
+                    activeViewId={activeViewId}
+                    currentConfig={currentConfig}
+                    onApplyView={applyView}
+                    onClearView={clearView}
+                    allLabel="All customers"
+                />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search name, company, GSTIN…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />

@@ -13,14 +13,39 @@ import { Plus, Pencil, Trash2, Search, X, AlertTriangle, ArrowDownToLine } from 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, nullable } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { IndexPageProps, Product } from '@/types/entities';
+import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
+import type { IndexPageProps, Product, SavedView } from '@/types/entities';
 
-export default function ProductIndex({ rows }: IndexPageProps<Product>) {
-    const [search, setSearch] = useState('');
-    const [brandFilter, setBrandFilter] = useState('');
-    const [activeFilter, setActiveFilter] = useState(''); // '', 'active', 'inactive'
+export default function ProductIndex({ rows, savedViews = [] }: IndexPageProps<Product> & { savedViews?: SavedView[] }) {
+    const defaultView = savedViews.find((v) => v.is_default) ?? null;
+    const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
+
+    const [search, setSearch] = useState(dc.search ?? '');
+    const [brandFilter, setBrandFilter] = useState(dc.filters?.brand ?? '');
+    const [activeFilter, setActiveFilter] = useState(dc.filters?.active ?? ''); // '', 'active', 'inactive'
+    const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [processing, setProcessing] = useState(false);
+
+    const currentConfig = {
+        search: search || undefined,
+        filters: {
+            ...(brandFilter && { brand: brandFilter }),
+            ...(activeFilter && { active: activeFilter }),
+        },
+    };
+
+    const applyView = (config: { search?: string; filters?: Record<string, string> }, viewId: number | null) => {
+        setSearch(config.search ?? '');
+        setBrandFilter(config.filters?.brand ?? '');
+        setActiveFilter(config.filters?.active ?? '');
+        setActiveViewId(viewId);
+    };
+
+    const clearView = () => {
+        setSearch(''); setBrandFilter(''); setActiveFilter('');
+        setActiveViewId(null);
+    };
 
     const brands = useMemo(() => {
         const set = new Set<string>();
@@ -46,7 +71,7 @@ export default function ProductIndex({ rows }: IndexPageProps<Product>) {
     }, [search, brandFilter, activeFilter, rows]);
 
     const hasActiveFilters = !!search || !!brandFilter || !!activeFilter;
-    const clearFilters = () => { setSearch(''); setBrandFilter(''); setActiveFilter(''); };
+    const clearFilters = () => { setSearch(''); setBrandFilter(''); setActiveFilter(''); setActiveViewId(null); };
 
     const handleDelete = () => {
         if (!deleteId) return;
@@ -189,6 +214,15 @@ export default function ProductIndex({ rows }: IndexPageProps<Product>) {
     const toolbar = (
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2 flex-1">
+                <SavedViewSwitcher
+                    databaseType="product"
+                    views={savedViews}
+                    activeViewId={activeViewId}
+                    currentConfig={currentConfig}
+                    onApplyView={applyView}
+                    onClearView={clearView}
+                    allLabel="All products"
+                />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search name, SKU, brand, HSN…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />

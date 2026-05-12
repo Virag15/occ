@@ -21,6 +21,12 @@ class CustomerController extends Controller
             'pagination' => ['total' => $rows->count(), 'per_page' => 50, 'current_page' => 1, 'last_page' => 1],
             'filters' => ['q' => $request->string('q')->value()],
             'peek' => null,
+            'savedViews' => \App\Models\SavedView::query()
+                ->where('user_id', \Illuminate\Support\Facades\Auth::id())
+                ->where('database_type', 'customer')
+                ->orderByDesc('is_default')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 

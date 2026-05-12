@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowRight, Search, X } from 'lucide-react';
 import { formatCurrency, formatDateIN, nullable } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { ReturnCase } from '@/types/entities';
+import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
+import type { ReturnCase, SavedView } from '@/types/entities';
 
 const STATUSES = ['reported', 'under_inspection', 'resolved', 'rejected'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
@@ -25,10 +26,34 @@ function statusBadgeClasses(s: string): string {
     return cn('border', map[s] ?? 'bg-muted');
 }
 
-export default function ReturnsIndex({ rows }: { rows: ReturnCase[] }) {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
-    const [severityFilter, setSeverityFilter] = useState('');
+export default function ReturnsIndex({ rows, savedViews = [] }: { rows: ReturnCase[]; savedViews?: SavedView[] }) {
+    const defaultView = savedViews.find((v) => v.is_default) ?? null;
+    const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
+
+    const [search, setSearch] = useState(dc.search ?? '');
+    const [statusFilter, setStatusFilter] = useState(dc.filters?.status ?? '');
+    const [severityFilter, setSeverityFilter] = useState(dc.filters?.severity ?? '');
+    const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
+
+    const currentConfig = {
+        search: search || undefined,
+        filters: {
+            ...(statusFilter && { status: statusFilter }),
+            ...(severityFilter && { severity: severityFilter }),
+        },
+    };
+
+    const applyView = (config: { search?: string; filters?: Record<string, string> }, viewId: number | null) => {
+        setSearch(config.search ?? '');
+        setStatusFilter(config.filters?.status ?? '');
+        setSeverityFilter(config.filters?.severity ?? '');
+        setActiveViewId(viewId);
+    };
+
+    const clearView = () => {
+        setSearch(''); setStatusFilter(''); setSeverityFilter('');
+        setActiveViewId(null);
+    };
 
     const filteredRows = useMemo(() => {
         let result = rows;
@@ -47,7 +72,7 @@ export default function ReturnsIndex({ rows }: { rows: ReturnCase[] }) {
     }, [search, statusFilter, severityFilter, rows]);
 
     const hasActiveFilters = !!search || !!statusFilter || !!severityFilter;
-    const clearFilters = () => { setSearch(''); setStatusFilter(''); setSeverityFilter(''); };
+    const clearFilters = () => { setSearch(''); setStatusFilter(''); setSeverityFilter(''); setActiveViewId(null); };
 
     const columns = useMemo((): ColumnDef<ReturnCase>[] => [
         {
@@ -116,6 +141,15 @@ export default function ReturnsIndex({ rows }: { rows: ReturnCase[] }) {
     const toolbar = (
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:items-center">
             <div className="flex flex-wrap items-center gap-2 flex-1">
+                <SavedViewSwitcher
+                    databaseType="return"
+                    views={savedViews}
+                    activeViewId={activeViewId}
+                    currentConfig={currentConfig}
+                    onApplyView={applyView}
+                    onClearView={clearView}
+                    allLabel="All returns"
+                />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search case, title, customer, order…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />

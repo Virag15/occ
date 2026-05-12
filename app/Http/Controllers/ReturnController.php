@@ -36,6 +36,12 @@ class ReturnController extends Controller
         return Inertia::render('Returns/Index', [
             'rows' => $rows,
             'filters' => ['q' => $q, 'status' => $status],
+            'savedViews' => \App\Models\SavedView::query()
+                ->where('user_id', Auth::id())
+                ->where('database_type', 'return')
+                ->orderByDesc('is_default')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
