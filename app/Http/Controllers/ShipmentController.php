@@ -16,6 +16,43 @@ use Inertia\Response;
 
 class ShipmentController extends Controller
 {
+    /**
+     * Dispatch calendar — shipments grouped by dispatch_date for a given month.
+     * Defaults to the current month; ?month=YYYY-MM jumps to another month.
+     */
+    public function calendar(Request $request): Response
+    {
+        $monthStr = (string) $request->query('month', now()->format('Y-m'));
+        // Hard-validate the format so junk input doesn't slip into Carbon::createFromFormat
+        if (!preg_match('/^\d{4}-\d{2}$/', $monthStr)) {
+            $monthStr = now()->format('Y-m');
+        }
+        $cursor = \Illuminate\Support\Carbon::createFromFormat('Y-m', $monthStr)->startOfMonth();
+        $start = $cursor->copy()->startOfMonth();
+        $end = $cursor->copy()->endOfMonth();
+
+        $shipments = Shipment::query()
+            ->with(['order:id,order_code,customer_id', 'order.customer:id,name,company', 'transporter:id,name'])
+            ->whereBetween('dispatch_date', [$start->toDateString(), $end->toDateString()])
+            ->orderBy('dispatch_date')
+            ->orderBy('id')
+            ->get(['id', 'shipment_code', 'order_id', 'transporter_id', 'lr_number', 'dispatch_date', 'status']);
+
+        // Also surface "pending" — shipments whose pickup is scheduled this month but not yet dispatched.
+        $pending = Shipment::query()
+            ->with(['order:id,order_code,customer_id', 'order.customer:id,name,company', 'transporter:id,name'])
+            ->whereNull('dispatch_date')
+            ->whereBetween('pickup_scheduled_date', [$start->toDateString(), $end->toDateString()])
+            ->orderBy('pickup_scheduled_date')
+            ->get(['id', 'shipment_code', 'order_id', 'transporter_id', 'lr_number', 'pickup_scheduled_date', 'status']);
+
+        return Inertia::render('Shipments/Calendar', [
+            'month' => $cursor->format('Y-m'),
+            'shipments' => $shipments,
+            'pending' => $pending,
+        ]);
+    }
+
     public function store(Request $request, Order $order): RedirectResponse
     {
         $data = $request->validate([

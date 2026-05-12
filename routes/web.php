@@ -50,6 +50,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/returns', [ReturnController::class, 'index'])->name('returns.index');
     Route::get('/returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
 
+    // Literal route must precede /{shipment} bindings
+    Route::get('/shipments/calendar', [ShipmentController::class, 'calendar'])->name('shipments.calendar');
     Route::get('/shipments/{shipment}/picking-slip', [ShipmentController::class, 'pickingSlip'])->name('shipments.picking-slip');
     Route::get('/shipments/{shipment}/packing-slip', [ShipmentController::class, 'packingSlip'])->name('shipments.packing-slip');
 
