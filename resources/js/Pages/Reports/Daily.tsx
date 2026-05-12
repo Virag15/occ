@@ -70,14 +70,30 @@ export default function DailyReport(props: Props) {
             <style>{`
                 @media print {
                     .no-print { display: none !important; }
-                    @page { margin: 12mm; size: A4; }
-                    body { background: white !important; }
+                    @page { margin: 10mm; size: A4; }
+                    html, body { background: white !important; font-size: 9pt; }
+
+                    /* Collapse the 2-column tables grid to single column on A4 width */
+                    .print-stack { grid-template-columns: 1fr !important; gap: 0.5rem !important; }
+
+                    /* Keep each card together; let large tables flow rows across pages */
+                    .print-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important; border-color: #999 !important; }
+                    table { break-inside: auto; font-size: 8.5pt; }
+                    tr { break-inside: avoid; page-break-inside: avoid; }
+                    thead { display: table-header-group; }
+                    tbody td { padding-top: 4px !important; padding-bottom: 4px !important; }
+
+                    /* Tighter card padding for print */
+                    .print-card-content { padding: 0.5rem 0.75rem !important; }
+
+                    /* KPI grid stays 4-up; just lose the gap */
+                    .grid { gap: 0.4rem !important; }
                 }
             `}</style>
 
-            <div className="space-y-5">
+            <div className="space-y-5 print-tight">
                 {/* ─── Header + date toolbar ────────────────────────── */}
-                <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="flex flex-wrap items-end justify-between gap-3 print:border-b-2 print:border-foreground print:pb-2">
                     <div>
                         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Daily operations report</h1>
                         <p className="text-xs text-muted-foreground">
@@ -155,8 +171,8 @@ export default function DailyReport(props: Props) {
                     </Section>
                 )}
 
-                {/* ─── Detail tables — 2-col grid on lg ─────────────── */}
-                <div className="grid gap-5 lg:grid-cols-2">
+                {/* ─── Detail tables — 2-col grid on lg, single-col in print ─────────────── */}
+                <div className="print-stack grid gap-5 lg:grid-cols-2">
                     {/* Dispatched today */}
                     {props.dispatched_today.length > 0 && (
                         <Section icon={Truck} title="Dispatched today" count={props.dispatched_today.length}>
@@ -342,8 +358,8 @@ function Section({
     children: React.ReactNode;
 }) {
     return (
-        <Card className={cn(tone === 'red' && 'border-red-200')}>
-            <CardHeader className="p-4 pb-2">
+        <Card className={cn('print-card', tone === 'red' && 'border-red-200')}>
+            <CardHeader className="print-card-content p-4 pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     <Icon className={cn('h-4 w-4', tone === 'red' ? 'text-red-600' : 'text-muted-foreground')} />
                     {title}
@@ -353,7 +369,7 @@ function Section({
                 </CardTitle>
                 {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
             </CardHeader>
-            <CardContent className="p-4 pt-2">{children}</CardContent>
+            <CardContent className="print-card-content p-4 pt-2">{children}</CardContent>
         </Card>
     );
 }

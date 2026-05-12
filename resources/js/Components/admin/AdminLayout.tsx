@@ -310,7 +310,7 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
     );
 
     return (
-        <div className="flex h-screen overflow-hidden bg-background">
+        <div className="flex h-screen overflow-hidden bg-background print:block print:h-auto print:overflow-visible">
             <Toaster />
 
             {/* Mobile overlay */}
@@ -334,7 +334,7 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
             {/* Sidebar */}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-background overflow-hidden',
+                    'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-background overflow-hidden print:hidden',
                     mobileOpen
                         ? 'translate-x-0'
                         : '-translate-x-full lg:translate-x-0',
@@ -350,7 +350,7 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
             {/* Main */}
             <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Header */}
-                <header className="flex h-12 items-center gap-3 border-b border-border bg-background px-4">
+                <header className="flex h-12 items-center gap-3 border-b border-border bg-background px-4 print:hidden">
                     <Button variant="ghost" size="icon" className="h-7 w-7 lg:hidden" onClick={() => setMobileOpen(true)}>
                         <Menu className="h-4 w-4" />
                     </Button>
@@ -424,7 +424,7 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
                 </header>
 
                 {/* Content */}
-                <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6">
+                <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 print:overflow-visible print:p-0">
                     {children}
                 </main>
             </div>
