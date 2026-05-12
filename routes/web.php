@@ -12,6 +12,7 @@ use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SavedViewController;
+use App\Http\Controllers\TallyController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TransporterController;
@@ -82,7 +83,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/settings', fn () => redirect()->route('settings.company'))->name('settings.index');
         Route::get('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'edit'])->name('settings.company');
         Route::post('/settings/company', [\App\Http\Controllers\CompanySettingController::class, 'update'])->name('settings.company.update');
-        Route::get('/settings/integrations', fn () => Inertia::render('Settings/Integrations'))->name('settings.integrations');
+        Route::get('/settings/integrations', [TallyController::class, 'index'])->name('settings.integrations');
+        Route::post('/settings/tally/sync', [TallyController::class, 'sync'])->name('settings.tally.sync');
+        Route::post('/settings/tally/ping', [TallyController::class, 'ping'])->name('settings.tally.ping');
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

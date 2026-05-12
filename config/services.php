@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'tally' => [
+        'enabled' => env('TALLY_ENABLED', false),
+        'host' => env('TALLY_HOST', '127.0.0.1'),
+        'port' => env('TALLY_PORT', 9000),
+        'company' => env('TALLY_COMPANY', 'GC Communication'),
+        'timeout' => env('TALLY_TIMEOUT', 30),
+    ],
+
 ];
