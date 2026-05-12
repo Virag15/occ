@@ -14,9 +14,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formatCurrency, nullable } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
+import { CapBanner } from '@/components/CapBanner';
 import type { IndexPageProps, Product, SavedView } from '@/types/entities';
 
-export default function ProductIndex({ rows, savedViews = [] }: IndexPageProps<Product> & { savedViews?: SavedView[] }) {
+export default function ProductIndex({ rows, savedViews = [], total_count, cap }: IndexPageProps<Product> & { savedViews?: SavedView[]; total_count?: number; cap?: number }) {
     const defaultView = savedViews.find((v) => v.is_default) ?? null;
     const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
 
@@ -258,6 +259,9 @@ export default function ProductIndex({ rows, savedViews = [] }: IndexPageProps<P
         <AdminLayout breadcrumbs={[{ label: 'Products' }]}>
             <Head title="Products" />
 
+            {total_count !== undefined && cap !== undefined && (
+                <CapBanner shown={rows.length} total={total_count} cap={cap} entityLabel="products" />
+            )}
             <DataTable columns={columns} data={filteredRows} toolbar={toolbar} emptyMessage="No products match the current filters." />
 
             <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>

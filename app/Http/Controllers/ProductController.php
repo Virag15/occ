@@ -16,14 +16,19 @@ class ProductController extends Controller
 {
     public function index(Request $request): Response
     {
+        $cap = 500;
+        $total = Product::query()->count();
         $rows = Product::query()
             ->withSum('stockItems as total_stock', 'qty_closing')
             ->orderBy('name')
+            ->limit($cap)
             ->get();
 
         return Inertia::render('Products/Index', [
             'rows' => $rows,
-            'pagination' => ['total' => $rows->count(), 'per_page' => 50, 'current_page' => 1, 'last_page' => 1],
+            'total_count' => $total,
+            'cap' => $cap,
+            'pagination' => ['total' => $total, 'per_page' => $cap, 'current_page' => 1, 'last_page' => 1],
             'filters' => ['q' => $request->string('q')->value()],
             'peek' => null,
             'savedViews' => SavedView::query()

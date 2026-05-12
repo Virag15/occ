@@ -29,6 +29,12 @@ class OrderController extends Controller
 {
     public function index(): Response
     {
+        // Defensive cap — client-side filter/sort/saved-views work on the most recent
+        // 500 rows. When real volume forces it, swap to server pagination + query-string
+        // filters; until then a 500-row cap keeps the JSON payload bounded.
+        $cap = 500;
+        $total = Order::query()->count();
+
         return Inertia::render('Orders/Index', [
             // Closure makes 'rows' lazy so partial reloads (?only=rows) re-run just this query
             'rows' => fn () => Order::query()
@@ -41,7 +47,10 @@ class OrderController extends Controller
                 ])
                 ->orderByDesc('order_date')
                 ->orderByDesc('id')
+                ->limit($cap)
                 ->get(),
+            'total_count' => $total,
+            'cap' => $cap,
             'savedViews' => SavedView::query()
                 ->where('user_id', Auth::id())
                 ->where('database_type', 'order')

@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import type { Order, SavedView } from '@/types/entities';
 import type { PageProps } from '@/types';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
+import { CapBanner } from '@/components/CapBanner';
 
 const STATUSES = [
     'new_order', 'confirmed', 'stock_check', 'packing', 'packed',
@@ -255,7 +256,7 @@ function FlagChips({ order }: { order: Order }) {
 }
 
 // ------- Main page -------
-export default function OrderIndex({ rows, savedViews = [], transporters = [] }: { rows: Order[]; savedViews?: SavedView[]; transporters?: { id: number; name: string }[] }) {
+export default function OrderIndex({ rows, savedViews = [], transporters = [], total_count, cap }: { rows: Order[]; savedViews?: SavedView[]; transporters?: { id: number; name: string }[]; total_count?: number; cap?: number }) {
     const { auth } = usePage<PageProps>().props;
     const canBulkEdit = auth.user.role === 'owner' || auth.user.role === 'manager';
 
@@ -744,6 +745,9 @@ export default function OrderIndex({ rows, savedViews = [], transporters = [] }:
                 </div>
             )}
 
+            {total_count !== undefined && cap !== undefined && (
+                <CapBanner shown={rows.length} total={total_count} cap={cap} entityLabel="orders" />
+            )}
             <DataTable columns={columns} data={filteredRows} toolbar={toolbar} emptyMessage="No orders match the current filters." />
 
             <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>

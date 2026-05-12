@@ -16,11 +16,15 @@ class CustomerController extends Controller
 {
     public function index(Request $request): Response
     {
-        $rows = Customer::query()->orderBy('name')->get();
+        $cap = 500;
+        $total = Customer::query()->count();
+        $rows = Customer::query()->orderBy('name')->limit($cap)->get();
 
         return Inertia::render('Customers/Index', [
             'rows' => $rows,
-            'pagination' => ['total' => $rows->count(), 'per_page' => 50, 'current_page' => 1, 'last_page' => 1],
+            'total_count' => $total,
+            'cap' => $cap,
+            'pagination' => ['total' => $total, 'per_page' => $cap, 'current_page' => 1, 'last_page' => 1],
             'filters' => ['q' => $request->string('q')->value()],
             'peek' => null,
             'savedViews' => SavedView::query()

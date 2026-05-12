@@ -12,12 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { nullable } from '@/lib/format';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
+import { CapBanner } from '@/components/CapBanner';
 import type { Customer, IndexPageProps, SavedView } from '@/types/entities';
 
 const STATUSES = ['active', 'inactive', 'credit_hold', 'new'];
 const TYPES = ['dealer', 'contractor', 'oem', 'end_user', 'government'];
 
-export default function CustomerIndex({ rows, savedViews = [] }: IndexPageProps<Customer> & { savedViews?: SavedView[] }) {
+export default function CustomerIndex({ rows, savedViews = [], total_count, cap }: IndexPageProps<Customer> & { savedViews?: SavedView[]; total_count?: number; cap?: number }) {
     // Apply the default saved view on first mount so the user lands in their preferred state.
     const defaultView = savedViews.find((v) => v.is_default) ?? null;
     const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
@@ -175,6 +176,9 @@ export default function CustomerIndex({ rows, savedViews = [] }: IndexPageProps<
         <AdminLayout breadcrumbs={[{ label: 'Customers' }]}>
             <Head title="Customers" />
 
+            {total_count !== undefined && cap !== undefined && (
+                <CapBanner shown={rows.length} total={total_count} cap={cap} entityLabel="customers" />
+            )}
             <DataTable columns={columns} data={filteredRows} toolbar={toolbar} emptyMessage="No customers match the current filters." />
 
             <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
