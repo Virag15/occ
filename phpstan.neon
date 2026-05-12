@@ -1,0 +1,15 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    # Pre-existing warnings are baselined so CI starts green. Burn down over time
+    # by removing entries from the baseline as the code that triggers them is fixed.
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+        - config
+        - database
+        - routes
+    excludePaths:
+        - app/Console/Commands/TallyPreview.php # debug-only XML dumper

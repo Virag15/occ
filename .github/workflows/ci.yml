@@ -52,6 +52,9 @@ jobs:
       - name: Pint (formatting check)
         run: ./vendor/bin/pint --test
 
+      - name: Larastan (static analysis)
+        run: ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
       # ───── Frontend ──────────────────────────────────────────
       - name: Setup Node
         uses: actions/setup-node@v4
