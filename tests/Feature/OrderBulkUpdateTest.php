@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\Shipment;
+use App\Models\Transporter;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -64,5 +66,26 @@ class OrderBulkUpdateTest extends TestCase
         $this->patch(route('orders.bulk-update'), [
             'order_ids' => [$a->id],
         ])->assertSessionHasErrors('priority');
+    }
+
+    public function test_bulk_assigns_transporter_to_latest_shipment(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'manager']));
+        $a = $this->makeOrder('ORD-BU-E');
+        $shipment = Shipment::create([
+            'shipment_code' => 'SHP-BU-1', 'order_id' => $a->id, 'status' => 'planning', 'created_by' => null,
+        ]);
+        $b = $this->makeOrder('ORD-BU-F'); // no shipment — should be skipped
+
+        $t = Transporter::create(['transporter_code' => 'T-BU', 'name' => 'TestLogistics', 'status' => 'active']);
+
+        $this->patch(route('orders.bulk-update'), [
+            'order_ids' => [$a->id, $b->id],
+            'transporter_id' => $t->id,
+        ])->assertRedirect();
+
+        $this->assertSame($t->id, $shipment->fresh()->transporter_id);
+        // b had no shipment so no shipment was created
+        $this->assertSame(0, $b->fresh()->shipments()->count());
     }
 }

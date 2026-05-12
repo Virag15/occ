@@ -255,7 +255,7 @@ function FlagChips({ order }: { order: Order }) {
 }
 
 // ------- Main page -------
-export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; savedViews?: SavedView[] }) {
+export default function OrderIndex({ rows, savedViews = [], transporters = [] }: { rows: Order[]; savedViews?: SavedView[]; transporters?: { id: number; name: string }[] }) {
     const { auth } = usePage<PageProps>().props;
     const canBulkEdit = auth.user.role === 'owner' || auth.user.role === 'manager';
 
@@ -403,7 +403,7 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
 
     const clearSelection = () => setSelectedIds(new Set());
 
-    const bulkApply = (payload: { priority?: string; payment_status?: string }) => {
+    const bulkApply = (payload: { priority?: string; payment_status?: string; transporter_id?: number }, successMsg?: string) => {
         const order_ids = Array.from(selectedIds);
         if (order_ids.length === 0) return;
         setBulkProcessing(true);
@@ -412,7 +412,7 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
             preserveState: true,
             only: ['rows'],
             onSuccess: () => {
-                toast.success(`${order_ids.length} order${order_ids.length === 1 ? '' : 's'} updated`);
+                toast.success(successMsg ?? `${order_ids.length} order${order_ids.length === 1 ? '' : 's'} updated`);
                 clearSelection();
             },
             onError: (errs) => toast.error(Object.values(errs).join(', ')),
@@ -709,6 +709,30 @@ export default function OrderIndex({ rows, savedViews = [] }: { rows: Order[]; s
                             {PAYMENT_STATUSES.map((p) => (
                                 <DropdownMenuItem key={p} onClick={() => bulkApply({ payment_status: p })}>
                                     {p}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" disabled={bulkProcessing || transporters.length === 0}>
+                                Assign transporter…
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="max-h-72 overflow-auto">
+                            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Set transporter on latest shipment ({selectedIds.size})
+                            </DropdownMenuLabel>
+                            {transporters.length === 0 && (
+                                <DropdownMenuItem disabled>No active transporters</DropdownMenuItem>
+                            )}
+                            {transporters.map((t) => (
+                                <DropdownMenuItem
+                                    key={t.id}
+                                    onClick={() => bulkApply({ transporter_id: t.id }, `Assigned ${t.name} to ${selectedIds.size} order(s)`)}
+                                >
+                                    {t.name}
                                 </DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>

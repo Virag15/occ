@@ -37,6 +37,7 @@ class OrderController extends Controller
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
+            'transporters' => Transporter::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -321,10 +322,14 @@ class OrderController extends Controller
     }
 
     /**
-     * Bulk update priority and/or payment_status on multiple orders. Status changes
-     * are NOT bulk-applicable because each transition has its own preconditions
-     * (LR required for dispatched, payment paid for closed, etc.) — the row-level
-     * updateStatus enforces those. Bulk is reserved for "label" fields.
+     * Bulk update priority and/or payment_status on multiple orders, or assign a
+     * transporter across them. Status changes are NOT bulk-applicable because each
+     * transition has its own preconditions (LR for dispatched, paid for closed) —
+     * row-level updateStatus enforces those.
+     *
+     * Transporter assign writes to each order's latest shipment. Orders without
+     * any shipment yet are skipped (the bulk path doesn't create shipments
+     * implicitly — that should be an explicit decision per order).
      */
     public function bulkUpdate(Request $request): RedirectResponse
     {
@@ -333,20 +338,38 @@ class OrderController extends Controller
             'order_ids.*' => ['integer', 'exists:orders,id'],
             'priority' => ['nullable', 'in:urgent,high,normal,low'],
             'payment_status' => ['nullable', 'in:not_due,pending,partial,paid,overdue'],
+            'transporter_id' => ['nullable', 'integer', 'exists:transporters,id'],
         ]);
 
-        $payload = array_filter(
+        $orderPayload = array_filter(
             ['priority' => $data['priority'] ?? null, 'payment_status' => $data['payment_status'] ?? null],
             fn ($v) => $v !== null,
         );
-        if (empty($payload)) {
+        $transporterId = $data['transporter_id'] ?? null;
+
+        if (empty($orderPayload) && $transporterId === null) {
             return back()->withErrors(['priority' => 'Choose at least one field to change.']);
         }
 
-        // Update one-at-a-time so AuditObserver fires per row.
-        Order::whereIn('id', $data['order_ids'])->get()->each(fn ($o) => $o->update($payload));
+        $skipped = 0;
+        $orders = Order::whereIn('id', $data['order_ids'])->with('shipments')->get();
+        foreach ($orders as $order) {
+            if (!empty($orderPayload)) {
+                $order->update($orderPayload);
+            }
+            if ($transporterId !== null) {
+                $shipment = $order->shipments->sortByDesc('id')->first();
+                if (!$shipment) {
+                    $skipped++;
+                    continue;
+                }
+                $shipment->update(['transporter_id' => $transporterId]);
+            }
+        }
 
-        return back()->with('success', count($data['order_ids']) . ' orders updated');
+        $msg = ($orders->count() - $skipped) . ' orders updated';
+        if ($skipped > 0) $msg .= " · {$skipped} skipped (no shipment yet)";
+        return back()->with('success', $msg);
     }
 
     public function updateStatus(Request $request, Order $order): RedirectResponse
