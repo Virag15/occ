@@ -14,6 +14,7 @@ class Payment extends Model
 
     protected $fillable = [
         'order_id', 'paid_on', 'amount', 'mode', 'reference', 'notes', 'created_by',
+        'tally_voucher_id', 'tally_pushed_at',
     ];
 
     protected function casts(): array

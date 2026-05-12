@@ -35,7 +35,7 @@ class TallyController extends Controller
     public function sync(Request $request, TallySyncService $svc): RedirectResponse
     {
         $data = $request->validate([
-            'type' => ['required', Rule::in(['customers', 'products', 'stock', 'orders', 'payments', 'all', 'reconcile'])],
+            'type' => ['required', Rule::in(['customers', 'products', 'stock', 'sales_vouchers', 'purchase_vouchers', 'orders', 'payments', 'all', 'reconcile'])],
             'direction' => ['nullable', Rule::in(['pull', 'push'])],
         ]);
 
@@ -51,6 +51,8 @@ class TallyController extends Controller
             $data['type'] === 'customers' => $svc->syncCustomers($userId),
             $data['type'] === 'products' => $svc->syncProducts($userId),
             $data['type'] === 'stock' => $svc->syncStock($userId),
+            $data['type'] === 'sales_vouchers' => $svc->syncSalesVouchers($userId),
+            $data['type'] === 'purchase_vouchers' => $svc->syncPurchaseVouchers($userId),
             default => null,
         };
 

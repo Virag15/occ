@@ -31,6 +31,7 @@ class Order extends Model
         // Invoice + payment (payment cache rebuilt from payments table)
         'invoice_number', 'invoice_date', 'payment_terms', 'payment_due_date',
         'payment_status', 'amount_received', 'payment_received_date', 'payment_mode',
+        'tally_voucher_id', 'tally_pushed_at',
         'internal_notes', 'created_by',
     ];
 

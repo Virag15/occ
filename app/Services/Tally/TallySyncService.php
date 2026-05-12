@@ -34,7 +34,80 @@ class TallySyncService
             'customers' => $this->syncCustomers($triggeredBy),
             'products' => $this->syncProducts($triggeredBy),
             'stock' => $this->syncStock($triggeredBy),
+            'sales_vouchers' => $this->syncSalesVouchers($triggeredBy),
+            'purchase_vouchers' => $this->syncPurchaseVouchers($triggeredBy),
         ];
+    }
+
+    /**
+     * Push a single order's sales voucher. Called from OrderObserver when an
+     * order transitions to delivered/closed. No-op if already pushed.
+     *
+     * @return ?string The Tally voucher ID, or null on failure.
+     */
+    public function pushSingleOrder(Order $order): ?string
+    {
+        if ($order->tally_voucher_id) return $order->tally_voucher_id; // already pushed
+        $order->loadMissing(['customer', 'items']);
+
+        $res = $this->client->pushSalesVoucher([
+            'order_code' => $order->order_code,
+            'order_date' => $order->order_date?->toDateString() ?? now()->toDateString(),
+            'customer_name' => $order->customer?->name ?? 'Unknown',
+            'customer_tally_id' => $order->customer?->tally_id,
+            'invoice_number' => $order->invoice_number,
+            'line_items' => $order->items->map(fn ($i) => [
+                'name' => $i->product_name,
+                'qty' => (float) $i->qty_ordered,
+                'rate' => (float) ($i->unit_price ?? 0),
+                'tax_rate' => (float) ($i->tax_rate ?? 0),
+            ])->all(),
+        ]);
+
+        if ($res['ok'] && $res['tally_id']) {
+            $order->forceFill([
+                'tally_voucher_id' => $res['tally_id'],
+                'tally_pushed_at' => now(),
+            ])->saveQuietly(); // skip observers — we don't want a recursive push
+            AuditLog::record('tally_voucher_created', $order, [
+                'voucher_id' => ['from' => null, 'to' => $res['tally_id']],
+            ]);
+            return $res['tally_id'];
+        }
+        return null;
+    }
+
+    /**
+     * Push a single payment's receipt voucher. Called from PaymentObserver.
+     *
+     * @return ?string The Tally voucher ID, or null on failure.
+     */
+    public function pushSinglePayment(Payment $payment): ?string
+    {
+        if ($payment->tally_voucher_id) return $payment->tally_voucher_id;
+        $payment->loadMissing('order.customer');
+
+        $res = $this->client->pushReceiptVoucher([
+            'paid_on' => $payment->paid_on?->toDateString() ?? now()->toDateString(),
+            'amount' => (float) $payment->amount,
+            'mode' => $payment->mode,
+            'reference' => $payment->reference,
+            'order_code' => $payment->order?->order_code,
+            'customer_name' => $payment->order?->customer?->name ?? 'Unknown',
+            'customer_tally_id' => $payment->order?->customer?->tally_id,
+        ]);
+
+        if ($res['ok'] && $res['tally_id']) {
+            $payment->forceFill([
+                'tally_voucher_id' => $res['tally_id'],
+                'tally_pushed_at' => now(),
+            ])->saveQuietly();
+            AuditLog::record('tally_receipt_created', $payment, [
+                'voucher_id' => ['from' => null, 'to' => $res['tally_id']],
+            ]);
+            return $res['tally_id'];
+        }
+        return null;
     }
 
     /**
@@ -128,6 +201,37 @@ class TallySyncService
                 'processed' => count($rows),
                 'created' => $created,
                 'updated' => $updated,
+                'failed' => 0,
+                'sample' => array_slice($rows, 0, 3),
+            ];
+        });
+    }
+
+    public function syncSalesVouchers(?int $triggeredBy = null): TallySyncLog
+    {
+        return $this->runSync('sales_vouchers', $triggeredBy, function () {
+            $rows = $this->client->fetchSalesVouchers();
+            // We don't persist these yet — they show up in Customer/Product analytics
+            // once we add a tally_vouchers table. For now just count + sample so the
+            // sync log audit trail is right.
+            return [
+                'processed' => count($rows),
+                'created' => count($rows),
+                'updated' => 0,
+                'failed' => 0,
+                'sample' => array_slice($rows, 0, 3),
+            ];
+        });
+    }
+
+    public function syncPurchaseVouchers(?int $triggeredBy = null): TallySyncLog
+    {
+        return $this->runSync('purchase_vouchers', $triggeredBy, function () {
+            $rows = $this->client->fetchPurchaseVouchers();
+            return [
+                'processed' => count($rows),
+                'created' => count($rows),
+                'updated' => 0,
                 'failed' => 0,
                 'sample' => array_slice($rows, 0, 3),
             ];

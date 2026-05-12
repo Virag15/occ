@@ -116,6 +116,37 @@ class TallyClient
         return $this->demoStock();
     }
 
+    /**
+     * Fetch sales vouchers (invoices) from Tally for a date range.
+     * Used to surface "what was sold to this customer historically" in OCC's
+     * Customer/Product Show pages.
+     *
+     * @return array<int, array{tally_id: string, voucher_no: string, date: string, customer: string, total: float, line_items: array}>
+     */
+    public function fetchSalesVouchers(?string $fromDate = null, ?string $toDate = null): array
+    {
+        if (!$this->isEnabled()) return $this->demoSalesVouchers();
+
+        // TODO: real implementation — POST a 'Voucher Collection' filtered by VoucherType=Sales
+        return $this->demoSalesVouchers();
+    }
+
+    /**
+     * Fetch purchase vouchers from Tally for a date range. Used for:
+     *  - Product Show page → "latest purchase price + vendor"
+     *  - Vendor outstanding tracking
+     *  - Cost-of-goods analytics
+     *
+     * @return array<int, array{tally_id: string, voucher_no: string, date: string, vendor: string, total: float, line_items: array}>
+     */
+    public function fetchPurchaseVouchers(?string $fromDate = null, ?string $toDate = null): array
+    {
+        if (!$this->isEnabled()) return $this->demoPurchaseVouchers();
+
+        // TODO: real implementation — Voucher Collection filtered by VoucherType=Purchase
+        return $this->demoPurchaseVouchers();
+    }
+
     // ─── PUSH direction: OCC → Tally ────────────────────────────────
 
     /**
@@ -258,5 +289,130 @@ XML;
     private function demoPushResult(string $tallyId): array
     {
         return ['ok' => true, 'tally_id' => $tallyId, 'error' => null];
+    }
+
+    private function demoSalesVouchers(): array
+    {
+        return [
+            ['tally_id' => 'TALLY-DEMO-SLS-001', 'voucher_no' => 'GC/2026-27/0001', 'date' => now()->subDays(5)->toDateString(), 'customer' => 'Sharma Electricals', 'total' => 78500.00, 'line_items' => [['name' => 'C&S MCB 6A SP', 'qty' => 100, 'rate' => 180]]],
+            ['tally_id' => 'TALLY-DEMO-SLS-002', 'voucher_no' => 'GC/2026-27/0002', 'date' => now()->subDays(3)->toDateString(), 'customer' => 'Patel Switchgears', 'total' => 295800.00, 'line_items' => [['name' => 'BCH Contactor 32A', 'qty' => 200, 'rate' => 1450]]],
+        ];
+    }
+
+    private function demoPurchaseVouchers(): array
+    {
+        return [
+            ['tally_id' => 'TALLY-DEMO-PUR-001', 'voucher_no' => 'PO/CS/2026-04/0011', 'date' => now()->subDays(10)->toDateString(), 'vendor' => 'C&S Electric Pvt Ltd', 'total' => 540000.00, 'line_items' => [['name' => 'C&S MCB 6A SP', 'qty' => 5000, 'rate' => 108]]],
+            ['tally_id' => 'TALLY-DEMO-PUR-002', 'voucher_no' => 'PO/BCH/2026-04/0009', 'date' => now()->subDays(7)->toDateString(), 'vendor' => 'BCH Electric Ltd', 'total' => 870000.00, 'line_items' => [['name' => 'BCH Contactor 32A', 'qty' => 1000, 'rate' => 870]]],
+        ];
+    }
+
+    // ─── XML preview (Mac-test helper) ──────────────────────────────
+
+    /**
+     * Build (without sending) the XML envelope that WOULD be POSTed to Tally
+     * for a given push operation. Used by the tally:preview artisan command
+     * so users on macOS can inspect/copy the XML and feed it to a Windows
+     * Tally manually for end-to-end testing.
+     */
+    public function previewSalesVoucherXml(array $voucher): string
+    {
+        $lines = '';
+        foreach ($voucher['line_items'] as $i => $li) {
+            $name = htmlspecialchars($li['name'], ENT_XML1);
+            $qty = $li['qty'];
+            $rate = $li['rate'];
+            $amount = number_format($qty * $rate * (1 + ((float)($li['tax_rate'] ?? 0)) / 100), 2, '.', '');
+            $lines .= "
+                <ALLINVENTORYENTRIES.LIST>
+                    <STOCKITEMNAME>{$name}</STOCKITEMNAME>
+                    <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                    <RATE>{$rate}/Nos</RATE>
+                    <AMOUNT>{$amount}</AMOUNT>
+                    <ACTUALQTY>{$qty} Nos</ACTUALQTY>
+                    <BILLEDQTY>{$qty} Nos</BILLEDQTY>
+                </ALLINVENTORYENTRIES.LIST>";
+        }
+
+        $customer = htmlspecialchars($voucher['customer_name'], ENT_XML1);
+        $voucherNo = htmlspecialchars($voucher['invoice_number'] ?? $voucher['order_code'], ENT_XML1);
+        $date = str_replace('-', '', $voucher['order_date']); // YYYYMMDD
+
+        return <<<XML
+<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Import Data</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <IMPORTDATA>
+            <REQUESTDESC>
+                <REPORTNAME>All Masters</REPORTNAME>
+                <STATICVARIABLES>
+                    <SVCURRENTCOMPANY>{$this->company}</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+            </REQUESTDESC>
+            <REQUESTDATA>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Invoice Voucher View">
+                        <DATE>{$date}</DATE>
+                        <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
+                        <VOUCHERNUMBER>{$voucherNo}</VOUCHERNUMBER>
+                        <PARTYNAME>{$customer}</PARTYNAME>
+                        <PARTYLEDGERNAME>{$customer}</PARTYLEDGERNAME>
+                        <REFERENCE>{$voucherNo}</REFERENCE>
+                        {$lines}
+                    </VOUCHER>
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>
+XML;
+    }
+
+    public function previewReceiptVoucherXml(array $receipt): string
+    {
+        $customer = htmlspecialchars($receipt['customer_name'], ENT_XML1);
+        $amount = number_format((float) $receipt['amount'], 2, '.', '');
+        $date = str_replace('-', '', $receipt['paid_on']);
+        $mode = strtoupper($receipt['mode'] ?? 'NEFT');
+        $reference = htmlspecialchars($receipt['reference'] ?? '', ENT_XML1);
+
+        return <<<XML
+<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Import Data</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <IMPORTDATA>
+            <REQUESTDESC>
+                <REPORTNAME>All Masters</REPORTNAME>
+                <STATICVARIABLES>
+                    <SVCURRENTCOMPANY>{$this->company}</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+            </REQUESTDESC>
+            <REQUESTDATA>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <VOUCHER VCHTYPE="Receipt" ACTION="Create">
+                        <DATE>{$date}</DATE>
+                        <VOUCHERTYPENAME>Receipt</VOUCHERTYPENAME>
+                        <NARRATION>Payment {$reference} via {$mode}</NARRATION>
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>{$customer}</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                            <AMOUNT>{$amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>
+                        <ALLLEDGERENTRIES.LIST>
+                            <LEDGERNAME>Bank Account</LEDGERNAME>
+                            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                            <AMOUNT>-{$amount}</AMOUNT>
+                        </ALLLEDGERENTRIES.LIST>
+                    </VOUCHER>
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>
+XML;
     }
 }

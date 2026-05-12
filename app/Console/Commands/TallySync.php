@@ -36,7 +36,7 @@ class TallySync extends Command
 
         $type = $this->option('type');
         $direction = $this->option('direction');
-        $valid = ['customers', 'products', 'stock', 'orders', 'payments', 'all', 'reconcile'];
+        $valid = ['customers', 'products', 'stock', 'sales_vouchers', 'purchase_vouchers', 'orders', 'payments', 'all', 'reconcile'];
         if (!in_array($type, $valid, true)) {
             $this->error("Unknown --type={$type}. Valid: " . implode(', ', $valid));
             return self::FAILURE;
@@ -63,7 +63,7 @@ class TallySync extends Command
         }
 
         $methods = $direction === 'pull'
-            ? ($type === 'all' ? ['customers', 'products', 'stock'] : [$type])
+            ? ($type === 'all' ? ['customers', 'products', 'stock', 'sales_vouchers', 'purchase_vouchers'] : [$type])
             : ($type === 'all' ? ['customers', 'orders', 'payments'] : [$type]);
 
         foreach ($methods as $m) {
@@ -71,6 +71,8 @@ class TallySync extends Command
                 'pull:customers' => 'syncCustomers',
                 'pull:products' => 'syncProducts',
                 'pull:stock' => 'syncStock',
+                'pull:sales_vouchers' => 'syncSalesVouchers',
+                'pull:purchase_vouchers' => 'syncPurchaseVouchers',
                 'push:customers' => 'pushCustomers',
                 'push:orders' => 'pushOrders',
                 'push:payments' => 'pushPayments',

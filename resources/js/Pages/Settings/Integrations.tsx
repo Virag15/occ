@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
     Plug, FileSpreadsheet, MessageCircle, Webhook, RefreshCw, CircleCheck, CircleAlert, Play, Database, Users, Package, Boxes, Clock,
-    ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee, Repeat,
+    ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee, Repeat, Receipt, ShoppingBag, Terminal,
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +47,8 @@ const ENTITY_ICON: Record<string, React.ComponentType<{ className?: string }>> =
     customers: Users,
     products: Package,
     stock: Boxes,
+    sales_vouchers: Receipt,
+    purchase_vouchers: ShoppingBag,
     orders: ShoppingCart,
     payments: IndianRupee,
     all: Database,
@@ -58,12 +60,14 @@ const PULL_TILES: Tile[] = [
     { entity: 'customers', label: 'Customers', description: 'Ledgers under Sundry Debtors' },
     { entity: 'products', label: 'Products', description: 'Stock items + HSN + GST' },
     { entity: 'stock', label: 'Stock levels', description: 'Per godown, current balances' },
+    { entity: 'sales_vouchers', label: 'Sales vouchers', description: 'Past invoices — drives sale history' },
+    { entity: 'purchase_vouchers', label: 'Purchase vouchers', description: 'Past purchases — drives cost history' },
 ];
 
 const PUSH_TILES: Tile[] = [
     { entity: 'customers', label: 'Customers', description: 'OCC-origin customers as ledgers' },
-    { entity: 'orders', label: 'Orders', description: 'Sales vouchers per order' },
-    { entity: 'payments', label: 'Payments', description: 'Receipt vouchers per payment' },
+    { entity: 'orders', label: 'Orders', description: 'Sales vouchers per order (auto on delivered/closed)' },
+    { entity: 'payments', label: 'Payments', description: 'Receipt vouchers (auto on payment recorded)' },
 ];
 
 export default function Integrations({
@@ -135,6 +139,24 @@ export default function Integrations({
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-5 p-4 pt-2">
+                            {/* Mac-testing tip — only show when not connected to a live Tally */}
+                            {!tally.enabled && (
+                                <div className="rounded-md border border-blue-500/20 bg-blue-500/5 p-3 text-xs">
+                                    <p className="flex items-start gap-2 font-medium text-blue-700">
+                                        <Terminal className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        Testing from macOS without a live Tally?
+                                    </p>
+                                    <p className="mt-1.5 text-muted-foreground">
+                                        Demo mode runs all sync logic locally and shows you exactly what would happen. To inspect the actual XML envelope that would be POSTed to Tally for any order or payment, run from the terminal:
+                                    </p>
+                                    <pre className="mt-2 overflow-x-auto rounded bg-background px-2 py-1.5 font-mono text-[10px]">php artisan tally:preview sales-voucher 6
+php artisan tally:preview receipt-voucher 1</pre>
+                                    <p className="mt-1.5 text-muted-foreground">
+                                        Copy the output and POST it to a Windows Tally on your network to verify the contract end-to-end.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Full reconcile (both directions) */}
                             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/20 bg-primary/5 p-3">
                                 <div className="flex items-start gap-2">

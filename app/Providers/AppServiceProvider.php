@@ -11,6 +11,9 @@ use App\Models\ReturnCase;
 use App\Models\Transporter;
 use App\Models\User;
 use App\Observers\AuditObserver;
+use App\Observers\TallyOrderObserver;
+use App\Observers\TallyPaymentObserver;
+use App\Models\Payment;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -37,6 +40,11 @@ class AppServiceProvider extends ServiceProvider
         OrderItem::observe(AuditObserver::class);
         User::observe(AuditObserver::class);
         ReturnCase::observe(AuditObserver::class);
+
+        // Tally auto-push — when an order is delivered/closed or a payment is recorded,
+        // automatically push the corresponding voucher to Tally (or demo mode).
+        Order::observe(TallyOrderObserver::class);
+        Payment::observe(TallyPaymentObserver::class);
 
         // Auth events — login, logout, failed login.
         Event::listen(Login::class, [LogAuthEvents::class, 'handleLogin']);
