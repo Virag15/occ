@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Observers\TallyOrderObserver;
 use App\Observers\TallyPaymentObserver;
+use App\Tenancy\TenantContext;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -26,7 +27,10 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Tenant context is request-scoped on web, process-scoped on console.
+        // Singleton so middleware writes and Eloquent global scope reads
+        // agree on a single instance.
+        $this->app->singleton(TenantContext::class);
     }
 
     public function boot(): void

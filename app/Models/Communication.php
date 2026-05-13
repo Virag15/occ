@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,7 +24,7 @@ use Illuminate\Support\Carbon;
  */
 class Communication extends Model
 {
-    use HasFactory;
+    use BelongsToTenant, HasFactory;
 
     protected $fillable = [
         'order_id', 'channel', 'template_name', 'to_recipient',

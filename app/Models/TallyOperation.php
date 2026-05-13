@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -25,7 +26,7 @@ use Illuminate\Support\Carbon;
  */
 class TallyOperation extends Model
 {
-    use HasFactory;
+    use BelongsToTenant, HasFactory;
 
     /** Operation type slugs — used by the agent to pick the right TallyClient method. */
     public const OP_PUSH_CUSTOMER = 'push_customer';

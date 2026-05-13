@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetCurrentTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
+            // SetCurrentTenant runs after auth so Auth::user() is populated
+            // when it tries to resolve the tenant. Must come BEFORE
+            // HandleInertiaRequests so shared props can include tenant info.
+            SetCurrentTenant::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             SecurityHeaders::class,

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -58,7 +59,7 @@ use Illuminate\Support\Str;
  */
 class Order extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToTenant, HasFactory, SoftDeletes;
 
     public const STATUSES = [
         'new_order', 'confirmed', 'stock_check', 'packing', 'packed',
