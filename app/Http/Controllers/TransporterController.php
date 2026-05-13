@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTransporterRequest;
+use App\Http\Requests\UpdateTransporterRequest;
 use App\Models\Transporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,13 +14,38 @@ class TransporterController extends Controller
 {
     public function index(Request $request): Response
     {
-        $rows = Transporter::query()->orderBy('name')->get();
+        $q = trim((string) $request->query('q', ''));
+        $statusFilter = (string) $request->query('status', '');
+        $perPage = max(10, min(100, (int) $request->query('per_page', 50)));
+
+        $paginated = Transporter::query()
+            ->when($q !== '', fn ($qq) => $qq->where(function ($w) use ($q) {
+                $w->where('name', 'like', "%{$q}%")
+                    ->orWhere('transporter_code', 'like', "%{$q}%")
+                    ->orWhere('contact_person', 'like', "%{$q}%")
+                    ->orWhere('city', 'like', "%{$q}%")
+                    ->orWhere('primary_phone', 'like', "%{$q}%");
+            }))
+            ->when($statusFilter !== '', fn ($qq) => $qq->where('status', $statusFilter))
+            ->orderBy('name')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return Inertia::render('Transporters/Index', [
-            'rows' => $rows,
-            'pagination' => ['total' => $rows->count(), 'per_page' => 50, 'current_page' => 1, 'last_page' => 1],
-            'filters' => ['q' => $request->string('q')->value()],
-            'peek' => null,
+            'rows' => $paginated->items(),
+            'pagination' => [
+                'total' => $paginated->total(),
+                'per_page' => $paginated->perPage(),
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'from' => $paginated->firstItem(),
+                'to' => $paginated->lastItem(),
+            ],
+            'filters' => [
+                'q' => $q,
+                'status' => $statusFilter,
+                'per_page' => $perPage,
+            ],
         ]);
     }
 
@@ -32,16 +59,16 @@ class TransporterController extends Controller
         return Inertia::render('Transporters/Edit', ['transporter' => $transporter]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreTransporterRequest $request): RedirectResponse
     {
-        Transporter::create($this->validated($request));
+        Transporter::create($request->validated());
 
         return redirect()->route('transporters.index');
     }
 
-    public function update(Request $request, Transporter $transporter): RedirectResponse
+    public function update(UpdateTransporterRequest $request, Transporter $transporter): RedirectResponse
     {
-        $transporter->update($this->validated($request));
+        $transporter->update($request->validated());
 
         return redirect()->route('transporters.index');
     }
@@ -51,26 +78,5 @@ class TransporterController extends Controller
         $transporter->delete();
 
         return redirect()->route('transporters.index');
-    }
-
-    private function validated(Request $request): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'contact_person' => ['nullable', 'string', 'max:255'],
-            'primary_phone' => ['nullable', 'string', 'max:20'],
-            'secondary_phone' => ['nullable', 'string', 'max:20'],
-            'whatsapp' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'office_address' => ['nullable', 'string'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'gstin' => ['nullable', 'string', 'max:15'],
-            'avg_transit_days' => ['nullable', 'integer', 'min:0', 'max:30'],
-            'cost_per_kg' => ['nullable', 'numeric', 'min:0'],
-            'triplicate_reliability' => ['nullable', 'integer', 'between:1,5'],
-            'payment_terms' => ['nullable', 'in:advance,weekly,fortnightly,monthly'],
-            'status' => ['nullable', 'in:active,inactive'],
-            'notes' => ['nullable', 'string'],
-        ]);
     }
 }

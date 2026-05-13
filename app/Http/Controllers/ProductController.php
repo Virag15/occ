@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Jobs\SyncEntityToTally;
 use App\Models\Product;
 use App\Models\SavedView;
@@ -75,9 +77,9 @@ class ProductController extends Controller
         return Inertia::render('Products/Edit', ['product' => $product->load('stockItems')]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreProductRequest $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $request->validated();
         $data['tally_id'] ??= 'LOCAL-'.Str::upper(Str::random(10));
 
         $product = Product::create($data);
@@ -86,9 +88,9 @@ class ProductController extends Controller
         return redirect()->route('products.index');
     }
 
-    public function update(Request $request, Product $product): RedirectResponse
+    public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
-        $product->update($this->validated($request));
+        $product->update($request->validated());
         SyncEntityToTally::dispatch($product, 'updated');
 
         return redirect()->route('products.index');
@@ -100,26 +102,5 @@ class ProductController extends Controller
         $product->delete();
 
         return redirect()->route('products.index');
-    }
-
-    private function validated(Request $request): array
-    {
-        return $request->validate([
-            'sku' => ['nullable', 'string', 'max:100'],
-            'name' => ['required', 'string', 'max:255'],
-            'brand' => ['nullable', 'string', 'max:100'],
-            'category' => ['nullable', 'string', 'max:100'],
-            'description' => ['nullable', 'string'],
-            'hsn_code' => ['nullable', 'string', 'max:20'],
-            'unit' => ['nullable', 'string', 'max:20'],
-            'gst_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'mrp' => ['nullable', 'numeric', 'min:0'],
-            'default_sale_price' => ['nullable', 'numeric', 'min:0'],
-            'default_purchase_price' => ['nullable', 'numeric', 'min:0'],
-            'min_order_level' => ['nullable', 'numeric', 'min:0'],
-            'reorder_level' => ['nullable', 'numeric', 'min:0'],
-            'negative_stock_reason' => ['nullable', 'string'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
     }
 }
