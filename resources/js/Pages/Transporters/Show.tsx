@@ -68,13 +68,10 @@ export default function TransporterShow({
                         <Link href={route('transporters.index')}><ArrowLeft className="h-4 w-4" /> Back</Link>
                     </Button>
                     <Separator orientation="vertical" className="h-5" />
-                    <div className="min-w-0">
-                        <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">{transporter.name}</h1>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            {transporter.transporter_code && <span className="font-mono">{transporter.transporter_code}</span>}
-                            {transporter.city && <span>· {transporter.city}</span>}
-                            {transporter.gstin && <span className="font-mono">· GSTIN {transporter.gstin}</span>}
-                        </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground min-w-0">
+                        {transporter.transporter_code && <span className="font-mono">{transporter.transporter_code}</span>}
+                        {transporter.city && <span>· {transporter.city}</span>}
+                        {transporter.gstin && <span className="font-mono">· GSTIN {transporter.gstin}</span>}
                     </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

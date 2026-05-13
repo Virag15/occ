@@ -8,7 +8,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CalendarDays, ChevronLeft, ChevronRight, Truck, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Truck, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Shipment, Customer } from '@/types/entities';
 
@@ -81,12 +81,8 @@ export default function ShipmentsCalendar({
             <Head title={`Calendar — ${format(cursor, 'MMMM yyyy')}`} />
 
             <div className="mb-3 flex flex-wrap items-center gap-2">
-                <h1 className="flex items-center gap-2 text-lg font-semibold">
-                    <CalendarDays className="h-4 w-4" />
-                    Dispatch calendar
-                </h1>
                 <span className="text-xs text-muted-foreground">
-                    · {totals.dispatched} dispatched · {totals.pending} pending pickup
+                    {totals.dispatched} dispatched · {totals.pending} pending pickup
                 </span>
 
                 <div className="ml-auto flex items-center gap-1.5">

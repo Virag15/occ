@@ -49,14 +49,9 @@ export default function TransporterForm({ transporter }: { transporter?: Transpo
     return (
         <form onSubmit={submit} noValidate className="space-y-5 pb-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                        {isEdit ? transporter!.name : 'New transporter'}
-                    </h1>
-                    <p className="text-xs text-muted-foreground">
-                        {isEdit ? `Editing ${transporter!.transporter_code ?? transporter!.name}` : 'Onboard a new logistics partner'}
-                    </p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                    {isEdit ? `Editing ${transporter!.transporter_code ?? transporter!.name}` : 'Onboard a new logistics partner'}
+                </p>
                 <div className="flex items-center gap-2">
                     <Button type="button" variant="outline" size="sm" asChild>
                         <Link href={route('transporters.index')}>Cancel</Link>

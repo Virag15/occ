@@ -50,14 +50,9 @@ export default function CustomerForm({ customer }: { customer?: Customer | null 
     return (
         <form onSubmit={submit} noValidate className="space-y-5 pb-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                        {isEdit ? customer!.name : 'New customer'}
-                    </h1>
-                    <p className="text-xs text-muted-foreground">
-                        {isEdit ? `Editing ${customer!.customer_code ?? customer!.name}` : 'Add a new customer to the directory'}
-                    </p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                    {isEdit ? `Editing ${customer!.customer_code ?? customer!.name}` : 'Add a new customer to the directory'}
+                </p>
                 <div className="flex items-center gap-2">
                     <Button type="button" variant="outline" size="sm" asChild>
                         <Link href={route('customers.index')}>Cancel</Link>

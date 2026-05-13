@@ -17,8 +17,7 @@ export default function Placeholder({ title, description }: Props) {
                             className="mx-auto h-10 w-10 text-muted-foreground"
                             strokeWidth={1.25}
                         />
-                        <h1 className="mt-4 text-xl font-bold tracking-tight">{title}</h1>
-                        <p className="mt-3 text-sm text-muted-foreground">{description}</p>
+                        <p className="mt-4 text-sm text-muted-foreground">{description}</p>
                     </CardContent>
                 </Card>
             </div>

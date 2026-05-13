@@ -42,14 +42,9 @@ export default function UserForm({ user }: { user?: Existing | null }) {
     return (
         <form onSubmit={submit} noValidate className="space-y-5 pb-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                        {isEdit ? user!.name : 'New user'}
-                    </h1>
-                    <p className="text-xs text-muted-foreground">
-                        {isEdit ? `Editing ${user!.email}` : 'Invite a team member by creating their account'}
-                    </p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                    {isEdit ? `Editing ${user!.email}` : 'Invite a team member by creating their account'}
+                </p>
                 <div className="flex items-center gap-2">
                     <Button type="button" variant="outline" size="sm" asChild>
                         <Link href={route('users.index')}>Cancel</Link>

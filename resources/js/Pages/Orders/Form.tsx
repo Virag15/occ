@@ -139,16 +139,11 @@ export default function OrderForm({
 
     return (
         <form onSubmit={submit} noValidate className="space-y-5 pb-10">
-            {/* Title row — order code on the left, primary actions on the right */}
+            {/* Action row — title shown in breadcrumb */}
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="font-mono text-xl font-bold tracking-tight sm:text-2xl">
-                        {form.data.order_code || (isEdit ? order?.order_code : 'New order')}
-                    </h1>
-                    <p className="text-xs text-muted-foreground">
-                        {isEdit ? 'Editing existing order' : 'Creating a new order'}
-                    </p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                    {isEdit ? `Editing ${form.data.order_code || order?.order_code}` : 'Creating a new order'}
+                </p>
                 <div className="flex items-center gap-2">
                     <Button type="button" variant="outline" size="sm" asChild>
                         <Link href={route('orders.index')}>Cancel</Link>

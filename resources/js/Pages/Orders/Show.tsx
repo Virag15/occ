@@ -435,12 +435,9 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
                         </Link>
                     </Button>
                     <Separator orientation="vertical" className="h-5" />
-                    <div>
-                        <h1 className="font-mono text-xl font-bold tracking-tight sm:text-2xl">{order.order_code}</h1>
-                        <p className="text-xs text-muted-foreground">
-                            Created {formatDateIN(order.created_at)}{order.creator?.name ? ` by ${order.creator.name}` : ''}
-                        </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Created {formatDateIN(order.created_at)}{order.creator?.name ? ` by ${order.creator.name}` : ''}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Badge className={orderStatusClasses(order.status)}>{order.status.replace(/_/g, ' ')}</Badge>

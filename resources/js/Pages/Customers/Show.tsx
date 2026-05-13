@@ -82,11 +82,12 @@ export default function CustomerShow({
                     <Button variant="ghost" size="sm" asChild className="gap-1.5 -ml-2">
                         <Link href={route('customers.index')}><ArrowLeft className="h-4 w-4" /> Back</Link>
                     </Button>
-                    <Separator orientation="vertical" className="h-5" />
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{customer.name}</h1>
-                        {customer.company && <p className="text-xs text-muted-foreground">{customer.company}</p>}
-                    </div>
+                    {customer.company && (
+                        <>
+                            <Separator orientation="vertical" className="h-5" />
+                            <p className="text-xs text-muted-foreground">{customer.company}</p>
+                        </>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{customer.status}</Badge>

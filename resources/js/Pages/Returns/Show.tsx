@@ -73,10 +73,7 @@ export default function ReturnShow({ returnCase }: { returnCase: ReturnCase }) {
                         <Link href={route('returns.index')}><ArrowLeft className="h-4 w-4" /> Back</Link>
                     </Button>
                     <Separator orientation="vertical" className="h-5" />
-                    <div>
-                        <h1 className="font-mono text-2xl font-bold tracking-tight">{r.case_code}</h1>
-                        <p className="text-xs text-muted-foreground">Reported {formatDateIN(r.date_reported)}{r.creator?.name ? ` by ${r.creator.name}` : ''}</p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">Reported {formatDateIN(r.date_reported)}{r.creator?.name ? ` by ${r.creator.name}` : ''}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Badge className={statusClasses(r.case_status)}>{r.case_status.replace(/_/g, ' ')}</Badge>

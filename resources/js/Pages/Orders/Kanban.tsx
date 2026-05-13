@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, ListOrdered, AlertOctagon } from 'lucide-react';
+import { ListOrdered, AlertOctagon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import type { Order } from '@/types/entities';
@@ -202,11 +202,7 @@ export default function OrdersKanban({ rows }: { rows: Order[] }) {
             <Head title="Orders — Kanban" />
 
             <div className="mb-3 flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-semibold flex items-center gap-2">
-                    <LayoutGrid className="h-4 w-4" />
-                    Workflow board
-                </h1>
-                <span className="text-xs text-muted-foreground">· {total} orders</span>
+                <span className="text-xs text-muted-foreground">{total} orders on the board</span>
                 <Button asChild variant="outline" size="sm" className="ml-auto">
                     <Link href={route('orders.index')}>
                         <ListOrdered className="h-3.5 w-3.5 mr-1" /> Table view

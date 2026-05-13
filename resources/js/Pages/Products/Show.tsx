@@ -59,13 +59,10 @@ export default function ProductShow({
                         <Link href={route('products.index')}><ArrowLeft className="h-4 w-4" /> Back</Link>
                     </Button>
                     <Separator orientation="vertical" className="h-5" />
-                    <div className="min-w-0">
-                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{product.name}</h1>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            {product.sku && <span className="font-mono">{product.sku}</span>}
-                            {product.brand && <Badge variant="secondary" className="text-[10px]">{product.brand}</Badge>}
-                            {product.category && <span>· {product.category}</span>}
-                        </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground min-w-0">
+                        {product.sku && <span className="font-mono">{product.sku}</span>}
+                        {product.brand && <Badge variant="secondary" className="text-[10px]">{product.brand}</Badge>}
+                        {product.category && <span>· {product.category}</span>}
                     </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

@@ -100,14 +100,11 @@ export default function TasksIndex(props: Props) {
             <Head title="Tasks" />
 
             <div className="space-y-5">
-                {/* Header */}
+                {/* Header — title implied by breadcrumb; show the open-count badge */}
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Today's punch list</h1>
-                        <p className="text-xs text-muted-foreground">
-                            Every open action across orders, payments, and returns. Work top-to-bottom or jump to a section.
-                        </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Every open action across orders, payments, and returns. Work top-to-bottom or jump to a section.
+                    </p>
                     <Badge
                         variant="outline"
                         className={cn('text-sm tabular-nums', totalActions === 0 ? 'border-emerald-200 bg-emerald-500/10 text-emerald-700' : 'border-primary/30 bg-primary/10 text-primary')}

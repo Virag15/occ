@@ -8,6 +8,7 @@ import {
     PackageCheck,
     Truck,
     AlertOctagon,
+    BarChart3,
     ShoppingCart,
     CalendarDays,
     LogOut,
@@ -113,7 +114,7 @@ const navGroups: NavGroup[] = [
             { name: 'Returns', href: '/returns', icon: AlertOctagon },
             { name: 'Dispatch calendar', href: '/shipments/calendar', icon: CalendarDays },
             { name: 'Warehouse queue', href: '/warehouse', icon: PackageCheck, roles: ['owner', 'manager', 'warehouse'] },
-            { name: 'Daily report', href: '/reports/daily', icon: FileText, roles: ['owner', 'manager', 'accounts'] },
+            { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['owner', 'manager', 'accounts'] },
         ],
     },
     {

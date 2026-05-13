@@ -25,36 +25,6 @@ parameters:
 			path: app/Http/Controllers/CustomerShowController.php
 
 		-
-			message: '#^Anonymous function should return Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\> but returns Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: string\|null, dispatch_date\: mixed\}\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\Order\>\:\:flatMap\(\) expects callable\(App\\Models\\Order, int\)\: \(array\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\>\|Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\>\), Closure\(mixed\)\: Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>customer_reference_number" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>order_value" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 2
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$delivered_date\.$#'
 			identifier: property.notFound
 			count: 1
@@ -95,6 +65,12 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/ProductShowController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>order_value" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/ReportsController.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_item_id\.$#'
