@@ -9,30 +9,14 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Bridge API — endpoints the local Tally agent calls to claim and report
- * on queued operations. Authenticated via a bearer token issued out-of-
- * band; the cloud OCC operator configures BRIDGE_AGENT_TOKEN in its .env
- * and gives the same value to the agent install.
+ * on queued operations. Authentication + tenant resolution lives in the
+ * AuthenticateBridgeAgent middleware (runs per-request, even in tests
+ * where the controller instance may be cached across requests). By the
+ * time any method here runs, the tenant context is set to the token's
+ * tenant.
  */
 class BridgeApiController extends Controller
 {
-    public function __construct()
-    {
-        if (! $this->authorised(request())) {
-            abort(401, 'Invalid or missing agent token.');
-        }
-    }
-
-    private function authorised(Request $request): bool
-    {
-        $expected = (string) config('services.bridge.agent_token');
-        if ($expected === '') {
-            return false;
-        }
-        $provided = $request->bearerToken() ?? '';
-
-        return hash_equals($expected, $provided);
-    }
-
     /**
      * Claim up to N pending operations. Each claimed row gets a lease so
      * a second agent (or a retry by this one before timeout) doesn't

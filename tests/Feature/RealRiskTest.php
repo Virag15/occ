@@ -8,7 +8,9 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\TallyOperation;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,15 +27,33 @@ class RealRiskTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const TOKEN = 'real-risk-token-1234567890abcdef';
+    private Tenant $tenant;
+
+    private string $token;
+
+    private TenantContext $context;
 
     private User $owner;
 
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.bridge.agent_token' => self::TOKEN]);
+        $this->tenant = Tenant::create(['name' => 'Real Risk Co.', 'slug' => 'real-risk']);
+        ['token' => $this->token] = $this->tenant->issueBridgeToken('Risk PC');
+        $this->context = app(TenantContext::class);
+        $this->context->set($this->tenant);
         $this->owner = User::factory()->create(['role' => 'owner']);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->context->clear();
+        parent::tearDown();
+    }
+
+    private function bearer(): string
+    {
+        return 'Bearer '.$this->token;
     }
 
     private function customer(array $a = []): Customer
@@ -63,10 +83,10 @@ class RealRiskTest extends TestCase
         $this->order($this->customer())->update(['status' => 'delivered']);
         $this->order($this->customer())->update(['status' => 'delivered']);
 
-        $a = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $a = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 1])
             ->json('operations');
-        $b = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $b = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 5])
             ->json('operations');
 
@@ -80,10 +100,10 @@ class RealRiskTest extends TestCase
         config(['services.bridge.mode' => 'queue']);
         $this->order($this->customer())->update(['status' => 'delivered']);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 10])
             ->assertJsonCount(1, 'operations');
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 10])
             ->assertJsonCount(0, 'operations');
     }
@@ -94,7 +114,7 @@ class RealRiskTest extends TestCase
         $this->order($this->customer())->update(['status' => 'delivered']);
         $this->order($this->customer())->update(['status' => 'delivered']);
 
-        $claim = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $claim = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 10])
             ->json('operations');
 
@@ -102,14 +122,14 @@ class RealRiskTest extends TestCase
         $firstId = $claim[0]['id'];
 
         // Complete one; the other should still be claimed (not pending)
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/complete/{$firstId}", ['result' => ['tally_id' => 'TLY-X']])
             ->assertOk();
 
         $stillClaimed = TallyOperation::where('status', TallyOperation::STATUS_CLAIMED)->count();
         $this->assertSame(1, $stillClaimed);
 
-        $next = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $next = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 10])
             ->json('operations');
         $this->assertCount(0, $next, 'no pending rows left, sibling is still leased');

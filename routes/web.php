@@ -23,6 +23,7 @@ use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\TransporterShowController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Middleware\AuthenticateBridgeAgent;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -183,7 +184,7 @@ Route::get('/track/{uuid}', [TrackingController::class, 'show'])
 // 120 req/min is plenty for one agent polling every 60s with bursty
 // complete/fail traffic, and well below what brute-force probing needs.
 Route::prefix('api/bridge')
-    ->middleware('throttle:120,1')
+    ->middleware(['throttle:120,1', AuthenticateBridgeAgent::class])
     ->withoutMiddleware([VerifyCsrfToken::class])
     ->group(function () {
         Route::get('/ping', [BridgeApiController::class, 'ping']);

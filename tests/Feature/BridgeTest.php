@@ -7,26 +7,47 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\TallyOperation;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Exercises the cloud-OCC ↔ local-Tally bridge added in commit 4f77923.
- * This is the freshest, most architecturally complex piece — needs deep
- * coverage so we don't ship lease bugs to a remote agent that runs
- * unattended for weeks.
+ * Exercises the cloud-OCC ↔ local-Tally bridge. Auth uses the per-tenant
+ * bridge_agent_tokens table: setUp creates a tenant, mints a token, and
+ * stashes the plaintext. All bridge data (orders, customers, ops) is
+ * created inside the tenant context so the API (which scopes by the
+ * token's tenant) can see it.
  */
 class BridgeTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const TOKEN = 'test-agent-token-secret-1234567890';
+    private Tenant $tenant;
+
+    private string $token;
+
+    private TenantContext $context;
 
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.bridge.agent_token' => self::TOKEN]);
+        $this->tenant = Tenant::create(['name' => 'Bridge Test Co.', 'slug' => 'bridge-test']);
+        ['token' => $this->token] = $this->tenant->issueBridgeToken('Test PC');
+        $this->context = app(TenantContext::class);
+        $this->context->set($this->tenant);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->context->clear();
+        parent::tearDown();
+    }
+
+    private function bearer(): string
+    {
+        return 'Bearer '.$this->token;
     }
 
     private function order(array $overrides = []): Order
@@ -119,7 +140,7 @@ class BridgeTest extends TestCase
 
     public function test_api_ping_accepts_correct_token(): void
     {
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->getJson('/api/bridge/ping')
             ->assertOk()
             ->assertJson(['ok' => true]);
@@ -131,7 +152,7 @@ class BridgeTest extends TestCase
         $this->order()->update(['status' => 'delivered']);
         $this->order()->update(['status' => 'closed']);
 
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $response = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 10])
             ->assertOk();
 
@@ -154,7 +175,7 @@ class BridgeTest extends TestCase
             $this->order()->update(['status' => 'delivered']);
         }
 
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $response = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 2])
             ->assertOk();
 
@@ -178,7 +199,7 @@ class BridgeTest extends TestCase
         ]);
 
         // A fresh agent claims — should pick this row back up.
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $response = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 5])
             ->assertOk();
 
@@ -198,7 +219,7 @@ class BridgeTest extends TestCase
             'status' => TallyOperation::STATUS_FAILED,
         ]);
 
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $response = $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson('/api/bridge/claim', ['max' => 10])
             ->assertOk();
 
@@ -217,7 +238,7 @@ class BridgeTest extends TestCase
             'lease_expires_at' => now()->addMinutes(5),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/complete/{$op->id}", [
                 'result' => ['tally_id' => 'TLY-VCH-789'],
             ])
@@ -245,7 +266,7 @@ class BridgeTest extends TestCase
             'lease_expires_at' => now()->addMinutes(5),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/complete/{$op->id}", [
                 'result' => ['voucher_id' => 'TLY-RCP-12'],
             ])
@@ -263,7 +284,7 @@ class BridgeTest extends TestCase
             'lease_expires_at' => now()->addMinutes(5),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/fail/{$op->id}", ['error' => 'Tally timeout'])
             ->assertOk();
 
@@ -332,7 +353,7 @@ class BridgeTest extends TestCase
             'status' => TallyOperation::STATUS_PENDING,
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/complete/{$op->id}", ['result' => ['tally_id' => 'X']])
             ->assertStatus(409);
 
@@ -347,7 +368,7 @@ class BridgeTest extends TestCase
             'lease_expires_at' => now()->subMinutes(1),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/complete/{$op->id}", ['result' => ['tally_id' => 'X']])
             ->assertStatus(409);
     }
@@ -363,7 +384,7 @@ class BridgeTest extends TestCase
             'completed_at' => now()->subMinute(),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/complete/{$op->id}", ['result' => ['tally_id' => 'TLY-REPLAY']])
             ->assertStatus(409);
 
@@ -378,7 +399,7 @@ class BridgeTest extends TestCase
             'lease_expires_at' => now()->addMinutes(5),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/complete/{$op->id}", [
                 'result' => ['tally_id' => str_repeat('X', 200)],
             ])
@@ -405,7 +426,7 @@ class BridgeTest extends TestCase
             'lease_expires_at' => now()->subSeconds(1),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+        $this->withHeaders(['Authorization' => $this->bearer()])
             ->postJson("/api/bridge/fail/{$op->id}", ['error' => 'should not apply'])
             ->assertStatus(409);
 
