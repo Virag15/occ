@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -12,63 +12,105 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { nullable } from '@/lib/format';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
-import { CapBanner } from '@/components/CapBanner';
-import type { Customer, IndexPageProps, SavedView } from '@/types/entities';
+import type { Customer, SavedView } from '@/types/entities';
 
 const STATUSES = ['active', 'inactive', 'credit_hold', 'new'];
 const TYPES = ['dealer', 'contractor', 'oem', 'end_user', 'government'];
 
-export default function CustomerIndex({ rows, savedViews = [], total_count, cap }: IndexPageProps<Customer> & { savedViews?: SavedView[]; total_count?: number; cap?: number }) {
-    // Apply the default saved view on first mount so the user lands in their preferred state.
-    const defaultView = savedViews.find((v) => v.is_default) ?? null;
-    const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
+type ServerFilters = {
+    q: string;
+    status: string;
+    customer_type: string;
+    per_page: number;
+};
 
-    const [search, setSearch] = useState(dc.search ?? '');
-    const [statusFilter, setStatusFilter] = useState(dc.filters?.status ?? '');
-    const [typeFilter, setTypeFilter] = useState(dc.filters?.customer_type ?? '');
-    const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
-    const [deleteId, setDeleteId] = useState<number | null>(null);
-    const [processing, setProcessing] = useState(false);
+type Pagination = {
+    total: number;
+    per_page: number;
+    current_page: number;
+    last_page: number;
+    from: number | null;
+    to: number | null;
+};
+
+export default function CustomerIndex({
+    rows,
+    savedViews = [],
+    filters,
+    pagination,
+}: {
+    rows: Customer[];
+    savedViews?: SavedView[];
+    filters: ServerFilters;
+    pagination: Pagination;
+}) {
+    const [searchDraft, setSearchDraft] = useState(filters.q);
+    useEffect(() => setSearchDraft(filters.q), [filters.q]);
+
+    const activeViewId = useMemo(() => {
+        const match = savedViews.find((v) => {
+            const c = (v.config ?? {}) as { search?: string; filters?: Record<string, string> };
+            return (c.search ?? undefined) === (filters.q || undefined)
+                && (c.filters?.status ?? undefined) === (filters.status || undefined)
+                && (c.filters?.customer_type ?? undefined) === (filters.customer_type || undefined);
+        });
+        return match?.id ?? null;
+    }, [filters, savedViews]);
 
     const currentConfig = {
-        search: search || undefined,
+        search: filters.q || undefined,
         filters: {
-            ...(statusFilter && { status: statusFilter }),
-            ...(typeFilter && { customer_type: typeFilter }),
+            ...(filters.status && { status: filters.status }),
+            ...(filters.customer_type && { customer_type: filters.customer_type }),
         },
     };
 
-    const applyView = (config: { search?: string; filters?: Record<string, string> }, viewId: number | null) => {
-        setSearch(config.search ?? '');
-        setStatusFilter(config.filters?.status ?? '');
-        setTypeFilter(config.filters?.customer_type ?? '');
-        setActiveViewId(viewId);
-    };
-
-    const clearView = () => {
-        setSearch(''); setStatusFilter(''); setTypeFilter('');
-        setActiveViewId(null);
-    };
-
-    const filteredRows = useMemo(() => {
-        let result = rows;
-        if (search) {
-            const q = search.toLowerCase();
-            result = result.filter((r) =>
-                r.name.toLowerCase().includes(q)
-                || (r.company ?? '').toLowerCase().includes(q)
-                || (r.gstin ?? '').toLowerCase().includes(q)
-                || (r.phone ?? '').toLowerCase().includes(q)
-                || (r.city ?? '').toLowerCase().includes(q),
-            );
+    const navigateWith = (next: Partial<ServerFilters> & { page?: number }) => {
+        const merged = {
+            q: searchDraft,
+            status: filters.status,
+            customer_type: filters.customer_type,
+            per_page: filters.per_page,
+            page: 1,
+            ...next,
+        };
+        const params: Record<string, string | number> = {};
+        for (const [k, v] of Object.entries(merged)) {
+            if (v !== '' && v !== 0 && v !== null && v !== undefined) params[k] = v;
         }
-        if (statusFilter) result = result.filter((r) => r.status === statusFilter);
-        if (typeFilter) result = result.filter((r) => r.customer_type === typeFilter);
-        return result;
-    }, [search, statusFilter, typeFilter, rows]);
+        router.get(route('customers.index'), params, { preserveScroll: true, preserveState: true, replace: true });
+    };
 
-    const hasActiveFilters = !!search || !!statusFilter || !!typeFilter;
-    const clearFilters = () => { setSearch(''); setStatusFilter(''); setTypeFilter(''); setActiveViewId(null); };
+    // Debounced search-to-URL
+    useEffect(() => {
+        if (searchDraft === filters.q) return;
+        const t = setTimeout(() => navigateWith({ q: searchDraft, page: 1 }), 300);
+        return () => clearTimeout(t);
+    }, [searchDraft]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const applyView = (config: { search?: string; filters?: Record<string, string> }) => {
+        navigateWith({
+            q: config.search ?? '',
+            status: config.filters?.status ?? '',
+            customer_type: config.filters?.customer_type ?? '',
+            page: 1,
+        });
+    };
+
+    const clearView = () => navigateWith({ q: '', status: '', customer_type: '', page: 1 });
+
+    // First-mount default view
+    useEffect(() => {
+        const noUrlFilters = !filters.q && !filters.status && !filters.customer_type;
+        const defaultView = savedViews.find((v) => v.is_default);
+        if (!noUrlFilters || !defaultView) return;
+        applyView((defaultView.config ?? {}) as { search?: string; filters?: Record<string, string> });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const [deleteId, setDeleteId] = useState<number | null>(null);
+    const [processing, setProcessing] = useState(false);
+
+    const hasActiveFilters = !!filters.q || !!filters.status || !!filters.customer_type;
 
     const handleDelete = () => {
         if (!deleteId) return;
@@ -144,16 +186,27 @@ export default function CustomerIndex({ rows, savedViews = [], total_count, cap 
                 />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search name, company, GSTIN…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                    <Input
+                        placeholder="Search name, company, GSTIN…"
+                        value={searchDraft}
+                        onChange={(e) => setSearchDraft(e.target.value)}
+                        className="pl-9"
+                    />
                 </div>
-                <Select value={statusFilter || '_all'} onValueChange={(v: string) => setStatusFilter(v === '_all' ? '' : v)}>
+                <Select
+                    value={filters.status || '_all'}
+                    onValueChange={(v: string) => navigateWith({ status: v === '_all' ? '' : v, page: 1 })}
+                >
                     <SelectTrigger className="w-[130px] shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="_all">All statuses</SelectItem>
                         {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <Select value={typeFilter || '_all'} onValueChange={(v: string) => setTypeFilter(v === '_all' ? '' : v)}>
+                <Select
+                    value={filters.customer_type || '_all'}
+                    onValueChange={(v: string) => navigateWith({ customer_type: v === '_all' ? '' : v, page: 1 })}
+                >
                     <SelectTrigger className="w-[130px] shrink-0"><SelectValue placeholder="Type" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="_all">All types</SelectItem>
@@ -161,7 +214,7 @@ export default function CustomerIndex({ rows, savedViews = [], total_count, cap 
                     </SelectContent>
                 </Select>
                 {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={clearFilters} className="text-destructive hover:text-destructive shrink-0">
+                    <Button variant="ghost" size="sm" onClick={clearView} className="text-destructive hover:text-destructive shrink-0">
                         <X className="h-4 w-4 mr-1" /> Reset
                     </Button>
                 )}
@@ -176,10 +229,36 @@ export default function CustomerIndex({ rows, savedViews = [], total_count, cap 
         <AdminLayout breadcrumbs={[{ label: 'Customers' }]}>
             <Head title="Customers" />
 
-            {total_count !== undefined && cap !== undefined && (
-                <CapBanner shown={rows.length} total={total_count} cap={cap} entityLabel="customers" />
+            <DataTable columns={columns} data={rows} toolbar={toolbar} emptyMessage="No customers match the current filters." />
+
+            {pagination.last_page > 1 && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <p className="text-muted-foreground tabular-nums">
+                        Showing {pagination.from ?? 0}–{pagination.to ?? 0} of {pagination.total.toLocaleString('en-IN')}
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pagination.current_page <= 1}
+                            onClick={() => navigateWith({ page: pagination.current_page - 1 })}
+                        >
+                            Prev
+                        </Button>
+                        <span className="px-2 tabular-nums text-muted-foreground">
+                            Page {pagination.current_page} / {pagination.last_page}
+                        </span>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pagination.current_page >= pagination.last_page}
+                            onClick={() => navigateWith({ page: pagination.current_page + 1 })}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
             )}
-            <DataTable columns={columns} data={filteredRows} toolbar={toolbar} emptyMessage="No customers match the current filters." />
 
             <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
                 <DialogContent>
