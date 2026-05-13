@@ -5,7 +5,25 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $entity_type
+ * @property string $direction
+ * @property string $status
+ * @property int $records_processed
+ * @property int $records_created
+ * @property int $records_updated
+ * @property int $records_failed
+ * @property string|null $error_message
+ * @property array<string,mixed>|null $sample_payload
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
+ * @property int|null $triggered_by
+ * @property-read User|null $trigger
+ * @property-read float|null $duration_seconds
+ */
 class TallySyncLog extends Model
 {
     use HasFactory;

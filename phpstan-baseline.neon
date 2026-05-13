@@ -91,12 +91,6 @@ parameters:
 			path: app/Listeners/LogAuthEvents.php
 
 		-
-			message: '#^Cannot call method diffInMilliseconds\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Models/TallySyncLog.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 4
