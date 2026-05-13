@@ -28,6 +28,12 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+        // HSTS — tell the browser to refuse http:// for this host for one
+        // year. Only set when the request was actually served over TLS,
+        // so misconfigured envs don't lock users out.
+        if ($request->isSecure()) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        }
 
         return $response;
     }

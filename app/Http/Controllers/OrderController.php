@@ -372,7 +372,10 @@ class OrderController extends Controller
     public function bulkUpdate(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'order_ids' => ['required', 'array', 'min:1'],
+            // Hard cap to stop a tired manager (or a misbehaving script) from
+            // submitting an order_ids array with thousands of entries and
+            // queueing thousands of UPDATEs in one transaction.
+            'order_ids' => ['required', 'array', 'min:1', 'max:500'],
             'order_ids.*' => ['integer', 'exists:orders,id'],
             'priority' => ['nullable', 'in:urgent,high,normal,low'],
             'payment_status' => ['nullable', 'in:not_due,pending,partial,paid,overdue'],

@@ -18,6 +18,7 @@ use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -31,6 +32,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // Force HTTPS for all generated URLs in production. Stops mixed-content
+        // and accidental http:// redirects when behind a TLS-terminating proxy.
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
 
         // Centralized audit logging — every CRUD on these models writes an audit_logs row.
         Customer::observe(AuditObserver::class);

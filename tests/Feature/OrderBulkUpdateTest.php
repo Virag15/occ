@@ -68,6 +68,16 @@ class OrderBulkUpdateTest extends TestCase
         ])->assertSessionHasErrors('priority');
     }
 
+    public function test_order_ids_array_is_capped(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'manager']));
+
+        $this->patch(route('orders.bulk-update'), [
+            'order_ids' => range(1, 501),
+            'priority' => 'urgent',
+        ])->assertSessionHasErrors('order_ids');
+    }
+
     public function test_bulk_assigns_transporter_to_latest_shipment(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'manager']));
