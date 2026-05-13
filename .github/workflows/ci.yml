@@ -63,7 +63,10 @@ jobs:
           cache: npm
 
       - name: Install JS deps
-        run: npm ci
+        run: npm ci --legacy-peer-deps
+
+      - name: ESLint (advisory — warnings allowed, errors fail)
+        run: npm run lint -- --max-warnings=999
 
       - name: Build (tsc + vite)
         run: npm run build
