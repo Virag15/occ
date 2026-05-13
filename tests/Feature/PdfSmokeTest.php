@@ -183,6 +183,13 @@ class PdfSmokeTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_evidence_download_blocks_null_byte_injection(): void
+    {
+        $this->actingAs($this->owner)
+            ->get("/orders/{$this->order->id}/evidence/download?path=orders/{$this->order->id}/pod.jpg%00.txt")
+            ->assertNotFound();
+    }
+
     public function test_evidence_download_blocks_wrong_order_prefix(): void
     {
         $this->actingAs($this->owner)

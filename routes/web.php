@@ -178,13 +178,18 @@ Route::get('/track/{uuid}', [TrackingController::class, 'show'])
 // session middleware, no CSRF (server-to-server JSON). The agent calls
 // these endpoints from a different machine (the Windows PC next to
 // TallyPrime) to pull operations queued on the cloud OCC.
-Route::prefix('api/bridge')->withoutMiddleware([
-    VerifyCsrfToken::class,
-])->group(function () {
-    Route::get('/ping', [BridgeApiController::class, 'ping']);
-    Route::post('/claim', [BridgeApiController::class, 'claim']);
-    Route::post('/complete/{id}', [BridgeApiController::class, 'complete']);
-    Route::post('/fail/{id}', [BridgeApiController::class, 'fail']);
-});
+//
+// Rate-limited as defense-in-depth even though the token is unguessable —
+// 120 req/min is plenty for one agent polling every 60s with bursty
+// complete/fail traffic, and well below what brute-force probing needs.
+Route::prefix('api/bridge')
+    ->middleware('throttle:120,1')
+    ->withoutMiddleware([VerifyCsrfToken::class])
+    ->group(function () {
+        Route::get('/ping', [BridgeApiController::class, 'ping']);
+        Route::post('/claim', [BridgeApiController::class, 'claim']);
+        Route::post('/complete/{id}', [BridgeApiController::class, 'complete']);
+        Route::post('/fail/{id}', [BridgeApiController::class, 'fail']);
+    });
 
 require __DIR__.'/auth.php';

@@ -27,6 +27,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
         ]);
+
+        // Trust forwarded headers when running behind a load balancer / CDN.
+        // TRUSTED_PROXIES=* in .env makes every X-Forwarded-* header honoured
+        // (use only when traffic to the app port is firewalled to the LB).
+        // For a specific CIDR, set TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12.
+        $proxies = (string) env('TRUSTED_PROXIES', '');
+        if ($proxies !== '') {
+            $middleware->trustProxies(
+                at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)),
+                headers: Request::HEADER_X_FORWARDED_FOR
+                    | Request::HEADER_X_FORWARDED_HOST
+                    | Request::HEADER_X_FORWARDED_PORT
+                    | Request::HEADER_X_FORWARDED_PROTO
+                    | Request::HEADER_X_FORWARDED_AWS_ELB,
+            );
+        }
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {

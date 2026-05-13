@@ -579,7 +579,7 @@ class OrderController extends Controller
     {
         $path = (string) $request->query('path', '');
         $expected = "orders/{$order->id}/";
-        if (! str_starts_with($path, $expected) || str_contains($path, '..')) {
+        if (! str_starts_with($path, $expected) || str_contains($path, '..') || str_contains($path, "\0")) {
             abort(404);
         }
         if (! Storage::disk('local')->exists($path)) {

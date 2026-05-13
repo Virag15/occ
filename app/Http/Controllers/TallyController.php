@@ -102,6 +102,9 @@ class TallyController extends Controller
 
         return response()->download($tmp, 'occ-tally-bridge.zip', [
             'Content-Type' => 'application/zip',
+            // The zip contains .bat scripts the operator will fill with the
+            // bridge token — don't let a CDN cache it.
+            'Cache-Control' => 'private, no-store, max-age=0',
         ])->deleteFileAfterSend(true);
     }
 }

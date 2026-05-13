@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\TallyOperation;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -239,7 +240,10 @@ class BridgeTest extends TestCase
             'order_id' => $order->id, 'paid_on' => '2026-05-12', 'amount' => 100, 'mode' => 'upi',
         ]);
         $op = TallyOperation::where('operation', TallyOperation::OP_PUSH_RECEIPT)->first();
-        $op->update(['status' => TallyOperation::STATUS_CLAIMED]);
+        $op->update([
+            'status' => TallyOperation::STATUS_CLAIMED,
+            'lease_expires_at' => now()->addMinutes(5),
+        ]);
 
         $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
             ->postJson("/api/bridge/complete/{$op->id}", [
@@ -256,6 +260,7 @@ class BridgeTest extends TestCase
         $op = TallyOperation::create([
             'operation' => 'push_customer', 'payload' => [],
             'status' => TallyOperation::STATUS_CLAIMED,
+            'lease_expires_at' => now()->addMinutes(5),
         ]);
 
         $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
@@ -288,5 +293,122 @@ class BridgeTest extends TestCase
         $this->artisan('bridge:agent')
             ->expectsOutputToContain('BRIDGE_REMOTE_URL and BRIDGE_AGENT_TOKEN must be set')
             ->assertFailed();
+    }
+
+    public function test_bridge_agent_command_bails_on_plaintext_http_remote(): void
+    {
+        config([
+            'services.bridge.agent_enabled' => true,
+            'services.bridge.remote_url' => 'http://occ.example.com',
+            'services.bridge.agent_token' => 'something',
+        ]);
+
+        $this->artisan('bridge:agent')
+            ->expectsOutputToContain('must use https://')
+            ->assertFailed();
+    }
+
+    public function test_bridge_agent_command_allows_localhost_http(): void
+    {
+        config([
+            'services.bridge.agent_enabled' => true,
+            'services.bridge.remote_url' => 'http://127.0.0.1:8000',
+            'services.bridge.agent_token' => 'something',
+        ]);
+
+        // The command will try to poll and fail at the HTTP call, but it
+        // should at least get past the URL guard. We assert it does NOT
+        // emit the "must use https://" error.
+        $this->artisan('bridge:agent', ['--max' => 1])
+            ->doesntExpectOutputToContain('must use https://');
+    }
+
+    // ─── Lease guards on complete / fail ─────────────────────────────
+
+    public function test_complete_rejects_op_that_is_not_claimed(): void
+    {
+        $op = TallyOperation::create([
+            'operation' => 'push_customer', 'payload' => ['x' => 1],
+            'status' => TallyOperation::STATUS_PENDING,
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+            ->postJson("/api/bridge/complete/{$op->id}", ['result' => ['tally_id' => 'X']])
+            ->assertStatus(409);
+
+        $this->assertSame(TallyOperation::STATUS_PENDING, $op->fresh()->status);
+    }
+
+    public function test_complete_rejects_op_with_expired_lease(): void
+    {
+        $op = TallyOperation::create([
+            'operation' => 'push_customer', 'payload' => [],
+            'status' => TallyOperation::STATUS_CLAIMED,
+            'lease_expires_at' => now()->subMinutes(1),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+            ->postJson("/api/bridge/complete/{$op->id}", ['result' => ['tally_id' => 'X']])
+            ->assertStatus(409);
+    }
+
+    public function test_complete_rejects_already_done_op_preventing_replay(): void
+    {
+        // Most important: a replayed `complete` must not overwrite the
+        // voucher_id of an order that was already stamped.
+        $op = TallyOperation::create([
+            'operation' => 'push_sales_voucher', 'payload' => [],
+            'status' => TallyOperation::STATUS_DONE,
+            'result' => ['tally_id' => 'TLY-ORIGINAL'],
+            'completed_at' => now()->subMinute(),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+            ->postJson("/api/bridge/complete/{$op->id}", ['result' => ['tally_id' => 'TLY-REPLAY']])
+            ->assertStatus(409);
+
+        $this->assertSame('TLY-ORIGINAL', $op->fresh()->result['tally_id']);
+    }
+
+    public function test_complete_validates_result_field_lengths(): void
+    {
+        $op = TallyOperation::create([
+            'operation' => 'push_sales_voucher', 'payload' => [],
+            'status' => TallyOperation::STATUS_CLAIMED,
+            'lease_expires_at' => now()->addMinutes(5),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+            ->postJson("/api/bridge/complete/{$op->id}", [
+                'result' => ['tally_id' => str_repeat('X', 200)],
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_bridge_zip_download_sets_no_store_cache_header(): void
+    {
+        // The zip contains .bat scripts the operator fills with the bridge
+        // token — a cached copy on a CDN would leak.
+        $owner = User::factory()->create(['role' => 'owner']);
+        $response = $this->actingAs($owner)
+            ->get(route('settings.tally.download-bridge'));
+
+        $response->assertOk();
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_fail_rejects_op_with_expired_lease(): void
+    {
+        $op = TallyOperation::create([
+            'operation' => 'push_customer', 'payload' => [],
+            'status' => TallyOperation::STATUS_CLAIMED,
+            'lease_expires_at' => now()->subSeconds(1),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+            ->postJson("/api/bridge/fail/{$op->id}", ['error' => 'should not apply'])
+            ->assertStatus(409);
+
+        $this->assertSame(TallyOperation::STATUS_CLAIMED, $op->fresh()->status);
     }
 }

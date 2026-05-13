@@ -41,7 +41,7 @@ class BridgeApiController extends Controller
     public function claim(Request $request): JsonResponse
     {
         $max = max(1, min(50, (int) $request->input('max', 10)));
-        $agentId = $request->ip().' / '.substr(md5($request->userAgent() ?? ''), 0, 8);
+        $agentId = $request->ip().' / '.substr(hash('xxh128', $request->userAgent() ?? ''), 0, 8);
         $leaseMinutes = 5;
 
         $ops = DB::transaction(function () use ($max, $agentId, $leaseMinutes) {
@@ -88,11 +88,23 @@ class BridgeApiController extends Controller
         ]);
     }
 
-    /** Mark an operation done. The result body is whatever TallyClient returned. */
+    /**
+     * Mark an operation done. The result body is whatever TallyClient returned.
+     *
+     * Only valid on a row whose lease is still live — guards against (a) replay
+     * of a completed op overwriting an already-stamped voucher_id, (b) a stuck
+     * agent finishing after its lease expired and another agent re-claimed.
+     */
     public function complete(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['result' => ['nullable', 'array']]);
+        $data = $request->validate([
+            'result' => ['nullable', 'array'],
+            'result.tally_id' => ['nullable', 'string', 'max:100'],
+            'result.voucher_id' => ['nullable', 'string', 'max:100'],
+        ]);
         $op = TallyOperation::query()->findOrFail($id);
+        $this->assertLeaseLive($op);
+
         $op->update([
             'status' => TallyOperation::STATUS_DONE,
             'result' => $data['result'] ?? null,
@@ -109,7 +121,10 @@ class BridgeApiController extends Controller
     public function fail(Request $request, int $id): JsonResponse
     {
         $data = $request->validate(['error' => ['nullable', 'string', 'max:500']]);
-        TallyOperation::query()->findOrFail($id)->update([
+        $op = TallyOperation::query()->findOrFail($id);
+        $this->assertLeaseLive($op);
+
+        $op->update([
             'status' => TallyOperation::STATUS_FAILED,
             'error_message' => $data['error'] ?? null,
             'completed_at' => now(),
@@ -117,6 +132,20 @@ class BridgeApiController extends Controller
         ]);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * 409 if the op isn't currently claimed by a live lease. Stops replays,
+     * stomps on already-done rows, and late writes from a reclaimed lease.
+     */
+    private function assertLeaseLive(TallyOperation $op): void
+    {
+        if ($op->status !== TallyOperation::STATUS_CLAIMED) {
+            abort(409, 'Operation is not in claimed state.');
+        }
+        if ($op->lease_expires_at === null || $op->lease_expires_at->isPast()) {
+            abort(409, 'Operation lease has expired; re-claim before completing.');
+        }
     }
 
     /** Tiny ping endpoint so the agent can verify token + connectivity at start. */

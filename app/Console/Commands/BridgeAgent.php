@@ -53,6 +53,15 @@ class BridgeAgent extends Command
             return self::FAILURE;
         }
 
+        // Refuse to send the bearer token over plaintext. Localhost is fine
+        // (dev box), and any HTTP non-localhost host is rejected outright.
+        if (! str_starts_with($remote, 'https://')
+            && ! preg_match('#^http://(localhost|127\.0\.0\.1)([:/]|$)#', $remote)) {
+            $this->error('BRIDGE_REMOTE_URL must use https:// (token would be sent in plaintext otherwise).');
+
+            return self::FAILURE;
+        }
+
         $interval = max(5, (int) $this->option('interval'));
         $max = max(1, (int) $this->option('max'));
 
