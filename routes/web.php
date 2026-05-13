@@ -11,6 +11,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SavedViewController;
 use App\Http\Controllers\ShipmentController;
@@ -30,6 +31,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
     Route::get('/warehouse', [WarehouseController::class, 'index'])->name('warehouse.queue');
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('/reports/daily', [DailyReportController::class, 'show'])->name('reports.daily');
 
     // Saved views are scoped to the current user — every role manages their own
