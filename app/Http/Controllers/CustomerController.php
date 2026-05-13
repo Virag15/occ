@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreCustomerRequest;
+use App\Http\Requests\UpdateCustomerRequest;
 use App\Jobs\SyncEntityToTally;
 use App\Models\Customer;
 use App\Models\SavedView;
@@ -46,9 +48,9 @@ class CustomerController extends Controller
         return Inertia::render('Customers/Edit', ['customer' => $customer]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreCustomerRequest $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $request->validated();
         // Webapp-created customers get a synthetic tally_id until the bridge assigns a real one.
         $data['tally_id'] ??= 'LOCAL-'.Str::upper(Str::random(10));
 
@@ -58,9 +60,9 @@ class CustomerController extends Controller
         return redirect()->route('customers.index');
     }
 
-    public function update(Request $request, Customer $customer): RedirectResponse
+    public function update(UpdateCustomerRequest $request, Customer $customer): RedirectResponse
     {
-        $customer->update($this->validated($request));
+        $customer->update($request->validated());
         SyncEntityToTally::dispatch($customer, 'updated');
 
         return redirect()->route('customers.index');
@@ -72,27 +74,5 @@ class CustomerController extends Controller
         $customer->delete();
 
         return redirect()->route('customers.index');
-    }
-
-    private function validated(Request $request): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'company' => ['nullable', 'string', 'max:255'],
-            'gstin' => ['nullable', 'string', 'max:15'],
-            'contact_person' => ['nullable', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'whatsapp' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'billing_address' => ['nullable', 'string'],
-            'delivery_address' => ['nullable', 'string'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'state' => ['nullable', 'string', 'max:100'],
-            'payment_terms' => ['nullable', 'in:advance,cod,7_days,15_days,30_days,45_days,60_days'],
-            'credit_limit' => ['nullable', 'numeric', 'min:0'],
-            'customer_type' => ['nullable', 'in:dealer,contractor,oem,end_user,government'],
-            'status' => ['nullable', 'in:active,inactive,credit_hold,new'],
-            'notes' => ['nullable', 'string'],
-        ]);
     }
 }

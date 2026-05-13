@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderRequest;
 use App\Models\AuditLog;
 use App\Models\CompanySetting;
 use App\Models\Customer;
@@ -136,10 +138,10 @@ class OrderController extends Controller
             ->get(['id', 'name', 'sku', 'brand', 'unit', 'default_sale_price', 'gst_rate']);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreOrderRequest $request): RedirectResponse
     {
-        $data = $this->validated($request);
-        $items = $this->validatedItems($request);
+        $data = $request->orderData();
+        $items = $request->lineItems();
 
         // Order header + line items must persist together or not at all — otherwise
         // a mid-write failure leaves an empty order claiming a code in the sequence.
@@ -160,10 +162,10 @@ class OrderController extends Controller
         return redirect()->route('orders.index');
     }
 
-    public function update(Request $request, Order $order): RedirectResponse
+    public function update(UpdateOrderRequest $request, Order $order): RedirectResponse
     {
-        $data = $this->validated($request);
-        $items = $this->validatedItems($request);
+        $data = $request->orderData();
+        $items = $request->lineItems();
 
         DB::transaction(function () use ($order, $data, $items) {
             if (! empty($items)) {
@@ -221,27 +223,6 @@ class OrderController extends Controller
 
         // Remove any items that weren't in the submitted list
         $order->items()->whereNotIn('id', $keepIds)->delete();
-    }
-
-    private function validatedItems(Request $request): array
-    {
-        if (! $request->has('items')) {
-            return [];
-        }
-
-        return $request->validate([
-            'items' => ['nullable', 'array'],
-            'items.*.id' => ['nullable', 'integer'],
-            'items.*.product_id' => ['nullable', 'integer', 'exists:products,id'],
-            'items.*.product_name' => ['required_with:items', 'string', 'max:255'],
-            'items.*.qty_ordered' => ['required_with:items', 'numeric', 'min:0.001'],
-            'items.*.unit' => ['nullable', 'string', 'max:20'],
-            'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
-            'items.*.discount_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'items.*.tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'items.*.line_total' => ['nullable', 'numeric', 'min:0'],
-            'items.*.notes' => ['nullable', 'string'],
-        ])['items'] ?? [];
     }
 
     public function destroy(Order $order): RedirectResponse
@@ -625,40 +606,5 @@ class OrderController extends Controller
 
             return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
         });
-    }
-
-    private function validated(Request $request): array
-    {
-        // Only order-level fields validate here. Dispatch / LR / packing fields live
-        // on shipments and are validated by ShipmentController. Payment fields are
-        // either denormalized cache or live on the payments table.
-        return $request->validate([
-            'order_code' => ['nullable', 'string', 'max:20'],
-            'customer_id' => ['required', 'exists:customers,id'],
-            'order_date' => ['required', 'date'],
-            'order_source' => ['nullable', 'in:whatsapp,email,phone,in_person,po'],
-            'customer_reference_number' => ['nullable', 'string', 'max:100'],
-            'customer_po_number' => ['nullable', 'string', 'max:100'],
-            'brands' => ['nullable', 'array'],
-            'brands.*' => ['string'],
-            'order_value' => ['nullable', 'numeric', 'min:0'],
-            'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['required', 'in:new_order,confirmed,stock_check,packing,packed,ready_for_dispatch,dispatched,delivered,closed,on_hold,cancelled'],
-            'priority' => ['required', 'in:urgent,high,normal,low'],
-
-            // Order-level aggregate flags (not duplicates of shipment data)
-            'lr_shared_with_customer' => ['nullable', 'boolean'],
-            'pod_received' => ['nullable', 'boolean'],
-            'triplicate_received' => ['nullable', 'boolean'],
-
-            // Invoice + payment metadata (amount_received is recomputed from payments)
-            'invoice_number' => ['nullable', 'string', 'max:50'],
-            'invoice_date' => ['nullable', 'date'],
-            'payment_terms' => ['nullable', 'in:advance,cod,7_days,15_days,30_days,45_days,60_days'],
-            'payment_due_date' => ['nullable', 'date'],
-            'payment_status' => ['required', 'in:not_due,pending,partial,paid,overdue'],
-
-            'internal_notes' => ['nullable', 'string'],
-        ]);
     }
 }
