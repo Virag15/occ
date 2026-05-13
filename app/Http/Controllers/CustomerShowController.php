@@ -12,9 +12,11 @@ class CustomerShowController extends Controller
 {
     public function __invoke(Customer $customer): Response
     {
+        // Order.transporter is an accessor on the latest shipment, not an Eloquent
+        // relation. Eager-load via shipments so the accessor finds them in memory.
         $orders = Order::query()
             ->where('customer_id', $customer->id)
-            ->with('transporter:id,name')
+            ->with(['shipments:id,order_id,transporter_id', 'shipments.transporter:id,name'])
             ->orderByDesc('order_date')
             ->orderByDesc('id')
             ->limit(50)

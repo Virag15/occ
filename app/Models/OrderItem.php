@@ -12,17 +12,17 @@ use Illuminate\Support\Carbon;
  * @property int $order_id
  * @property int|null $product_id
  * @property string $product_name
- * @property string $qty_ordered
- * @property string $qty_packed
- * @property string $qty_dispatched
- * @property string $qty_delivered
- * @property string $qty_cancelled
- * @property string $qty_returned
+ * @property string|float|int $qty_ordered
+ * @property string|float|int $qty_packed
+ * @property string|float|int $qty_dispatched
+ * @property string|float|int $qty_delivered
+ * @property string|float|int $qty_cancelled
+ * @property string|float|int $qty_returned
  * @property string|null $unit
- * @property string|null $unit_price
- * @property string|null $discount_pct
- * @property string|null $tax_rate
- * @property string|null $line_total
+ * @property string|float|int|null $unit_price
+ * @property string|float|int|null $discount_pct
+ * @property string|float|int|null $tax_rate
+ * @property string|float|int|null $line_total
  * @property string $status
  * @property string|null $notes
  * @property Carbon|null $created_at

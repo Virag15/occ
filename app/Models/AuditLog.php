@@ -42,7 +42,7 @@ class AuditLog extends Model
     {
         return static::create([
             'user_id' => Auth::id(),
-            'entity_type' => $entity ? static::deriveEntityType($entity) : 'system',
+            'entity_type' => $entity ? self::deriveEntityType($entity) : 'system',
             'entity_id' => $entity?->getKey() ?? 0,
             'action' => $action,
             'changes' => $meta ?: null,
