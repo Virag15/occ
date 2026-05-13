@@ -24,9 +24,12 @@ const ITEMS: SettingsItem[] = [
 
 export function SettingsShell({ active, children }: { active: SettingsItemId | null; children: React.ReactNode }) {
     return (
-        <div className="grid gap-5 md:grid-cols-[220px_1fr]">
-            {/* Left rail — macOS System Settings vibe */}
-            <aside className="space-y-0.5">
+        // items-start lets the aside become a sticky positioning context within the grid
+        // without stretching to the right column's height.
+        <div className="grid items-start gap-5 md:grid-cols-[220px_1fr]">
+            {/* Left rail — macOS System Settings vibe; sticky so it stays in view while
+                a long Company or Integrations panel scrolls on the right. */}
+            <aside className="space-y-0.5 md:sticky md:top-4">
                 {ITEMS.map((it) => {
                     const Icon = it.icon;
                     const isActive = it.id === active;

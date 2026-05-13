@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\Order;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -79,12 +80,47 @@ class CustomerShowController extends Controller
             }
         }
 
+        // Payment aging buckets — scoped to this customer (same logic as
+        // DashboardController; per-customer view drives one-on-one dunning).
+        $todayDate = now()->startOfDay();
+        $buckets = [
+            '0-30' => ['label' => '1–30 days', 'count' => 0, 'value' => 0.0],
+            '31-60' => ['label' => '31–60 days', 'count' => 0, 'value' => 0.0],
+            '61-90' => ['label' => '61–90 days', 'count' => 0, 'value' => 0.0],
+            '90+' => ['label' => '90+ days', 'count' => 0, 'value' => 0.0],
+        ];
+        $overdueForCustomer = Order::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('payment_status', ['pending', 'partial', 'overdue'])
+            ->whereNotNull('payment_due_date')
+            ->whereDate('payment_due_date', '<', $todayDate->toDateString())
+            ->get(['id', 'order_value', 'amount_received', 'payment_due_date']);
+        foreach ($overdueForCustomer as $o) {
+            /** @var Carbon $due */
+            $due = $o->payment_due_date;
+            $age = (int) abs($due->diffInDays($todayDate));
+            $outstanding = max(0.0, (float) $o->order_value - (float) ($o->amount_received ?? 0));
+            $key = match (true) {
+                $age <= 30 => '0-30',
+                $age <= 60 => '31-60',
+                $age <= 90 => '61-90',
+                default => '90+',
+            };
+            $buckets[$key]['count']++;
+            $buckets[$key]['value'] += $outstanding;
+        }
+        foreach ($buckets as &$b) {
+            $b['value'] = round($b['value'], 2);
+        }
+        unset($b);
+
         return Inertia::render('Customers/Show', [
             'customer' => $customer,
             'orders' => $orders,
             'stats' => $stats,
             'brand_frequency' => $brandTallies,
             'monthly_trend' => array_values($monthly),
+            'payment_aging' => array_values($buckets),
         ]);
     }
 }

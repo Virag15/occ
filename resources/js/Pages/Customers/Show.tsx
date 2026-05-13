@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Phone, Mail, Building2, MapPin, ShoppingCart, IndianRupee, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Pencil, Phone, Mail, Building2, MapPin, ShoppingCart, IndianRupee, Clock, AlertTriangle, TrendingUp, Hourglass } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,14 @@ import { cn } from '@/lib/utils';
 import type { Customer, Order } from '@/types/entities';
 
 type MonthPoint = { month: string; label: string; orders: number; value: number };
+type AgingBucket = { label: string; count: number; value: number };
+
+const AGING_TONES = [
+    'border-amber-200 bg-amber-50/60 text-amber-700',
+    'border-orange-200 bg-orange-50/60 text-orange-700',
+    'border-red-200 bg-red-50/60 text-red-700',
+    'border-red-300 bg-red-100/60 text-red-800',
+];
 
 type Stats = {
     total_orders: number;
@@ -50,17 +58,20 @@ export default function CustomerShow({
     stats,
     brand_frequency,
     monthly_trend = [],
+    payment_aging = [],
 }: {
     customer: Customer;
     orders: Order[];
     stats: Stats;
     brand_frequency: Record<string, number>;
     monthly_trend?: MonthPoint[];
+    payment_aging?: AgingBucket[];
 }) {
     const topBrands = Object.entries(brand_frequency).slice(0, 5);
     const collected = stats.amount_received;
     const collectionRate = stats.lifetime_value > 0 ? (collected / stats.lifetime_value) * 100 : 0;
     const hasTrendData = monthly_trend.some((m) => m.value > 0 || m.orders > 0);
+    const hasOverdue = payment_aging.some((b) => b.count > 0);
 
     return (
         <AdminLayout breadcrumbs={[{ label: 'Customers', href: '/customers' }, { label: customer.name }]}>
@@ -156,6 +167,38 @@ export default function CustomerShow({
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Payment aging — only render when there's actually overdue.
+                        Outstanding == 0 customers stay clean (no clutter). */}
+                    {hasOverdue && (
+                        <Card>
+                            <CardHeader className="p-4 pb-2">
+                                <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+                                    <Hourglass className="h-4 w-4 text-red-500" />
+                                    Payment aging
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-2">
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                    {payment_aging.map((b, i) => (
+                                        <div
+                                            key={b.label}
+                                            className={cn(
+                                                'rounded-md border px-3 py-2',
+                                                b.count === 0 ? 'border-border bg-muted/20 text-muted-foreground' : AGING_TONES[i],
+                                            )}
+                                        >
+                                            <p className="text-[10px] font-medium uppercase tracking-wider">{b.label}</p>
+                                            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">{formatCurrency(b.value)}</p>
+                                            <p className="text-[10px] tabular-nums opacity-80">
+                                                {b.count} {b.count === 1 ? 'invoice' : 'invoices'}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Status mix + top brands */}
                     <div className="grid gap-6 sm:grid-cols-2">
