@@ -50,32 +50,20 @@ jobs:
 
       - name: Run tests
         id: tests
-        # Capture stdout+stderr to a file so we can both fail the step and
-        # ship the output to a commit comment when this is run from a fork
-        # we can't read the private log of.
         run: |
           set -o pipefail
           php artisan test --without-tty --testdox 2>&1 | tee tests-output.txt
 
-      - name: Post test output as commit comment on failure
-        if: failure() && steps.tests.outcome == 'failure'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let body = '## CI test output\n\n```\n';
-            try {
-              body += fs.readFileSync('tests-output.txt', 'utf8').slice(-8000);
-            } catch (e) {
-              body += '(no tests-output.txt — earlier step failed)';
-            }
-            body += '\n```';
-            await github.rest.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-              body,
-            });
+      - name: Write test output to job summary (visible on public Actions page)
+        if: always()
+        run: |
+          {
+            echo "## Test output"
+            echo ""
+            echo '```'
+            tail -c 60000 tests-output.txt 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Pint (formatting check)
         run: ./vendor/bin/pint --test
