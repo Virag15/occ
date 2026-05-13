@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\PaymentRecorded;
 use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\Payment;
@@ -23,7 +24,7 @@ class PaymentController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        DB::transaction(function () use ($order, $data) {
+        $payment = DB::transaction(function () use ($order, $data) {
             $payment = Payment::create($data + [
                 'order_id' => $order->id,
                 'created_by' => Auth::id(),
@@ -39,6 +40,8 @@ class PaymentController extends Controller
 
             return $payment;
         });
+
+        PaymentRecorded::dispatch($payment);
 
         return back();
     }

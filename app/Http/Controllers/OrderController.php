@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\OrderStatusChanged;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Models\AuditLog;
@@ -432,7 +433,13 @@ class OrderController extends Controller
             return back()->withErrors($errors);
         }
 
+        $oldStatus = $order->status;
         $order->update(['status' => $data['status']]);
+
+        // Broadcast to any subscribed clients (kanban, dashboard). When
+        // BROADCAST_CONNECTION is 'log' or 'null' this is a no-op; flip to
+        // 'reverb' once that server is running.
+        OrderStatusChanged::dispatch($order, $oldStatus, $data['status'], Auth::id());
 
         // dispatch_date / delivered_date are now derived from shipments; nothing to write on the order.
         return back();

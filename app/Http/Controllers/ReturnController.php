@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ReturnReported;
 use App\Http\Requests\RejectReturnRequest;
 use App\Http\Requests\ResolveReturnRequest;
 use App\Http\Requests\StoreReturnRequest;
@@ -140,6 +141,8 @@ class ReturnController extends Controller
 
             return $case;
         });
+
+        ReturnReported::dispatch($return);
 
         return redirect()->route('returns.show', ['return' => $return->id])
             ->with('success', "Return case {$return->case_code} created.");

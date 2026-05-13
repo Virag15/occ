@@ -43,4 +43,12 @@ return [
         'timeout' => env('TALLY_TIMEOUT', 30),
     ],
 
+    'whatsapp' => [
+        // Off = demo mode: sends are logged locally, no real network call.
+        'enabled' => env('WHATSAPP_ENABLED', false),
+        'api_key' => env('WHATSAPP_API_KEY', ''),
+        'sender' => env('WHATSAPP_SENDER', 'GC Communication'),
+        'endpoint' => env('WHATSAPP_ENDPOINT', 'https://backend.aisensy.com/campaign/t1/api/v2'),
+    ],
+
 ];
