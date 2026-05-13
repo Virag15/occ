@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreShipmentRequest;
 use App\Models\AuditLog;
 use App\Models\CompanySetting;
 use App\Models\Order;
@@ -57,24 +58,9 @@ class ShipmentController extends Controller
         ]);
     }
 
-    public function store(Request $request, Order $order): RedirectResponse
+    public function store(StoreShipmentRequest $request, Order $order): RedirectResponse
     {
-        $data = $request->validate([
-            'transporter_id' => ['nullable', 'exists:transporters,id'],
-            'pickup_scheduled_date' => ['nullable', 'date'],
-            'lr_number' => ['nullable', 'string', 'max:50'],
-            'vehicle_number' => ['nullable', 'string', 'max:20'],
-            'driver_name' => ['nullable', 'string', 'max:255'],
-            'driver_contact' => ['nullable', 'string', 'max:20'],
-            'expected_delivery' => ['nullable', 'date'],
-            'packed_by' => ['nullable', 'string', 'max:255'],
-            'number_of_boxes' => ['nullable', 'integer', 'min:0'],
-            'parcel_weight_kg' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.order_item_id' => ['required', 'integer', 'exists:order_items,id'],
-            'items.*.qty' => ['required', 'numeric', 'min:0.001'],
-        ]);
+        $data = $request->validated();
 
         DB::transaction(function () use ($order, $data) {
             // Validate each line: qty ≤ open qty

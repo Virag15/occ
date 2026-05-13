@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RejectReturnRequest;
+use App\Http\Requests\ResolveReturnRequest;
+use App\Http\Requests\StoreReturnRequest;
 use App\Models\OrderItem;
 use App\Models\ReturnCase;
 use App\Models\ReturnItem;
@@ -11,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -79,22 +81,9 @@ class ReturnController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreReturnRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'related_order_id' => ['required', 'exists:orders,id'],
-            'customer_id' => ['required', 'exists:customers,id'],
-            'date_reported' => ['required', 'date'],
-            'severity' => ['nullable', Rule::in(['low', 'medium', 'high', 'critical'])],
-            'reported_via' => ['nullable', Rule::in(['whatsapp', 'phone', 'email', 'in_person'])],
-            'case_title' => ['nullable', 'string', 'max:255'],
-            'reason_detail' => ['nullable', 'string'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.order_item_id' => ['required', 'integer', 'exists:order_items,id'],
-            'items.*.qty_returned' => ['required', 'numeric', 'min:0.001'],
-            'items.*.condition' => ['required', Rule::in(ReturnItem::CONDITIONS)],
-            'items.*.reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         // Verify each line item belongs to the related order + qty is within open range
         $valueAtRisk = 0.0;
@@ -169,17 +158,11 @@ class ReturnController extends Controller
         return back()->with('success', 'Inspection started.');
     }
 
-    public function resolve(Request $request, ReturnCase $return): RedirectResponse
+    public function resolve(ResolveReturnRequest $request, ReturnCase $return): RedirectResponse
     {
         abort_if(! in_array($return->case_status, ['reported', 'under_inspection'], true), 422, "Case is already {$return->case_status}.");
 
-        $data = $request->validate([
-            'resolution_type' => ['required', Rule::in(ReturnCase::RESOLUTION_TYPES)],
-            'resolution_date' => ['nullable', 'date'],
-            'credit_note_number' => ['nullable', 'string', 'max:50'],
-            'replacement_lr_number' => ['nullable', 'string', 'max:50'],
-            'internal_notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $return->update([
             'case_status' => 'resolved',
@@ -194,13 +177,11 @@ class ReturnController extends Controller
         return back()->with('success', "Case resolved as {$data['resolution_type']}.");
     }
 
-    public function reject(Request $request, ReturnCase $return): RedirectResponse
+    public function reject(RejectReturnRequest $request, ReturnCase $return): RedirectResponse
     {
         abort_if(! in_array($return->case_status, ['reported', 'under_inspection'], true), 422, "Case is already {$return->case_status}.");
 
-        $data = $request->validate([
-            'internal_notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         // Roll back qty_returned on the linked OrderItems
         DB::transaction(function () use ($return, $data) {
