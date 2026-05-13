@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use App\Tenancy\BelongsToTenant;
+use App\Tenancy\TenantContext;
+use App\Tenancy\TenantScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Single-row config table for company-wide settings used on invoices, slips,
- * dashboards. Access via CompanySetting::current() — caller treats it as a
- * singleton.
+ * Per-tenant config row for company-wide settings used on invoices, slips,
+ * dashboards. Access via CompanySetting::current() — caller treats it as
+ * a per-tenant singleton.
  */
 class CompanySetting extends Model
 {
@@ -18,14 +20,33 @@ class CompanySetting extends Model
     protected $guarded = [];
 
     /**
-     * Get (or lazily create) the single settings row.
+     * Get (or lazily create) the active tenant's settings row.
+     *
+     *  - With an active tenant context: returns that tenant's row,
+     *    creating it on first access with the tenant's name as default.
+     *    BelongsToTenant trait stamps tenant_id.
+     *  - Without a tenant context (public tracking page, console without
+     *    a set tenant): falls back to the first row globally so legacy
+     *    code paths keep rendering. Production traffic always has a
+     *    tenant set by the SetCurrentTenant middleware.
      */
     public static function current(): self
     {
-        return static::firstOrCreate(['id' => 1], [
-            'company_name' => 'GC Communication',
-            'country' => 'India',
-        ]);
+        $tenant = app(TenantContext::class)->current();
+
+        if ($tenant === null) {
+            $row = static::withoutGlobalScope(TenantScope::class)->first();
+            if ($row) {
+                return $row;
+            }
+
+            return static::create(['company_name' => 'OCC', 'country' => 'India']);
+        }
+
+        return static::firstOrCreate(
+            [],
+            ['company_name' => $tenant->name, 'country' => 'India'],
+        );
     }
 
     /**
