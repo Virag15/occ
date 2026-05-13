@@ -48,8 +48,14 @@ jobs:
           touch database/database.sqlite
           php artisan migrate --force --no-interaction
 
-      - name: Run tests
-        run: php artisan test --without-tty
+      - name: Run tests (verbose for diagnostic visibility)
+        # --testdox prints each test by name, so the rendered log on the
+        # public Actions page shows exactly which case fails instead of
+        # just a count.
+        run: |
+          php -v
+          php -m | sort
+          php artisan test --without-tty --testdox --stop-on-failure || (echo "::group::Tests failed — re-running for full output" && php artisan test --without-tty && exit 1)
 
       - name: Pint (formatting check)
         run: ./vendor/bin/pint --test
