@@ -174,6 +174,7 @@ class DatabaseSeeder extends Seeder
                 'role' => 'owner',
                 'density_preference' => 'comfortable',
                 'email_verified_at' => now(),
+                'is_platform_admin' => true,
             ],
         );
     }

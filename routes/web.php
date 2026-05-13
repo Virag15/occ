@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BridgeApiController;
 use App\Http\Controllers\CompanySettingController;
@@ -177,6 +178,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // ───── Platform admin — only Delta System staff (is_platform_admin=true)
+    // Distinct from tenant 'owner' role: this is the OCC SaaS pipeline,
+    // not a tenant's own admin. Routes 403 for anyone without the flag.
+    Route::middleware('platform_admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
+        Route::patch('/leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
+        Route::post('/leads/{lead}/provision', [LeadController::class, 'provision'])->name('leads.provision');
+    });
 });
 
 Route::get('/welcome', fn () => Inertia::render('Welcome', [
