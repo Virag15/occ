@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\ReturnCase;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -96,17 +96,54 @@ class DashboardController extends Controller
             'returns_open' => ReturnCase::query()->whereIn('case_status', ['reported', 'under_inspection'])->count(),
         ];
 
-        $recentActivity = AuditLog::query()
-            ->with('user:id,name')
-            ->orderByDesc('id')
-            ->limit(8)
+        // ─── Top customers this month ──────────────────────────────
+        // Leaderboard by sum(order_value) for the current month. Cancelled
+        // orders excluded so the number reflects real bookings.
+        $topCustomers = Order::query()
+            ->join('customers', 'customers.id', '=', 'orders.customer_id')
+            ->whereDate('orders.order_date', '>=', $monthStart)
+            ->whereNotIn('orders.status', ['cancelled'])
+            ->selectRaw('customers.id, customers.name, customers.company, '
+                .'COUNT(DISTINCT orders.id) as orders, COALESCE(SUM(orders.order_value), 0) as revenue')
+            ->groupBy('customers.id', 'customers.name', 'customers.company')
+            ->orderByDesc('revenue')
+            ->limit(5)
             ->get();
 
-        $recentOrders = Order::query()
-            ->with('customer:id,name,company')
-            ->orderByDesc('id')
-            ->limit(5)
-            ->get(['id', 'order_code', 'customer_id', 'order_date', 'order_value', 'status', 'payment_status']);
+        // ─── Payment aging buckets ─────────────────────────────────
+        // For each pending/partial/overdue order, classify by days past due.
+        // Buckets follow standard accounting practice. The whereDate filter
+        // below already excludes anything not yet due, so $age is always >= 1.
+        $todayDate = now()->startOfDay();
+        $buckets = [
+            '0-30' => ['label' => '1–30 days', 'count' => 0, 'value' => 0.0],
+            '31-60' => ['label' => '31–60 days', 'count' => 0, 'value' => 0.0],
+            '61-90' => ['label' => '61–90 days', 'count' => 0, 'value' => 0.0],
+            '90+' => ['label' => '90+ days', 'count' => 0, 'value' => 0.0],
+        ];
+        $overdueOrders = Order::query()
+            ->whereIn('payment_status', ['pending', 'partial', 'overdue'])
+            ->whereNotNull('payment_due_date')
+            ->whereDate('payment_due_date', '<', $todayDate->toDateString())
+            ->get(['id', 'order_value', 'amount_received', 'payment_due_date']);
+        foreach ($overdueOrders as $o) {
+            /** @var Carbon $due */
+            $due = $o->payment_due_date;
+            $age = (int) abs($due->diffInDays($todayDate));
+            $outstanding = max(0.0, (float) $o->order_value - (float) ($o->amount_received ?? 0));
+            $key = match (true) {
+                $age <= 30 => '0-30',
+                $age <= 60 => '31-60',
+                $age <= 90 => '61-90',
+                default => '90+',
+            };
+            $buckets[$key]['count']++;
+            $buckets[$key]['value'] += $outstanding;
+        }
+        foreach ($buckets as &$b) {
+            $b['value'] = round($b['value'], 2);
+        }
+        unset($b);
 
         return Inertia::render('Dashboard', [
             'kpis' => [
@@ -121,8 +158,8 @@ class DashboardController extends Controller
             'status_distribution' => $statusDistribution,
             'revenue_by_day' => $revenueByDay,
             'action_queue' => $actionQueue,
-            'recent_activity' => $recentActivity,
-            'recent_orders' => $recentOrders,
+            'top_customers' => $topCustomers,
+            'payment_aging' => array_values($buckets),
         ]);
     }
 }

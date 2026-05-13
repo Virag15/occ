@@ -3,13 +3,12 @@ import { useEffect, useMemo } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import {
     ShoppingCart, Truck, FileWarning, IndianRupee, ChevronRight, TrendingUp,
-    Activity, AlertCircle, Inbox, RotateCcw, Wallet,
+    Activity, AlertCircle, Inbox, RotateCcw, Wallet, Crown, Hourglass,
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatCurrency, formatDateIN } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 type KPIs = {
@@ -30,23 +29,18 @@ type ActionQueue = {
     returns_open: number;
 };
 
-type RecentOrder = {
+type TopCustomer = {
     id: number;
-    order_code: string;
-    order_date: string;
-    order_value: string | null;
-    status: string;
-    payment_status: string;
-    customer?: { id: number; name: string; company?: string | null };
+    name: string;
+    company: string | null;
+    orders: number;
+    revenue: string | number;
 };
 
-type RecentActivity = {
-    id: number;
-    action: string;
-    entity_type: string;
-    entity_id: number;
-    created_at: string;
-    user?: { id: number; name: string } | null;
+type AgingBucket = {
+    label: string;
+    count: number;
+    value: number;
 };
 
 type Props = {
@@ -54,8 +48,8 @@ type Props = {
     status_distribution: Record<string, number>;
     revenue_by_day: { day: string; value: string }[];
     action_queue: ActionQueue;
-    recent_activity: RecentActivity[];
-    recent_orders: RecentOrder[];
+    top_customers: TopCustomer[];
+    payment_aging: AgingBucket[];
 };
 
 // shadcn brand-aligned colours — distinct per status
@@ -83,26 +77,15 @@ const STATUS_LABEL: Record<string, string> = {
     on_hold: 'On hold',
 };
 
-function actionLabel(a: string): string {
-    return a.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
-}
+// Tone per aging bucket — escalates from amber to deep red as days-overdue grows.
+const AGING_TONES = [
+    'border-amber-200 bg-amber-50/60 text-amber-700',
+    'border-orange-200 bg-orange-50/60 text-orange-700',
+    'border-red-200 bg-red-50/60 text-red-700',
+    'border-red-300 bg-red-100/60 text-red-800',
+];
 
-function entityLabel(e: string): string {
-    const map: Record<string, string> = {
-        order: 'Order',
-        order_item: 'Order item',
-        customer: 'Customer',
-        product: 'Product',
-        transporter: 'Transporter',
-        user: 'User',
-        shipment: 'Shipment',
-        return_case: 'Return',
-        payment: 'Payment',
-    };
-    return map[e] ?? e;
-}
-
-export default function Dashboard({ kpis, status_distribution, action_queue, recent_orders, recent_activity }: Props) {
+export default function Dashboard({ kpis, status_distribution, action_queue, top_customers, payment_aging }: Props) {
     useEffect(() => { document.title = 'Dashboard - OCC'; }, []);
 
     const donutData = useMemo(() =>
@@ -277,79 +260,82 @@ export default function Dashboard({ kpis, status_distribution, action_queue, rec
                     </Card>
                 </div>
 
-                {/* ─── Recent orders + activity ────────────────────── */}
+                {/* ─── Reports — top customers + payment aging ─────── */}
                 <div className="grid gap-5 lg:grid-cols-2">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-                            <CardTitle className="text-sm font-medium">Recent orders</CardTitle>
+                            <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+                                <Crown className="h-4 w-4 text-amber-500" /> Top customers this month
+                            </CardTitle>
                             <Button asChild variant="ghost" size="sm" className="-mr-2 h-7">
-                                <Link href="/orders">View all <ChevronRight className="ml-0.5 h-3 w-3" /></Link>
+                                <Link href="/customers">All customers <ChevronRight className="ml-0.5 h-3 w-3" /></Link>
                             </Button>
                         </CardHeader>
                         <CardContent className="p-0">
-                            {recent_orders.length === 0 ? (
-                                <p className="px-4 py-6 text-center text-sm text-muted-foreground">No orders yet.</p>
+                            {top_customers.length === 0 ? (
+                                <p className="px-4 py-6 text-center text-sm text-muted-foreground">No orders booked this month yet.</p>
                             ) : (
-                                <table className="w-full text-xs">
-                                    <tbody>
-                                        {recent_orders.map((o) => (
-                                            <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30">
-                                                <td className="px-3 py-2">
-                                                    <Link href={`/orders/${o.id}`} className="block">
-                                                        <p className="font-mono font-medium hover:underline">{o.order_code}</p>
-                                                        <p className="text-[10px] text-muted-foreground">{formatDateIN(o.order_date)}</p>
-                                                    </Link>
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                    <p className="truncate">{o.customer?.name ?? '—'}</p>
-                                                </td>
-                                                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(o.order_value)}</td>
-                                                <td className="px-3 py-2">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="text-[10px]"
-                                                        style={{ color: STATUS_COLORS[o.status], borderColor: STATUS_COLORS[o.status] }}
-                                                    >
-                                                        {STATUS_LABEL[o.status] ?? o.status}
-                                                    </Badge>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <ol className="divide-y">
+                                    {top_customers.map((c, i) => (
+                                        <li key={c.id}>
+                                            <Link
+                                                href={route('customers.show', { customer: c.id })}
+                                                className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30"
+                                            >
+                                                <span className={cn(
+                                                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums',
+                                                    i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-muted text-muted-foreground',
+                                                )}>
+                                                    {i + 1}
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-xs font-medium">{c.name}</p>
+                                                    {c.company && <p className="truncate text-[10px] text-muted-foreground">{c.company}</p>}
+                                                </div>
+                                                <div className="shrink-0 text-right">
+                                                    <p className="font-mono text-xs tabular-nums">{formatCurrency(c.revenue)}</p>
+                                                    <p className="text-[10px] text-muted-foreground">{c.orders} order{c.orders === 1 ? '' : 's'}</p>
+                                                </div>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ol>
                             )}
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-                            <CardTitle className="text-sm font-medium">Recent activity</CardTitle>
+                            <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
+                                <Hourglass className="h-4 w-4 text-red-500" /> Payment aging
+                            </CardTitle>
                             <Button asChild variant="ghost" size="sm" className="-mr-2 h-7">
-                                <Link href="/audit-logs">View all <ChevronRight className="ml-0.5 h-3 w-3" /></Link>
+                                <Link href="/tasks">Tasks <ChevronRight className="ml-0.5 h-3 w-3" /></Link>
                             </Button>
                         </CardHeader>
                         <CardContent className="p-4 pt-2">
-                            {recent_activity.length === 0 ? (
-                                <p className="py-6 text-center text-sm text-muted-foreground">No activity yet.</p>
+                            {payment_aging.every((b) => b.count === 0) ? (
+                                <p className="py-6 text-center text-sm text-muted-foreground">No overdue invoices — everyone's current.</p>
                             ) : (
-                                <ol className="space-y-2.5 text-xs">
-                                    {recent_activity.map((a) => (
-                                        <li key={a.id} className="flex gap-2.5">
-                                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                                            <div className="min-w-0 flex-1">
-                                                <p>
-                                                    <span className="font-medium">{actionLabel(a.action)}</span>
-                                                    {' '}
-                                                    <span className="text-muted-foreground">on {entityLabel(a.entity_type)} #{a.entity_id}</span>
-                                                </p>
-                                                <p className="text-[10px] text-muted-foreground">
-                                                    {new Date(a.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                    {a.user?.name && ` · ${a.user.name}`}
-                                                </p>
-                                            </div>
-                                        </li>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {payment_aging.map((b, i) => (
+                                        <div
+                                            key={b.label}
+                                            className={cn(
+                                                'rounded-md border px-3 py-2',
+                                                b.count === 0 ? 'border-border bg-muted/20 text-muted-foreground' : AGING_TONES[i],
+                                            )}
+                                        >
+                                            <p className="text-[10px] font-medium uppercase tracking-wider">{b.label}</p>
+                                            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+                                                {formatCurrency(b.value)}
+                                            </p>
+                                            <p className="text-[10px] tabular-nums opacity-80">
+                                                {b.count} {b.count === 1 ? 'invoice' : 'invoices'}
+                                            </p>
+                                        </div>
                                     ))}
-                                </ol>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
