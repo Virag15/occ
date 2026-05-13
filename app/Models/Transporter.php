@@ -11,6 +11,9 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property string|null $tally_id
+ * @property string|null $tally_guid
+ * @property Carbon|null $tally_synced_at
  * @property string|null $transporter_code
  * @property string $name
  * @property string|null $contact_person
@@ -40,6 +43,7 @@ class Transporter extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'tally_id', 'tally_guid', 'tally_synced_at',
         'transporter_code', 'name', 'contact_person',
         'primary_phone', 'secondary_phone', 'whatsapp', 'email',
         'office_address', 'city', 'gstin',
@@ -55,6 +59,7 @@ class Transporter extends Model
             'vehicle_types' => 'array',
             'cost_per_kg' => 'decimal:2',
             'onboarded_at' => 'date',
+            'tally_synced_at' => 'datetime',
         ];
     }
 

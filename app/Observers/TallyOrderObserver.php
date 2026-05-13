@@ -3,15 +3,19 @@
 namespace App\Observers;
 
 use App\Models\Order;
-use App\Services\Tally\TallyClient;
+use App\Models\TallyOperation;
 use App\Services\Tally\TallySyncService;
 
 /**
  * When an order transitions to a "sale-realised" state (delivered or closed),
- * auto-push the sales voucher to Tally. No-op if:
- *   - The order already has a tally_voucher_id (don't double-push)
- *   - Tally is disabled AND the user is in production (in demo mode we still
- *     run the push so the audit trail + sync logs show what would happen)
+ * push the sales voucher to Tally.
+ *
+ * Two execution modes (selected by services.bridge.mode):
+ *   - direct: in-process push via TallySyncService (works when OCC runs
+ *     on the same PC as TallyPrime). Default.
+ *   - queue:  enqueue a TallyOperation row; the bridge:agent running on
+ *     the Windows PC will pick it up and execute against local Tally.
+ *     Use this when OCC is cloud-hosted and Tally is on a separate box.
  */
 class TallyOrderObserver
 {
@@ -22,21 +26,41 @@ class TallyOrderObserver
         }
         if ($order->tally_voucher_id) {
             return;
-        } // already pushed
-
+        }
         if (! in_array($order->status, ['delivered', 'closed'], true)) {
             return;
         }
 
         try {
-            $client = app(TallyClient::class);
-            $svc = app(TallySyncService::class);
-            // Push in demo mode too — that's the whole point of the test workflow
-            $svc->pushSingleOrder($order);
+            if (config('services.bridge.mode') === 'queue') {
+                $this->enqueue($order);
+            } else {
+                app(TallySyncService::class)->pushSingleOrder($order);
+            }
         } catch (\Throwable $e) {
-            // Swallow — never block the order update because Tally hiccuped.
-            // The user can manually trigger a push from Settings → Integrations.
             \Log::warning('Tally auto-push failed for order '.$order->order_code.': '.$e->getMessage());
         }
+    }
+
+    private function enqueue(Order $order): void
+    {
+        $order->load(['customer:id,name', 'items:id,order_id,product_name,qty_ordered,unit_price,tax_rate']);
+        TallyOperation::create([
+            'operation' => TallyOperation::OP_PUSH_SALES_VOUCHER,
+            'payload' => [
+                'order_code' => $order->order_code,
+                'invoice_number' => $order->invoice_number,
+                'order_date' => $order->order_date?->toDateString(),
+                'customer_name' => $order->customer?->name,
+                'line_items' => $order->items->map(fn ($i) => [
+                    'name' => $i->product_name,
+                    'qty' => (float) $i->qty_ordered,
+                    'rate' => (float) ($i->unit_price ?? 0),
+                    'tax_rate' => (float) ($i->tax_rate ?? 0),
+                ])->all(),
+            ],
+            'related_type' => 'order',
+            'related_id' => $order->id,
+        ]);
     }
 }

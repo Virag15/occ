@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
     Plug, FileSpreadsheet, MessageCircle, Webhook, RefreshCw, CircleCheck, CircleAlert, Play, Database, Users, Package, Boxes, Clock,
-    ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee, Repeat, Receipt, ShoppingBag, Terminal,
+    ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee, Repeat, Receipt, ShoppingBag, Terminal, Download,
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -133,9 +133,16 @@ export default function Integrations({
                                             : <>Set <span className="font-mono">TALLY_ENABLED=true</span> in your .env and configure host / port / company to connect to a live instance. Until then, syncs run in demo mode against canned data.</>}
                                     </p>
                                 </div>
-                                <Button size="sm" variant="outline" onClick={ping}>
-                                    <RefreshCw className="h-3.5 w-3.5 mr-1" /> Test connection
-                                </Button>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button size="sm" variant="outline" asChild>
+                                        <a href={route('settings.tally.download-bridge')} download>
+                                            <Download className="h-3.5 w-3.5 mr-1" /> Download Tally bridge (Windows)
+                                        </a>
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={ping}>
+                                        <RefreshCw className="h-3.5 w-3.5 mr-1" /> Test connection
+                                    </Button>
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-5 p-4 pt-2">

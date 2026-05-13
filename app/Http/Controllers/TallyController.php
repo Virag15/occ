@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class TallyController extends Controller
 {
@@ -70,5 +71,37 @@ class TallyController extends Controller
             'ok' => $ok,
             'checked_at' => now()->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Stream a zip of the Windows bridge scripts (tally-bridge.bat,
+     * register-startup.bat, unregister-startup.bat, README.md) so the
+     * user can drop them into their OCC install folder on the same PC
+     * that runs TallyPrime and have a one-click bridge daemon.
+     *
+     * No persistence — we build the zip in a tmp file on each download
+     * so changes to resources/tally-bridge/* are picked up immediately.
+     */
+    public function downloadBridge(): BinaryFileResponse
+    {
+        $source = resource_path('tally-bridge');
+        abort_unless(is_dir($source), 404, 'Tally bridge resources missing.');
+
+        $tmp = tempnam(sys_get_temp_dir(), 'occ-tally-bridge-').'.zip';
+        $zip = new \ZipArchive;
+        if ($zip->open($tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'Could not create zip archive.');
+        }
+        foreach (new \DirectoryIterator($source) as $file) {
+            if ($file->isDot() || ! $file->isFile()) {
+                continue;
+            }
+            $zip->addFile($file->getPathname(), $file->getFilename());
+        }
+        $zip->close();
+
+        return response()->download($tmp, 'occ-tally-bridge.zip', [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
     }
 }

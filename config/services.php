@@ -63,4 +63,17 @@ return [
         'processor_id' => env('OCR_PROCESSOR_ID', ''),
     ],
 
+    'bridge' => [
+        // Cloud OCC side: when TALLY_MODE=queue, observers enqueue
+        // tally_operations rows instead of calling TallyClient directly.
+        // The bridge agent on the Windows PC pulls those rows over the
+        // /api/bridge/* endpoints and executes them against local Tally.
+        'mode' => env('TALLY_MODE', 'direct'),       // direct | queue
+        'agent_token' => env('BRIDGE_AGENT_TOKEN', ''),
+
+        // Agent side: only used when bridge:agent is run on the Windows PC.
+        'agent_enabled' => env('BRIDGE_AGENT', false),
+        'remote_url' => env('BRIDGE_REMOTE_URL', ''),
+    ],
+
 ];

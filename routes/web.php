@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BridgeApiController;
 use App\Http\Controllers\CompanySettingController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerShowController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\TransporterController;
 use App\Http\Controllers\TransporterShowController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WarehouseController;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -153,6 +155,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/settings/integrations', [TallyController::class, 'index'])->name('settings.integrations');
         Route::post('/settings/tally/sync', [TallyController::class, 'sync'])->name('settings.tally.sync');
         Route::post('/settings/tally/ping', [TallyController::class, 'ping'])->name('settings.tally.ping');
+        Route::get('/settings/tally/download-bridge', [TallyController::class, 'downloadBridge'])->name('settings.tally.download-bridge');
     });
 
     // Profile is always self-managed
@@ -170,5 +173,18 @@ Route::get('/welcome', fn () => Inertia::render('Welcome', [
 Route::get('/track/{uuid}', [TrackingController::class, 'show'])
     ->where('uuid', '[0-9a-fA-F-]{36}')
     ->name('tracking.show');
+
+// Bridge API — bearer-token auth done inside BridgeApiController. No
+// session middleware, no CSRF (server-to-server JSON). The agent calls
+// these endpoints from a different machine (the Windows PC next to
+// TallyPrime) to pull operations queued on the cloud OCC.
+Route::prefix('api/bridge')->withoutMiddleware([
+    VerifyCsrfToken::class,
+])->group(function () {
+    Route::get('/ping', [BridgeApiController::class, 'ping']);
+    Route::post('/claim', [BridgeApiController::class, 'claim']);
+    Route::post('/complete/{id}', [BridgeApiController::class, 'complete']);
+    Route::post('/fail/{id}', [BridgeApiController::class, 'fail']);
+});
 
 require __DIR__.'/auth.php';
