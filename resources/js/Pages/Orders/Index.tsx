@@ -22,7 +22,6 @@ import { cn } from '@/lib/utils';
 import type { Order, SavedView } from '@/types/entities';
 import type { PageProps } from '@/types';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
-import { CapBanner } from '@/components/CapBanner';
 
 const STATUSES = [
     'new_order', 'confirmed', 'stock_check', 'packing', 'packed',
@@ -255,72 +254,130 @@ function FlagChips({ order }: { order: Order }) {
     );
 }
 
+type ServerFilters = {
+    q: string;
+    status: string;
+    payment_status: string;
+    priority: string;
+    per_page: number;
+};
+
+type Pagination = {
+    total: number;
+    per_page: number;
+    current_page: number;
+    last_page: number;
+    from: number | null;
+    to: number | null;
+};
+
 // ------- Main page -------
-export default function OrderIndex({ rows, savedViews = [], transporters = [], total_count, cap }: { rows: Order[]; savedViews?: SavedView[]; transporters?: { id: number; name: string }[]; total_count?: number; cap?: number }) {
+export default function OrderIndex({
+    rows,
+    savedViews = [],
+    transporters = [],
+    filters,
+    pagination,
+}: {
+    rows: Order[];
+    savedViews?: SavedView[];
+    transporters?: { id: number; name: string }[];
+    filters: ServerFilters;
+    pagination: Pagination;
+}) {
     const { auth } = usePage<PageProps>().props;
     const canBulkEdit = auth.user.role === 'owner' || auth.user.role === 'manager';
 
-    // If the user has a default view, prefill from it on first mount
-    const defaultView = savedViews.find((v) => v.is_default) ?? null;
-    const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
+    // Filters live in the URL — local state is purely the search-box draft
+    // (debounced before pushing to URL) so typing stays responsive.
+    const [searchDraft, setSearchDraft] = useState(filters.q);
+    useEffect(() => setSearchDraft(filters.q), [filters.q]);
 
-    const [search, setSearch] = useState(dc.search ?? '');
-    const [statusFilter, setStatusFilter] = useState(dc.filters?.status ?? '');
-    const [paymentFilter, setPaymentFilter] = useState(dc.filters?.payment_status ?? '');
-    const [priorityFilter, setPriorityFilter] = useState(dc.filters?.priority ?? '');
-    const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
+    const activeViewId = useMemo(() => {
+        // A saved view is "active" when its config exactly matches the current URL filters.
+        const current = {
+            search: filters.q || undefined,
+            status: filters.status || undefined,
+            payment_status: filters.payment_status || undefined,
+            priority: filters.priority || undefined,
+        };
+        const match = savedViews.find((v) => {
+            const c = (v.config ?? {}) as { search?: string; filters?: Record<string, string> };
+            return (c.search ?? undefined) === current.search
+                && (c.filters?.status ?? undefined) === current.status
+                && (c.filters?.payment_status ?? undefined) === current.payment_status
+                && (c.filters?.priority ?? undefined) === current.priority;
+        });
+        return match?.id ?? null;
+    }, [filters, savedViews]);
+
+    const currentConfig = {
+        search: filters.q || undefined,
+        filters: {
+            ...(filters.status && { status: filters.status }),
+            ...(filters.payment_status && { payment_status: filters.payment_status }),
+            ...(filters.priority && { priority: filters.priority }),
+        },
+    };
+
+    /** Reload Orders Index with a new filter set. Empty values are dropped from the URL. */
+    const navigateWith = (next: Partial<ServerFilters> & { page?: number }) => {
+        const merged = {
+            q: searchDraft,
+            status: filters.status,
+            payment_status: filters.payment_status,
+            priority: filters.priority,
+            per_page: filters.per_page,
+            page: 1,
+            ...next,
+        };
+        const params: Record<string, string | number> = {};
+        for (const [k, v] of Object.entries(merged)) {
+            if (v !== '' && v !== 0 && v !== null && v !== undefined) params[k] = v;
+        }
+        router.get(route('orders.index'), params, { preserveScroll: true, preserveState: true, replace: true });
+    };
+
+    // Debounce search-box draft → URL by 300ms so each keystroke doesn't fire a request
+    useEffect(() => {
+        if (searchDraft === filters.q) return;
+        const t = setTimeout(() => navigateWith({ q: searchDraft, page: 1 }), 300);
+        return () => clearTimeout(t);
+    }, [searchDraft]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // First-mount default-view: if the URL has no filters but the user has a default
+    // saved view, push that view's filters into the URL so the page loads in their
+    // preferred state. Runs at most once per landing.
+    useEffect(() => {
+        const noUrlFilters = !filters.q && !filters.status && !filters.payment_status && !filters.priority;
+        const defaultView = savedViews.find((v) => v.is_default);
+        if (!noUrlFilters || !defaultView) return;
+        const c = (defaultView.config ?? {}) as { search?: string; filters?: Record<string, string> };
+        applyView(c, defaultView.id);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const applyView = (config: { search?: string; filters?: Record<string, string> }, _viewId: number | null) => {
+        // _viewId not used — active view is derived from URL match below.
+        navigateWith({
+            q: config.search ?? '',
+            status: config.filters?.status ?? '',
+            payment_status: config.filters?.payment_status ?? '',
+            priority: config.filters?.priority ?? '',
+            page: 1,
+        });
+    };
+
+    const clearView = () => navigateWith({ q: '', status: '', payment_status: '', priority: '', page: 1 });
+
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [processing, setProcessing] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [bulkProcessing, setBulkProcessing] = useState(false);
 
-    const currentConfig = {
-        search: search || undefined,
-        filters: {
-            ...(statusFilter && { status: statusFilter }),
-            ...(paymentFilter && { payment_status: paymentFilter }),
-            ...(priorityFilter && { priority: priorityFilter }),
-        },
-    };
+    const filteredRows = rows; // server already filtered
 
-    const applyView = (config: { search?: string; filters?: Record<string, string> }, viewId: number | null) => {
-        setSearch(config.search ?? '');
-        setStatusFilter(config.filters?.status ?? '');
-        setPaymentFilter(config.filters?.payment_status ?? '');
-        setPriorityFilter(config.filters?.priority ?? '');
-        setActiveViewId(viewId);
-    };
-
-    const clearView = () => {
-        setSearch('');
-        setStatusFilter('');
-        setPaymentFilter('');
-        setPriorityFilter('');
-        setActiveViewId(null);
-    };
-
-    const filteredRows = useMemo(() => {
-        let result = rows;
-        if (search) {
-            const q = search.toLowerCase();
-            result = result.filter((r) =>
-                r.order_code.toLowerCase().includes(q)
-                || (r.customer?.name ?? '').toLowerCase().includes(q)
-                || (r.lr_number ?? '').toLowerCase().includes(q)
-                || (r.invoice_number ?? '').toLowerCase().includes(q),
-            );
-        }
-        if (statusFilter) result = result.filter((r) => r.status === statusFilter);
-        if (paymentFilter) result = result.filter((r) => r.payment_status === paymentFilter);
-        if (priorityFilter) result = result.filter((r) => r.priority === priorityFilter);
-        return result;
-    }, [search, statusFilter, paymentFilter, priorityFilter, rows]);
-
-    const hasActiveFilters = !!search || !!statusFilter || !!paymentFilter || !!priorityFilter;
-    const clearFilters = () => {
-        setSearch(''); setStatusFilter(''); setPaymentFilter(''); setPriorityFilter('');
-        setActiveViewId(null); // resetting filters also clears the active view
-    };
+    const hasActiveFilters = !!filters.q || !!filters.status || !!filters.payment_status || !!filters.priority;
+    const clearFilters = () => clearView();
 
     // ---- Mutations ----
     const changeStatus = (orderId: number, status: string) => {
@@ -628,23 +685,37 @@ export default function OrderIndex({ rows, savedViews = [], transporters = [], t
                 />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search code, customer, LR, invoice…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                    <Input
+                        placeholder="Search code, customer, LR, invoice…"
+                        value={searchDraft}
+                        onChange={(e) => setSearchDraft(e.target.value)}
+                        className="pl-9"
+                    />
                 </div>
-                <Select value={statusFilter || '_all'} onValueChange={(v: string) => setStatusFilter(v === '_all' ? '' : v)}>
+                <Select
+                    value={filters.status || '_all'}
+                    onValueChange={(v: string) => navigateWith({ status: v === '_all' ? '' : v, page: 1 })}
+                >
                     <SelectTrigger className="w-[160px] shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="_all">All statuses</SelectItem>
                         {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <Select value={paymentFilter || '_all'} onValueChange={(v: string) => setPaymentFilter(v === '_all' ? '' : v)}>
+                <Select
+                    value={filters.payment_status || '_all'}
+                    onValueChange={(v: string) => navigateWith({ payment_status: v === '_all' ? '' : v, page: 1 })}
+                >
                     <SelectTrigger className="w-[130px] shrink-0"><SelectValue placeholder="Payment" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="_all">All payments</SelectItem>
                         {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <Select value={priorityFilter || '_all'} onValueChange={(v: string) => setPriorityFilter(v === '_all' ? '' : v)}>
+                <Select
+                    value={filters.priority || '_all'}
+                    onValueChange={(v: string) => navigateWith({ priority: v === '_all' ? '' : v, page: 1 })}
+                >
                     <SelectTrigger className="w-[120px] shrink-0"><SelectValue placeholder="Priority" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="_all">All priorities</SelectItem>
@@ -745,10 +816,37 @@ export default function OrderIndex({ rows, savedViews = [], transporters = [], t
                 </div>
             )}
 
-            {total_count !== undefined && cap !== undefined && (
-                <CapBanner shown={rows.length} total={total_count} cap={cap} entityLabel="orders" />
-            )}
             <DataTable columns={columns} data={filteredRows} toolbar={toolbar} emptyMessage="No orders match the current filters." />
+
+            {/* Server-side pagination footer — only renders when there's more than one page. */}
+            {pagination.last_page > 1 && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <p className="text-muted-foreground tabular-nums">
+                        Showing {pagination.from ?? 0}–{pagination.to ?? 0} of {pagination.total.toLocaleString('en-IN')}
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pagination.current_page <= 1}
+                            onClick={() => navigateWith({ page: pagination.current_page - 1 })}
+                        >
+                            Prev
+                        </Button>
+                        <span className="px-2 tabular-nums text-muted-foreground">
+                            Page {pagination.current_page} / {pagination.last_page}
+                        </span>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pagination.current_page >= pagination.last_page}
+                            onClick={() => navigateWith({ page: pagination.current_page + 1 })}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
                 <DialogContent>

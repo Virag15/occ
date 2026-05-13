@@ -29,30 +29,54 @@ use Inertia\Response;
 
 class OrderController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        // Defensive cap — client-side filter/sort/saved-views work on the most recent
-        // 500 rows. When real volume forces it, swap to server pagination + query-string
-        // filters; until then a 500-row cap keeps the JSON payload bounded.
-        $cap = 500;
-        $total = Order::query()->count();
+        // Query-string filters drive the server-side query. Same names the
+        // saved-view config uses, so applying a view just navigates with
+        // ?status=...&q=... and the view dropdown round-trips.
+        $q = trim((string) $request->query('q', ''));
+        $statusFilter = (string) $request->query('status', '');
+        $paymentFilter = (string) $request->query('payment_status', '');
+        $priorityFilter = (string) $request->query('priority', '');
+        $perPage = max(10, min(100, (int) $request->query('per_page', 50)));
+
+        $query = Order::query()
+            ->with([
+                'customer:id,name',
+                'shipments:id,order_id,transporter_id,lr_number,dispatch_date,delivered_date,expected_delivery',
+                'shipments.transporter:id,name',
+            ])
+            ->when($q !== '', fn ($qq) => $qq->where(function ($w) use ($q) {
+                $w->where('order_code', 'like', "%{$q}%")
+                    ->orWhere('invoice_number', 'like', "%{$q}%")
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%"))
+                    ->orWhereHas('shipments', fn ($s) => $s->where('lr_number', 'like', "%{$q}%"));
+            }))
+            ->when($statusFilter !== '', fn ($qq) => $qq->where('status', $statusFilter))
+            ->when($paymentFilter !== '', fn ($qq) => $qq->where('payment_status', $paymentFilter))
+            ->when($priorityFilter !== '', fn ($qq) => $qq->where('priority', $priorityFilter))
+            ->orderByDesc('order_date')
+            ->orderByDesc('id');
+
+        $paginated = $query->paginate($perPage)->withQueryString();
 
         return Inertia::render('Orders/Index', [
-            // Closure makes 'rows' lazy so partial reloads (?only=rows) re-run just this query
-            'rows' => fn () => Order::query()
-                // Eager-load shipments so the order.transporter / lr_number / dispatch_date
-                // accessors don't N+1 across the index.
-                ->with([
-                    'customer:id,name',
-                    'shipments:id,order_id,transporter_id,lr_number,dispatch_date,delivered_date,expected_delivery',
-                    'shipments.transporter:id,name',
-                ])
-                ->orderByDesc('order_date')
-                ->orderByDesc('id')
-                ->limit($cap)
-                ->get(),
-            'total_count' => $total,
-            'cap' => $cap,
+            'rows' => $paginated->items(),
+            'pagination' => [
+                'total' => $paginated->total(),
+                'per_page' => $paginated->perPage(),
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'from' => $paginated->firstItem(),
+                'to' => $paginated->lastItem(),
+            ],
+            'filters' => [
+                'q' => $q,
+                'status' => $statusFilter,
+                'payment_status' => $paymentFilter,
+                'priority' => $priorityFilter,
+                'per_page' => $perPage,
+            ],
             'savedViews' => SavedView::query()
                 ->where('user_id', Auth::id())
                 ->where('database_type', 'order')
