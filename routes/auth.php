@@ -13,7 +13,7 @@ Route::middleware('guest')->group(function () {
     // Public registration is OFF by default — OCC is a B2B internal tool. Owner creates
     // users via the Users page. To re-enable for dev, set ALLOW_PUBLIC_REGISTRATION=true
     // in .env.
-    if (env('ALLOW_PUBLIC_REGISTRATION', false)) {
+    if (config('occ.allow_public_registration')) {
         Route::get('register', [RegisteredUserController::class, 'create'])
             ->name('register');
 

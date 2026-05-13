@@ -32,15 +32,18 @@ class TallyClient
         protected ?string $company = null,
         protected int $timeoutSeconds = 30,
     ) {
-        $this->host ??= (string) config('services.tally.host', env('TALLY_HOST', '127.0.0.1'));
-        $this->port ??= (int) config('services.tally.port', env('TALLY_PORT', 9000));
-        $this->company ??= (string) config('services.tally.company', env('TALLY_COMPANY', 'GC Communication'));
-        $this->timeoutSeconds = (int) config('services.tally.timeout', env('TALLY_TIMEOUT', 30));
+        // env() defaults already live in config/services.php → tally.*, so a
+        // bare config() read is safe under config:cache. The third-arg env()
+        // fallback that used to be here was dead code (and a phpstan warning).
+        $this->host ??= (string) config('services.tally.host');
+        $this->port ??= (int) config('services.tally.port');
+        $this->company ??= (string) config('services.tally.company');
+        $this->timeoutSeconds = (int) config('services.tally.timeout');
     }
 
     public function isEnabled(): bool
     {
-        return (bool) config('services.tally.enabled', env('TALLY_ENABLED', false));
+        return (bool) config('services.tally.enabled');
     }
 
     public function endpoint(): string
