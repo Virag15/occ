@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanySetting;
 use App\Support\ImageCompressor;
+use App\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -55,7 +56,10 @@ class CompanySettingController extends Controller
             if ($settings->logo_path && Storage::disk('public')->exists($settings->logo_path)) {
                 Storage::disk('public')->delete($settings->logo_path);
             }
-            $path = $request->file('logo')->store('company', 'public');
+            $path = $request->file('logo')->store(
+                app(TenantContext::class)->storagePath('company'),
+                'public'
+            );
             $absolute = Storage::disk('public')->path($path);
             $compressed = ImageCompressor::compress($absolute, 600, 90);
             if ($compressed !== $absolute) {
@@ -71,7 +75,10 @@ class CompanySettingController extends Controller
             if ($settings->signature_path && Storage::disk('public')->exists($settings->signature_path)) {
                 Storage::disk('public')->delete($settings->signature_path);
             }
-            $path = $request->file('signature')->store('company', 'public');
+            $path = $request->file('signature')->store(
+                app(TenantContext::class)->storagePath('company'),
+                'public'
+            );
             $absolute = Storage::disk('public')->path($path);
             // Signatures look better when slightly larger and on transparent background — but we
             // still compress for size. Keep wide max so handwriting stays legible.

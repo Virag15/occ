@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -21,16 +23,27 @@ class OcrExtractTest extends TestCase
 
     private Order $order;
 
+    private Tenant $tenant;
+
     protected function setUp(): void
     {
         parent::setUp();
-        $this->actingAs(User::factory()->create(['role' => 'warehouse']));
+        $this->tenant = Tenant::create(['name' => 'OCR Co.', 'slug' => 'ocr']);
+        app(TenantContext::class)->set($this->tenant);
+
+        $this->actingAs(User::factory()->create(['role' => 'warehouse', 'tenant_id' => $this->tenant->id]));
         $c = Customer::create(['tally_id' => 'C', 'name' => 'X', 'status' => 'active']);
         $this->order = Order::create([
             'order_code' => 'ORD-OCR-1', 'customer_id' => $c->id, 'order_date' => '2026-05-12',
             'status' => 'dispatched', 'priority' => 'normal', 'payment_status' => 'not_due', 'order_value' => 0,
         ]);
         Storage::fake('local');
+    }
+
+    protected function tearDown(): void
+    {
+        app(TenantContext::class)->clear();
+        parent::tearDown();
     }
 
     public function test_lr_extract_returns_canned_fields(): void

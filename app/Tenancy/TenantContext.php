@@ -66,4 +66,24 @@ class TenantContext
             $this->current = $previous;
         }
     }
+
+    /**
+     * Build a storage path scoped to the active tenant. Throws if no tenant
+     * is active — file writes must always be tenant-scoped in production
+     * to keep one tenant's uploads out of another's directory tree.
+     *
+     * Example: storagePath("orders/42/pod") →
+     * "tenants/a1b2-.../orders/42/pod"
+     */
+    public function storagePath(string $subPath): string
+    {
+        if ($this->current === null) {
+            throw new \RuntimeException(
+                'Cannot build tenant-scoped storage path without an active tenant. '.
+                'Set TenantContext before storing files.'
+            );
+        }
+
+        return $this->current->storagePrefix().'/'.ltrim($subPath, '/');
+    }
 }

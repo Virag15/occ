@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -16,10 +18,19 @@ class EvidenceUploadTest extends TestCase
 
     private Order $order;
 
+    private Tenant $tenant;
+
     protected function setUp(): void
     {
         parent::setUp();
-        $owner = User::factory()->create(['role' => 'owner']);
+        // Set up tenant context BEFORE creating any tenant-owned data so the
+        // BelongsToTenant trait stamps tenant_id correctly. Otherwise the
+        // SetCurrentTenant middleware sets a tenant on the request and the
+        // global scope can't find the unscoped test data.
+        $this->tenant = Tenant::create(['name' => 'Evidence Co.', 'slug' => 'evidence']);
+        app(TenantContext::class)->set($this->tenant);
+
+        $owner = User::factory()->create(['role' => 'owner', 'tenant_id' => $this->tenant->id]);
         $this->actingAs($owner);
 
         $c = Customer::create(['tally_id' => 'C', 'name' => 'X', 'status' => 'active']);
@@ -32,6 +43,12 @@ class EvidenceUploadTest extends TestCase
         Storage::fake('local');
     }
 
+    protected function tearDown(): void
+    {
+        app(TenantContext::class)->clear();
+        parent::tearDown();
+    }
+
     public function test_pod_upload_sets_received_and_writes_file(): void
     {
         $file = UploadedFile::fake()->image('pod.jpg');
@@ -42,8 +59,10 @@ class EvidenceUploadTest extends TestCase
 
         $this->order->refresh();
         $this->assertTrue($this->order->pod_received);
-        // File lives under orders/{id}/pod/ on the private disk
-        $files = Storage::disk('local')->files("orders/{$this->order->id}/pod");
+        // File lives under {tenant_prefix}/orders/{id}/pod/ on the private disk
+        $files = Storage::disk('local')->files(
+            $this->tenant->storagePrefix()."/orders/{$this->order->id}/pod"
+        );
         $this->assertNotEmpty($files);
     }
 

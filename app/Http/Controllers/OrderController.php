@@ -17,6 +17,7 @@ use App\Models\Transporter;
 use App\Services\Ocr\OcrClient;
 use App\Support\ImageCompressor;
 use App\Support\NumberToWords;
+use App\Tenancy\TenantContext;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -491,8 +492,12 @@ class OrderController extends Controller
 
         // Evidence (POD / triplicate / LR) is private — store on the local disk and
         // serve via the gated orders.evidence-download route. We never expose these
-        // through /storage because they're commercial documents.
-        $path = $request->file('photo')->store("orders/{$order->id}/{$kind}", 'local');
+        // through /storage because they're commercial documents. Stored under the
+        // tenant prefix so one tenant's files can't collide with another's.
+        $path = $request->file('photo')->store(
+            app(TenantContext::class)->storagePath("orders/{$order->id}/{$kind}"),
+            'local'
+        );
 
         // Compress the uploaded photo in place (auto-rotate, resize to 2000px max, JPEG q82)
         $absolutePath = Storage::disk('local')->path($path);
@@ -581,8 +586,20 @@ class OrderController extends Controller
     public function downloadEvidence(Request $request, Order $order): \Symfony\Component\HttpFoundation\Response
     {
         $path = (string) $request->query('path', '');
-        $expected = "orders/{$order->id}/";
-        if (! str_starts_with($path, $expected) || str_contains($path, '..') || str_contains($path, "\0")) {
+        $context = app(TenantContext::class);
+        // The path MUST start with the active tenant's storage prefix +
+        // "/orders/{order_id}/". Accepts the legacy non-tenant-prefixed
+        // path for files uploaded before P1.4c (single-tenant era), so
+        // historical evidence still downloads.
+        $expectedTenantPath = $context->has()
+            ? $context->current()->storagePrefix()."/orders/{$order->id}/"
+            : null;
+        $legacyPath = "orders/{$order->id}/";
+
+        $isValid = ($expectedTenantPath && str_starts_with($path, $expectedTenantPath))
+            || str_starts_with($path, $legacyPath);
+
+        if (! $isValid || str_contains($path, '..') || str_contains($path, "\0")) {
             abort(404);
         }
         if (! Storage::disk('local')->exists($path)) {
@@ -611,8 +628,11 @@ class OrderController extends Controller
 
         // Stash on the local disk in a temp path so the OCR client can read
         // by filesystem path. We don't persist — the upload endpoint is
-        // the one that commits; this is suggest-only.
-        $tmpPath = $request->file('photo')->store("orders/{$order->id}/_ocr_tmp", 'local');
+        // the one that commits; this is suggest-only. Tenant-scoped path.
+        $tmpPath = $request->file('photo')->store(
+            app(TenantContext::class)->storagePath("orders/{$order->id}/_ocr_tmp"),
+            'local'
+        );
         $absolutePath = Storage::disk('local')->path($tmpPath);
 
         try {
