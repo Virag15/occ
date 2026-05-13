@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { DataTable, SortableHeader } from '@/components/ui/data-table';
@@ -26,53 +26,85 @@ function statusBadgeClasses(s: string): string {
     return cn('border', map[s] ?? 'bg-muted');
 }
 
-export default function ReturnsIndex({ rows, savedViews = [] }: { rows: ReturnCase[]; savedViews?: SavedView[] }) {
-    const defaultView = savedViews.find((v) => v.is_default) ?? null;
-    const dc = (defaultView?.config ?? {}) as { search?: string; filters?: Record<string, string> };
+type ServerFilters = { q: string; status: string; severity: string; per_page: number };
+type Pagination = {
+    total: number; per_page: number; current_page: number; last_page: number;
+    from: number | null; to: number | null;
+};
 
-    const [search, setSearch] = useState(dc.search ?? '');
-    const [statusFilter, setStatusFilter] = useState(dc.filters?.status ?? '');
-    const [severityFilter, setSeverityFilter] = useState(dc.filters?.severity ?? '');
-    const [activeViewId, setActiveViewId] = useState<number | null>(defaultView?.id ?? null);
+export default function ReturnsIndex({
+    rows,
+    savedViews = [],
+    filters,
+    pagination,
+}: {
+    rows: ReturnCase[];
+    savedViews?: SavedView[];
+    filters: ServerFilters;
+    pagination: Pagination;
+}) {
+    const [searchDraft, setSearchDraft] = useState(filters.q);
+    useEffect(() => setSearchDraft(filters.q), [filters.q]);
+
+    const activeViewId = useMemo(() => {
+        const match = savedViews.find((v) => {
+            const c = (v.config ?? {}) as { search?: string; filters?: Record<string, string> };
+            return (c.search ?? undefined) === (filters.q || undefined)
+                && (c.filters?.status ?? undefined) === (filters.status || undefined)
+                && (c.filters?.severity ?? undefined) === (filters.severity || undefined);
+        });
+        return match?.id ?? null;
+    }, [filters, savedViews]);
 
     const currentConfig = {
-        search: search || undefined,
+        search: filters.q || undefined,
         filters: {
-            ...(statusFilter && { status: statusFilter }),
-            ...(severityFilter && { severity: severityFilter }),
+            ...(filters.status && { status: filters.status }),
+            ...(filters.severity && { severity: filters.severity }),
         },
     };
 
-    const applyView = (config: { search?: string; filters?: Record<string, string> }, viewId: number | null) => {
-        setSearch(config.search ?? '');
-        setStatusFilter(config.filters?.status ?? '');
-        setSeverityFilter(config.filters?.severity ?? '');
-        setActiveViewId(viewId);
-    };
-
-    const clearView = () => {
-        setSearch(''); setStatusFilter(''); setSeverityFilter('');
-        setActiveViewId(null);
-    };
-
-    const filteredRows = useMemo(() => {
-        let result = rows;
-        if (search) {
-            const q = search.toLowerCase();
-            result = result.filter((r) =>
-                r.case_code.toLowerCase().includes(q)
-                || (r.case_title ?? '').toLowerCase().includes(q)
-                || (r.customer?.name ?? '').toLowerCase().includes(q)
-                || (r.order?.order_code ?? '').toLowerCase().includes(q),
-            );
+    const navigateWith = (next: Partial<ServerFilters> & { page?: number }) => {
+        const merged = {
+            q: searchDraft,
+            status: filters.status,
+            severity: filters.severity,
+            per_page: filters.per_page,
+            page: 1,
+            ...next,
+        };
+        const params: Record<string, string | number> = {};
+        for (const [k, v] of Object.entries(merged)) {
+            if (v !== '' && v !== 0 && v !== null && v !== undefined) params[k] = v;
         }
-        if (statusFilter) result = result.filter((r) => r.case_status === statusFilter);
-        if (severityFilter) result = result.filter((r) => r.severity === severityFilter);
-        return result;
-    }, [search, statusFilter, severityFilter, rows]);
+        router.get(route('returns.index'), params, { preserveScroll: true, preserveState: true, replace: true });
+    };
 
-    const hasActiveFilters = !!search || !!statusFilter || !!severityFilter;
-    const clearFilters = () => { setSearch(''); setStatusFilter(''); setSeverityFilter(''); setActiveViewId(null); };
+    useEffect(() => {
+        if (searchDraft === filters.q) return;
+        const t = setTimeout(() => navigateWith({ q: searchDraft, page: 1 }), 300);
+        return () => clearTimeout(t);
+    }, [searchDraft]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const applyView = (config: { search?: string; filters?: Record<string, string> }) => {
+        navigateWith({
+            q: config.search ?? '',
+            status: config.filters?.status ?? '',
+            severity: config.filters?.severity ?? '',
+            page: 1,
+        });
+    };
+
+    const clearView = () => navigateWith({ q: '', status: '', severity: '', page: 1 });
+
+    useEffect(() => {
+        const noUrlFilters = !filters.q && !filters.status && !filters.severity;
+        const defaultView = savedViews.find((v) => v.is_default);
+        if (!noUrlFilters || !defaultView) return;
+        applyView((defaultView.config ?? {}) as { search?: string; filters?: Record<string, string> });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const hasActiveFilters = !!filters.q || !!filters.status || !!filters.severity;
 
     const columns = useMemo((): ColumnDef<ReturnCase>[] => [
         {
@@ -152,16 +184,27 @@ export default function ReturnsIndex({ rows, savedViews = [] }: { rows: ReturnCa
                 />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search case, title, customer, order…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                    <Input
+                        placeholder="Search case, title, customer, order…"
+                        value={searchDraft}
+                        onChange={(e) => setSearchDraft(e.target.value)}
+                        className="pl-9"
+                    />
                 </div>
-                <Select value={statusFilter || '_all'} onValueChange={(v: string) => setStatusFilter(v === '_all' ? '' : v)}>
+                <Select
+                    value={filters.status || '_all'}
+                    onValueChange={(v: string) => navigateWith({ status: v === '_all' ? '' : v, page: 1 })}
+                >
                     <SelectTrigger className="w-[160px] shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="_all">All statuses</SelectItem>
                         {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <Select value={severityFilter || '_all'} onValueChange={(v: string) => setSeverityFilter(v === '_all' ? '' : v)}>
+                <Select
+                    value={filters.severity || '_all'}
+                    onValueChange={(v: string) => navigateWith({ severity: v === '_all' ? '' : v, page: 1 })}
+                >
                     <SelectTrigger className="w-[130px] shrink-0"><SelectValue placeholder="Severity" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="_all">All severities</SelectItem>
@@ -169,7 +212,7 @@ export default function ReturnsIndex({ rows, savedViews = [] }: { rows: ReturnCa
                     </SelectContent>
                 </Select>
                 {hasActiveFilters && (
-                    <Button variant="ghost" size="sm" onClick={clearFilters} className="text-destructive hover:text-destructive shrink-0">
+                    <Button variant="ghost" size="sm" onClick={clearView} className="text-destructive hover:text-destructive shrink-0">
                         <X className="h-4 w-4 mr-1" /> Reset
                     </Button>
                 )}
@@ -186,10 +229,39 @@ export default function ReturnsIndex({ rows, savedViews = [] }: { rows: ReturnCa
 
             <DataTable
                 columns={columns}
-                data={filteredRows}
+                data={rows}
                 toolbar={toolbar}
                 emptyMessage="No return cases match the current filters."
             />
+
+            {pagination.last_page > 1 && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <p className="text-muted-foreground tabular-nums">
+                        Showing {pagination.from ?? 0}–{pagination.to ?? 0} of {pagination.total.toLocaleString('en-IN')}
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pagination.current_page <= 1}
+                            onClick={() => navigateWith({ page: pagination.current_page - 1 })}
+                        >
+                            Prev
+                        </Button>
+                        <span className="px-2 tabular-nums text-muted-foreground">
+                            Page {pagination.current_page} / {pagination.last_page}
+                        </span>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pagination.current_page >= pagination.last_page}
+                            onClick={() => navigateWith({ page: pagination.current_page + 1 })}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
         </AdminLayout>
     );
 }

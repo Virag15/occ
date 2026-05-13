@@ -22,8 +22,10 @@ class ReturnController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
+        $severity = (string) $request->query('severity', '');
+        $perPage = max(10, min(100, (int) $request->query('per_page', 50)));
 
-        $rows = ReturnCase::query()
+        $paginated = ReturnCase::query()
             ->with(['customer:id,name,company', 'order:id,order_code'])
             ->when($q !== '', fn ($qq) => $qq->where(function ($w) use ($q) {
                 $w->where('case_code', 'like', "%{$q}%")
@@ -31,13 +33,27 @@ class ReturnController extends Controller
                     ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$q}%"));
             }))
             ->when($status !== '', fn ($qq) => $qq->where('case_status', $status))
+            ->when($severity !== '', fn ($qq) => $qq->where('severity', $severity))
             ->latest('date_reported')
-            ->limit(200)
-            ->get();
+            ->paginate($perPage)
+            ->withQueryString();
 
         return Inertia::render('Returns/Index', [
-            'rows' => $rows,
-            'filters' => ['q' => $q, 'status' => $status],
+            'rows' => $paginated->items(),
+            'pagination' => [
+                'total' => $paginated->total(),
+                'per_page' => $paginated->perPage(),
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'from' => $paginated->firstItem(),
+                'to' => $paginated->lastItem(),
+            ],
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'severity' => $severity,
+                'per_page' => $perPage,
+            ],
             'savedViews' => SavedView::query()
                 ->where('user_id', Auth::id())
                 ->where('database_type', 'return')
