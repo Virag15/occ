@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Shipment;
 use App\Models\StockItem;
+use App\Models\Tenant;
 use App\Models\Transporter;
 use App\Models\User;
 use App\Observers\AuditObserver;
@@ -20,12 +21,30 @@ class DatabaseSeeder extends Seeder
     {
         AuditObserver::$enabled = false;
 
+        $this->seedTenants();
         $this->seedUsers();
         $this->seedTransporters();
         $this->seedTallyMirrors();
         $this->seedOrders();
 
         AuditObserver::$enabled = true;
+    }
+
+    /**
+     * Seed the first tenant — GC Communication itself. All pre-existing data
+     * (customers, orders, etc.) belongs to this tenant. New tenants get
+     * provisioned via the leads pipeline; this seeder only sets up tenant #1.
+     */
+    private function seedTenants(): void
+    {
+        Tenant::firstOrCreate(
+            ['name' => 'GC Communication'],
+            [
+                'slug' => 'gc-communication',
+                'status' => Tenant::STATUS_ACTIVE,
+                'plan' => 'custom',
+            ],
+        );
     }
 
     private function seedOrders(): void
