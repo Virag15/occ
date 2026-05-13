@@ -5,8 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @property int $id
+ * @property int|null $user_id
+ * @property string $entity_type
+ * @property int $entity_id
+ * @property string $action
+ * @property array<string,mixed>|null $changes
+ * @property Carbon|null $created_at
+ * @property-read User|null $user
+ */
 class AuditLog extends Model
 {
     use HasFactory;
