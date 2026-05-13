@@ -19,7 +19,7 @@ These need to be on the system `PATH` *before* you run `setup.bat`:
 
 | Tool | Version | Download |
 |---|---|---|
-| **PHP** | 8.3+ with `sqlite`, `gd`, `intl`, `mbstring`, `fileinfo`, `dom`, `xml` | https://windows.php.net/download (the "Thread Safe" build) |
+| **PHP** | **8.4+** with `sqlite`, `gd`, `intl`, `mbstring`, `fileinfo`, `dom`, `xml`, `zip`, `curl` | https://windows.php.net/download (the "Non Thread Safe" build for IIS, "Thread Safe" for Apache/standalone) |
 | **Composer** | 2.x | https://getcomposer.org/Composer-Setup.exe |
 | **Node.js** | 20+ | https://nodejs.org/en/download (LTS) |
 
@@ -29,8 +29,36 @@ php -v
 composer -V
 node -v
 ```
-All three should print version numbers. If any errors, fix the `PATH`
-before continuing.
+All three should print version numbers. PHP must be **8.4 or higher** —
+8.3 will fail with cryptic `symfony/*` resolution errors because the
+locked Laravel dependencies require 8.4. The `setup.bat` script checks
+this and bails early if PHP is too old.
+
+If any command errors with "not recognized", the PATH wasn't updated.
+Reinstall and tick "Add to PATH" during the installer, then open a
+**fresh** Command Prompt (existing windows have a stale PATH).
+
+## SmartScreen / Antivirus
+
+If Windows blocks `setup.bat` or `start.bat` with **"Windows protected
+your PC"** the first time you run them:
+
+1. Click **More info** → **Run anyway**, OR
+2. Right-click the `.bat` file → **Properties** → tick the **Unblock**
+   checkbox at the bottom → **OK**, OR
+3. Open PowerShell as Administrator and run:
+   ```powershell
+   Unblock-File -Path C:\OCC\windows\*.bat
+   ```
+
+Neither script downloads anything itself — Composer and npm do all the
+network calls over HTTPS, which SmartScreen treats as normal. The block
+is only because the `.bat` files have a "downloaded from the internet"
+marker on first extract; once unblocked, future runs are silent.
+
+If your antivirus quarantines the scripts, add the OCC folder to its
+exclusion list. Defender treats unsigned `.bat` from untrusted zones
+cautiously — once unblocked, it stops flagging them.
 
 ## First-time setup
 

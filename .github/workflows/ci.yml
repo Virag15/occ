@@ -20,7 +20,9 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          # 8.4 because composer.lock pins symfony 8.x which requires >=8.4.
+          # Bump in lockstep if Laravel ever pulls in newer Symfony.
+          php-version: '8.4'
           # gd is required by ImageCompressor (POD/triplicate compression);
           # intl + sqlite handle Carbon locale + the test DB respectively.
           extensions: gd, intl, sqlite, pdo_sqlite, mbstring, fileinfo, dom, xml
