@@ -7,6 +7,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerShowController;
 use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
@@ -28,10 +29,23 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// ───── Public marketing site ─────────────────────────────────────────
+// Server-rendered Blade (no Inertia) — fast, SEO-friendly. The root
+// route branches: authed users land on the dashboard (with role-based
+// redirects inside the controller), unauthed users see the marketing
+// home page. The route name 'dashboard' is preserved so internal
+// link generators (route('dashboard')) keep working.
+Route::get('/', [MarketingController::class, 'home'])->name('dashboard');
+Route::get('/features', [MarketingController::class, 'features'])->name('marketing.features');
+Route::get('/tally', [MarketingController::class, 'tally'])->name('marketing.tally');
+Route::get('/pricing', [MarketingController::class, 'pricing'])->name('marketing.pricing');
+Route::get('/about', [MarketingController::class, 'about'])->name('marketing.about');
+Route::get('/contact', [MarketingController::class, 'contact'])->name('marketing.contact');
+Route::post('/contact', [MarketingController::class, 'submitLead'])->name('marketing.contact.submit');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // ───── Read routes — open to every authed role ────────────────────────
     // Role-based landing is enforced inside DashboardController::index.
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
     Route::get('/warehouse', [WarehouseController::class, 'index'])->name('warehouse.queue');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
