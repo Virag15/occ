@@ -100,6 +100,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/orders/{order}/evidence/{kind}', [OrderController::class, 'uploadEvidence'])
             ->whereIn('kind', ['pod', 'triplicate', 'lr', 'parcel'])
             ->name('orders.upload-evidence');
+        // OCR suggest endpoint — runs against a one-shot temp upload, returns
+        // extracted field hints without persisting. UI calls this before the
+        // real upload to pre-fill the form.
+        Route::post('/orders/{order}/evidence/{kind}/extract', [OrderController::class, 'extractEvidence'])
+            ->whereIn('kind', ['pod', 'triplicate', 'lr', 'parcel'])
+            ->name('orders.extract-evidence');
     });
 
     // Quick-update: owner/manager full; accounts can hit payment fields; warehouse can hit

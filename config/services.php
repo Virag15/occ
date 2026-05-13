@@ -51,4 +51,16 @@ return [
         'endpoint' => env('WHATSAPP_ENDPOINT', 'https://backend.aisensy.com/campaign/t1/api/v2'),
     ],
 
+    'ocr' => [
+        // Off = demo mode: extract() returns canned values keyed by evidence kind.
+        // Switch on by flipping OCR_ENABLED=true and picking a provider.
+        'enabled' => env('OCR_ENABLED', false),
+        'provider' => env('OCR_PROVIDER', 'demo'),  // demo | textract | gdai
+        'api_key' => env('OCR_API_KEY', ''),
+        'region' => env('OCR_REGION', 'ap-south-1'),
+        // Document AI specifics — unused for textract / demo.
+        'endpoint' => env('OCR_ENDPOINT', ''),
+        'processor_id' => env('OCR_PROCESSOR_ID', ''),
+    ],
+
 ];

@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\SavedView;
 use App\Models\Shipment;
 use App\Models\Transporter;
+use App\Services\Ocr\OcrClient;
 use App\Support\ImageCompressor;
 use App\Support\NumberToWords;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -586,6 +587,39 @@ class OrderController extends Controller
         }
 
         return Storage::disk('local')->response($path);
+    }
+
+    /**
+     * Run OCR on an uploaded evidence image and return the suggested field
+     * values without persisting anything. The UI can pre-fill the matching
+     * fields (LR number for `lr`, delivered date for `pod`, etc.) so the
+     * user confirms instead of typing.
+     *
+     * Demo mode (OCR_ENABLED=false) returns canned data — see OcrClient.
+     */
+    public function extractEvidence(Request $request, Order $order, string $kind): JsonResponse
+    {
+        $allowed = ['pod', 'triplicate', 'lr', 'parcel'];
+        abort_unless(in_array($kind, $allowed, true), 422);
+
+        $request->validate([
+            'photo' => ['required', 'image', 'max:10240'],
+        ]);
+
+        // Stash on the local disk in a temp path so the OCR client can read
+        // by filesystem path. We don't persist — the upload endpoint is
+        // the one that commits; this is suggest-only.
+        $tmpPath = $request->file('photo')->store("orders/{$order->id}/_ocr_tmp", 'local');
+        $absolutePath = Storage::disk('local')->path($tmpPath);
+
+        try {
+            $result = app(OcrClient::class)->extract($absolutePath, $kind);
+        } finally {
+            // Clean up the temp upload regardless of outcome.
+            Storage::disk('local')->delete($tmpPath);
+        }
+
+        return response()->json($result);
     }
 
     public function quickUpdate(Request $request, Order $order): RedirectResponse
