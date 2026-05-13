@@ -2,11 +2,39 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string|null $tally_id
+ * @property string|null $tally_guid
+ * @property Carbon|null $tally_synced_at
+ * @property string|null $sku
+ * @property string $name
+ * @property string|null $brand
+ * @property string|null $category
+ * @property string|null $description
+ * @property string|null $hsn_code
+ * @property string|null $unit
+ * @property string|null $gst_rate
+ * @property string|null $mrp
+ * @property string|null $default_sale_price
+ * @property string|null $default_purchase_price
+ * @property string|null $min_order_level
+ * @property string|null $reorder_level
+ * @property string|null $negative_stock_reason
+ * @property bool $is_active
+ * @property string $status
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ * @property-read Collection<int,StockItem> $stockItems
+ */
 class Product extends Model
 {
     use HasFactory, SoftDeletes;

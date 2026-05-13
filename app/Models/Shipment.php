@@ -2,12 +2,47 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * @property int $id
+ * @property string $shipment_code
+ * @property int $order_id
+ * @property int|null $transporter_id
+ * @property string|null $packed_by
+ * @property int|null $number_of_boxes
+ * @property string|null $parcel_weight_kg
+ * @property Carbon|null $picking_slip_generated_at
+ * @property Carbon|null $packing_slip_generated_at
+ * @property Carbon|null $pickup_scheduled_date
+ * @property string|null $driver_name
+ * @property string|null $driver_contact
+ * @property string|null $vehicle_number
+ * @property Carbon|null $dispatch_date
+ * @property string|null $lr_number
+ * @property bool $lr_shared_with_customer
+ * @property Carbon|null $lr_shared_at
+ * @property Carbon|null $expected_delivery
+ * @property Carbon|null $delivered_date
+ * @property bool $pod_received
+ * @property bool $triplicate_received
+ * @property Carbon|null $triplicate_received_date
+ * @property string $status
+ * @property string|null $notes
+ * @property int|null $created_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Order|null $order
+ * @property-read Transporter|null $transporter
+ * @property-read User|null $creator
+ * @property-read Collection<int,ShipmentItem> $items
+ */
 class Shipment extends Model
 {
     use HasFactory;

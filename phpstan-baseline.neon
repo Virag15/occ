@@ -31,92 +31,14 @@ parameters:
 			path: app/Http/Controllers/CustomerShowController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$customer\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$customer_reference_number\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$dispatch_date\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$lr_number\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 5
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_value\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Anonymous function should return Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: mixed, lr_number\: mixed, dispatch_date\: mixed\}\> but returns Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: mixed, lr_number\: string\|null, dispatch_date\: mixed\}\>\.$#'
+			message: '#^Anonymous function should return Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\> but returns Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: string\|null, dispatch_date\: mixed\}\>\.$#'
 			identifier: return.type
 			count: 1
 			path: app/Http/Controllers/DailyReportController.php
 
 		-
-			message: '#^Call to function is_array\(\) with string\|null will always evaluate to false\.$#'
-			identifier: function.impossibleType
-			count: 2
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Cannot call method toDateString\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Order\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 3
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Shipment\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\Order\>\:\:flatMap\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Unreachable statement \- code above always terminates\.$#'
-			identifier: deadCode.unreachable
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\Order\>\:\:flatMap\(\) expects callable\(App\\Models\\Order, int\)\: \(array\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\>\|Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\>\), Closure\(mixed\)\: Illuminate\\Support\\Collection\<int, array\{order_code\: string, order_id\: int, customer_ref\: string\|null, lr_number\: mixed, dispatch_date\: mixed\}\> given\.$#'
+			identifier: argument.type
 			count: 1
 			path: app/Http/Controllers/DailyReportController.php
 
@@ -139,18 +61,6 @@ parameters:
 			path: app/Http/Controllers/DailyReportController.php
 
 		-
-			message: '#^Using nullsafe property access on non\-nullable type Illuminate\\Database\\Eloquent\\Model\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 2
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
-			message: '#^Variable \$brands in empty\(\) always exists and is always falsy\.$#'
-			identifier: empty.variable
-			count: 1
-			path: app/Http/Controllers/DailyReportController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$delivered_date\.$#'
 			identifier: property.notFound
 			count: 1
@@ -169,52 +79,10 @@ parameters:
 			path: app/Http/Controllers/OrderController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty_ordered\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/OrderController.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Http/Controllers/OrderController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mode\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/PaymentController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$paid_on\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/PaymentController.php
-
-		-
-			message: '#^Cannot call method isPast\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/PaymentController.php
-
-		-
-			message: '#^Cannot call method toDateString\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/PaymentController.php
-
-		-
-			message: '#^Parameter \#1 \$order of method App\\Http\\Controllers\\PaymentController\:\:recompute\(\) expects App\\Models\\Order, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/PaymentController.php
-
-		-
-			message: '#^Using nullsafe method call on non\-nullable type string\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/PaymentController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\OrderItem\:\:\$qty\.$#'
@@ -247,58 +115,34 @@ parameters:
 			path: app/Http/Controllers/ReturnController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_item_id\.$#'
-			identifier: property.notFound
+			message: '#^Property App\\Models\\OrderItem\:\:\$qty_delivered \(string\) does not accept float\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/ShipmentController.php
+
+		-
+			message: '#^Property App\\Models\\OrderItem\:\:\$qty_delivered \(string\) does not accept float\|int\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/ShipmentController.php
+
+		-
+			message: '#^Property App\\Models\\OrderItem\:\:\$qty_dispatched \(string\) does not accept float\.$#'
+			identifier: assign.propertyType
 			count: 2
 			path: app/Http/Controllers/ShipmentController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty\.$#'
-			identifier: property.notFound
-			count: 7
-			path: app/Http/Controllers/ShipmentController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty_cancelled\.$#'
-			identifier: property.notFound
+			message: '#^Property App\\Models\\OrderItem\:\:\$qty_dispatched \(string\) does not accept float\|int\.$#'
+			identifier: assign.propertyType
 			count: 1
 			path: app/Http/Controllers/ShipmentController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty_delivered\.$#'
-			identifier: property.notFound
-			count: 1
+			message: '#^Property App\\Models\\OrderItem\:\:\$qty_packed \(string\) does not accept float\|int\.$#'
+			identifier: assign.propertyType
+			count: 2
 			path: app/Http/Controllers/ShipmentController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty_dispatched\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/ShipmentController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty_ordered\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/ShipmentController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty_packed\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/ShipmentController.php
-
-		-
-			message: '#^Cannot call method diffInDays\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/TransporterShowController.php
-
-		-
-			message: '#^Cannot call method lte\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/TransporterShowController.php
 
 		-
 			message: '#^Negated boolean expression is always false\.$#'
@@ -313,76 +157,10 @@ parameters:
 			path: app/Models/AuditLog.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$transporter\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Order.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$transporter_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Order.php
-
-		-
 			message: '#^Cannot call method diffInMilliseconds\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 1
 			path: app/Models/TallySyncLog.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$customer\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_code\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product_name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qty_ordered\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tally_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Cannot call method toDateString\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 4
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 2
-			path: app/Services/Tally/TallySyncService.php
-
-		-
-			message: '#^Using nullsafe method call on non\-nullable type string\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 4
-			path: app/Services/Tally/TallySyncService.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'

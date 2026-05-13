@@ -2,11 +2,39 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string|null $transporter_code
+ * @property string $name
+ * @property string|null $contact_person
+ * @property string|null $primary_phone
+ * @property string|null $secondary_phone
+ * @property string|null $whatsapp
+ * @property string|null $email
+ * @property string|null $office_address
+ * @property string|null $city
+ * @property string|null $gstin
+ * @property array<int,string>|null $areas_served
+ * @property array<int,string>|null $vehicle_types
+ * @property int|null $avg_transit_days
+ * @property string|null $cost_per_kg
+ * @property string|null $triplicate_reliability
+ * @property string|null $payment_terms
+ * @property string $status
+ * @property Carbon|null $onboarded_at
+ * @property string|null $notes
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ * @property-read Collection<int,Order> $orders
+ */
 class Transporter extends Model
 {
     use HasFactory, SoftDeletes;

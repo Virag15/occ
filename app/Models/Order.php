@@ -3,13 +3,59 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property string $order_code
+ * @property string|null $tracking_uuid
+ * @property int $customer_id
+ * @property Carbon|null $order_date
+ * @property string|null $order_source
+ * @property string|null $customer_reference_number
+ * @property string|null $customer_po_number
+ * @property array<int,string>|null $brands
+ * @property string|null $order_value
+ * @property string|null $discount_amount
+ * @property string $status
+ * @property string $priority
+ * @property bool $lr_shared_with_customer
+ * @property bool $pod_received
+ * @property bool $triplicate_received
+ * @property string|null $invoice_number
+ * @property Carbon|null $invoice_date
+ * @property string|null $payment_terms
+ * @property Carbon|null $payment_due_date
+ * @property string $payment_status
+ * @property string|null $amount_received
+ * @property Carbon|null $payment_received_date
+ * @property string|null $payment_mode
+ * @property string|null $tally_voucher_id
+ * @property Carbon|null $tally_pushed_at
+ * @property string|null $internal_notes
+ * @property int|null $created_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ * @property-read Customer|null $customer
+ * @property-read User|null $creator
+ * @property-read Collection<int,OrderItem> $items
+ * @property-read Collection<int,Shipment> $shipments
+ * @property-read Collection<int,Payment> $payments
+ * @property-read string|null $lr_number
+ * @property-read string|null $dispatch_date
+ * @property-read string|null $delivered_date
+ * @property-read string|null $expected_delivery
+ * @property-read int|null $transporter_id
+ * @property-read Transporter|null $transporter
+ */
 class Order extends Model
 {
     use HasFactory, SoftDeletes;

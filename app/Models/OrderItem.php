@@ -5,7 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $order_id
+ * @property int|null $product_id
+ * @property string $product_name
+ * @property string $qty_ordered
+ * @property string $qty_packed
+ * @property string $qty_dispatched
+ * @property string $qty_delivered
+ * @property string $qty_cancelled
+ * @property string $qty_returned
+ * @property string|null $unit
+ * @property string|null $unit_price
+ * @property string|null $discount_pct
+ * @property string|null $tax_rate
+ * @property string|null $line_total
+ * @property string $status
+ * @property string|null $notes
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Order|null $order
+ * @property-read Product|null $product
+ */
 class OrderItem extends Model
 {
     use HasFactory;
