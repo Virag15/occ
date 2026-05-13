@@ -30,4 +30,10 @@ return [
 
     // Used by SEO / canonical URL helper.
     'site_url' => env('MARKETING_SITE_URL', 'https://occ.in'),
+
+    // Where new-lead notifications go. The email is the founder's inbox;
+    // the Slack webhook (optional) pings a channel for instant awareness.
+    // Both can be set or just one — empty means skip that channel.
+    'notify_email' => env('MARKETING_NOTIFY_EMAIL', ''),
+    'slack_webhook_url' => env('MARKETING_SLACK_WEBHOOK_URL', ''),
 ];
