@@ -50,6 +50,22 @@ class UserController extends Controller
     {
         $data = $request->validated();
 
+        // Self-demotion guard: an owner editing themselves cannot change role
+        // away from owner. Stops "I demoted myself to viewer, now I'm locked
+        // out" and "last owner demoted, no admin remains". Other owners can
+        // demote this one if they want to revoke it.
+        if ($user->id === Auth::id() && $user->role === 'owner' && $data['role'] !== 'owner') {
+            return back()->withErrors(['role' => 'You cannot demote yourself from owner. Ask another owner to do it.']);
+        }
+
+        // Last-owner guard: don't let the only remaining owner be demoted by
+        // anyone (including themselves — already caught above, but belt+braces
+        // for the case where another owner edits them down).
+        if ($user->role === 'owner' && $data['role'] !== 'owner'
+            && User::where('role', 'owner')->where('id', '!=', $user->id)->doesntExist()) {
+            return back()->withErrors(['role' => 'Cannot demote the last owner — promote another user first.']);
+        }
+
         $update = [
             'name' => $data['name'],
             'email' => $data['email'],
@@ -68,6 +84,13 @@ class UserController extends Controller
     {
         if ($user->id === Auth::id()) {
             return back()->withErrors(['user' => 'You cannot delete your own account.']);
+        }
+        // Last-owner guard: deleting the only other owner would leave the
+        // current owner unable to delete themselves, but worse — if they
+        // somehow lose access, there's no admin left.
+        if ($user->role === 'owner'
+            && User::where('role', 'owner')->where('id', '!=', $user->id)->doesntExist()) {
+            return back()->withErrors(['user' => 'Cannot delete the last owner — promote another user first.']);
         }
         $user->delete();
 
