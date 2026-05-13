@@ -8,25 +8,22 @@ on:
 
 permissions:
   contents: read
-  # Needed so the "post failure as commit comment" step can write a
-  # comment on the commit that just triggered the build. Lets us read
-  # CI output without GitHub Actions log auth.
-  pull-requests: write
 
 jobs:
   test:
     name: PHP + Frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     permissions:
+      # Needed so the failing-test-output step below can post a commit
+      # comment so we can read CI output without log-archive auth.
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ───── PHP ───────────────────────────────────────────────
+      # ───── PHP ───────────────────────────────────────────────────
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -58,13 +55,32 @@ jobs:
           touch database/database.sqlite
           php artisan migrate --force --no-interaction
 
+      # ───── Frontend (runs BEFORE tests because Inertia views in tests
+      # reference the Vite manifest; without `npm run build` first, every
+      # full-render HTTP test fails with ViteManifestNotFoundException.) ─
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install JS deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Build (tsc + vite) — required before tests for Vite manifest
+        run: npm run build
+
+      - name: ESLint (advisory — warnings allowed, errors fail)
+        run: npm run lint -- --max-warnings=999
+
+      # ───── PHP tests + static analysis ───────────────────────────
       - name: Run tests
         id: tests
         run: |
           set -o pipefail
           php artisan test --without-tty --testdox 2>&1 | tee tests-output.txt
 
-      - name: Write test output to job summary (publicly visible in Actions UI)
+      - name: Write test output to job summary
         if: always()
         run: |
           {
@@ -97,19 +113,3 @@ jobs:
 
       - name: Larastan (static analysis)
         run: ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
-
-      # ───── Frontend ──────────────────────────────────────────
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-
-      - name: Install JS deps
-        run: npm ci --legacy-peer-deps
-
-      - name: ESLint (advisory — warnings allowed, errors fail)
-        run: npm run lint -- --max-warnings=999
-
-      - name: Build (tsc + vite)
-        run: npm run build
