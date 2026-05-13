@@ -48,14 +48,34 @@ jobs:
           touch database/database.sqlite
           php artisan migrate --force --no-interaction
 
-      - name: Run tests (verbose for diagnostic visibility)
-        # --testdox prints each test by name, so the rendered log on the
-        # public Actions page shows exactly which case fails instead of
-        # just a count.
+      - name: Run tests
+        id: tests
+        # Capture stdout+stderr to a file so we can both fail the step and
+        # ship the output to a commit comment when this is run from a fork
+        # we can't read the private log of.
         run: |
-          php -v
-          php -m | sort
-          php artisan test --without-tty --testdox --stop-on-failure || (echo "::group::Tests failed — re-running for full output" && php artisan test --without-tty && exit 1)
+          set -o pipefail
+          php artisan test --without-tty --testdox 2>&1 | tee tests-output.txt
+
+      - name: Post test output as commit comment on failure
+        if: failure() && steps.tests.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## CI test output\n\n```\n';
+            try {
+              body += fs.readFileSync('tests-output.txt', 'utf8').slice(-8000);
+            } catch (e) {
+              body += '(no tests-output.txt — earlier step failed)';
+            }
+            body += '\n```';
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body,
+            });
 
       - name: Pint (formatting check)
         run: ./vendor/bin/pint --test
