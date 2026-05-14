@@ -36,4 +36,15 @@ return [
     // Both can be set or just one — empty means skip that channel.
     'notify_email' => env('MARKETING_NOTIFY_EMAIL', ''),
     'slack_webhook_url' => env('MARKETING_SLACK_WEBHOOK_URL', ''),
+
+    // Legal pages — values referenced by privacy / terms / DPA templates.
+    // The effective date should be bumped whenever policies change.
+    'legal' => [
+        'effective_date' => env('MARKETING_LEGAL_EFFECTIVE_DATE', '2026-05-14'),
+        'jurisdiction' => env('MARKETING_JURISDICTION', 'Nashik, Maharashtra, India'),
+        // DPDP Act 2023 + IT Rules 2011 require a named grievance officer
+        // contactable for data-related complaints.
+        'grievance_officer_name' => env('MARKETING_GRIEVANCE_OFFICER_NAME', 'Virag Bora'),
+        'grievance_officer_email' => env('MARKETING_GRIEVANCE_OFFICER_EMAIL', 'privacy@occ.in'),
+    ],
 ];

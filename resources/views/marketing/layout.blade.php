@@ -107,11 +107,16 @@
                     </ul>
                 </div>
             </div>
-            <div class="border-t border-zinc-100 mt-12 pt-6 flex flex-col sm:flex-row justify-between text-[12px] text-zinc-400 gap-2">
+            <div class="border-t border-zinc-100 mt-12 pt-6 flex flex-col sm:flex-row justify-between text-[12px] text-zinc-400 gap-3">
                 <div>© {{ date('Y') }} {{ config('marketing.company_name') }} — Made in India.</div>
-                @if (config('marketing.gstin'))
-                    <div>GSTIN: {{ config('marketing.gstin') }}</div>
-                @endif
+                <div class="flex flex-wrap gap-4">
+                    <a href="{{ url('/privacy') }}" class="hover:text-zinc-700">Privacy</a>
+                    <a href="{{ url('/terms') }}" class="hover:text-zinc-700">Terms</a>
+                    <a href="{{ url('/dpa') }}" class="hover:text-zinc-700">DPA</a>
+                    @if (config('marketing.gstin'))
+                        <span>GSTIN: {{ config('marketing.gstin') }}</span>
+                    @endif
+                </div>
             </div>
         </div>
     </footer>

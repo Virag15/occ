@@ -132,9 +132,47 @@ class MarketingPagesTest extends TestCase
 
     public function test_marketing_routes_do_not_require_auth(): void
     {
-        foreach (['/features', '/tally', '/pricing', '/about', '/contact'] as $url) {
+        foreach (['/features', '/tally', '/pricing', '/about', '/contact', '/privacy', '/terms', '/dpa'] as $url) {
             $this->get($url)->assertOk();
         }
+    }
+
+    public function test_privacy_page_renders_with_grievance_officer(): void
+    {
+        $this->get('/privacy')
+            ->assertOk()
+            ->assertSee('Privacy policy')
+            ->assertSee('DPDP Act 2023')
+            ->assertSee('Grievance Officer')
+            ->assertSee(config('marketing.legal.grievance_officer_name'))
+            ->assertSee(config('marketing.legal.grievance_officer_email'));
+    }
+
+    public function test_terms_page_renders_with_jurisdiction(): void
+    {
+        $this->get('/terms')
+            ->assertOk()
+            ->assertSee('Terms of service')
+            ->assertSee('Arbitration', false)
+            ->assertSee(config('marketing.legal.jurisdiction'));
+    }
+
+    public function test_dpa_page_renders_with_subprocessors(): void
+    {
+        $this->get('/dpa')
+            ->assertOk()
+            ->assertSee('Data processing agreement')
+            ->assertSee('Data Fiduciary')
+            ->assertSee('Sub-processors', false)
+            ->assertSee('72 hours');
+    }
+
+    public function test_legal_links_present_in_footer(): void
+    {
+        $response = $this->get('/');
+        $response->assertSee('href="'.url('/privacy').'"', false);
+        $response->assertSee('href="'.url('/terms').'"', false);
+        $response->assertSee('href="'.url('/dpa').'"', false);
     }
 
     public function test_navigation_links_appear_in_header_and_footer(): void

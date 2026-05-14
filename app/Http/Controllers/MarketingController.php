@@ -62,6 +62,21 @@ class MarketingController extends Controller
         return view('marketing.contact');
     }
 
+    public function privacy(): View
+    {
+        return view('marketing.legal.privacy');
+    }
+
+    public function terms(): View
+    {
+        return view('marketing.legal.terms');
+    }
+
+    public function dpa(): View
+    {
+        return view('marketing.legal.dpa');
+    }
+
     /**
      * Contact form POST. Persists the lead, then pings the founder via
      * email (always) and Slack (if a webhook URL is configured). The

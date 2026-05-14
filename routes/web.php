@@ -43,6 +43,9 @@ Route::get('/pricing', [MarketingController::class, 'pricing'])->name('marketing
 Route::get('/about', [MarketingController::class, 'about'])->name('marketing.about');
 Route::get('/contact', [MarketingController::class, 'contact'])->name('marketing.contact');
 Route::post('/contact', [MarketingController::class, 'submitLead'])->name('marketing.contact.submit');
+Route::get('/privacy', [MarketingController::class, 'privacy'])->name('marketing.privacy');
+Route::get('/terms', [MarketingController::class, 'terms'])->name('marketing.terms');
+Route::get('/dpa', [MarketingController::class, 'dpa'])->name('marketing.dpa');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // ───── Read routes — open to every authed role ────────────────────────
