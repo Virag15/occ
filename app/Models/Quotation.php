@@ -45,8 +45,10 @@ class Quotation extends Model
 
     protected $fillable = [
         'quotation_code', 'customer_id', 'customer_name', 'customer_company',
-        'customer_address', 'customer_gstin', 'customer_phone', 'customer_email',
-        'quotation_date', 'valid_until', 'status', 'discount_amount',
+        'customer_address', 'customer_gstin', 'customer_state', 'customer_state_code',
+        'customer_phone', 'customer_email', 'buyer_ref', 'other_references',
+        'dispatched_through', 'destination', 'payment_terms', 'delivery_terms',
+        'quotation_date', 'valid_until', 'status', 'discount_amount', 'hide_discount',
         'subtotal', 'tax_total', 'total', 'notes', 'terms', 'created_by',
     ];
 
@@ -55,6 +57,7 @@ class Quotation extends Model
         return [
             'quotation_date' => 'date',
             'valid_until' => 'date',
+            'hide_discount' => 'boolean',
             'discount_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'tax_total' => 'decimal:2',
@@ -66,6 +69,7 @@ class Quotation extends Model
         'status' => self::STATUS_DRAFT,
     ];
 
+    /** @return HasMany<QuotationItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(QuotationItem::class);

@@ -2,8 +2,8 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import {
     CirclePlus, Trash2, Save, Building2, CalendarClock, Package,
-    StickyNote, Search, UserPlus, X, Check,
-} from 'lucide-react';
+    StickyNote, Search, UserPlus, X, Check, MapPin, Truck,
+} from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Combobox, type ComboOption } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Switch } from '@/components/ui/switch';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -37,11 +38,20 @@ type Quotation = {
     customer_company: string | null;
     customer_address: string | null;
     customer_gstin: string | null;
+    customer_state: string | null;
+    customer_state_code: string | null;
     customer_phone: string | null;
     customer_email: string | null;
+    buyer_ref: string | null;
+    other_references: string | null;
+    dispatched_through: string | null;
+    destination: string | null;
+    payment_terms: string | null;
+    delivery_terms: string | null;
     quotation_date: string;
     valid_until: string | null;
     discount_amount: string;
+    hide_discount: boolean;
     notes: string | null;
     terms: string | null;
     items: Array<Item & { id: number }>;
@@ -93,11 +103,20 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
         customer_company: quotation?.customer_company ?? '',
         customer_address: quotation?.customer_address ?? '',
         customer_gstin: quotation?.customer_gstin ?? '',
+        customer_state: quotation?.customer_state ?? '',
+        customer_state_code: quotation?.customer_state_code ?? '',
         customer_phone: quotation?.customer_phone ?? '',
         customer_email: quotation?.customer_email ?? '',
+        buyer_ref: quotation?.buyer_ref ?? '',
+        other_references: quotation?.other_references ?? '',
+        dispatched_through: quotation?.dispatched_through ?? '',
+        destination: quotation?.destination ?? '',
+        payment_terms: quotation?.payment_terms ?? '',
+        delivery_terms: quotation?.delivery_terms ?? '',
         quotation_date: quotation?.quotation_date ?? new Date().toISOString().slice(0, 10),
         valid_until: quotation?.valid_until ?? '',
         discount_amount: quotation ? Number(quotation.discount_amount) : 0,
+        hide_discount: quotation?.hide_discount ?? false,
         notes: quotation?.notes ?? '',
         terms: quotation?.terms ?? '',
         items: (quotation?.items?.map((i) => ({
@@ -109,6 +128,7 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
 
     // Editing an ad-hoc quote (typed customer, not linked) → start in manual mode.
     const [manual, setManual] = useState<boolean>(isEdit && !quotation?.customer_id && !!quotation?.customer_name);
+    const [showAddr, setShowAddr] = useState<boolean>(!!quotation?.customer_address);
 
     const selectedCustomer = useMemo(
         () => customers.find((c) => c.id === form.data.customer_id) ?? null,
@@ -200,8 +220,13 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
             <Head title={isEdit ? 'Edit quotation' : 'New quotation'} />
 
             <form onSubmit={submit} noValidate>
-                {/* Sticky action bar — title, live customer + total, actions */}
-                <div className="sticky top-0 z-10 -mx-4 mb-6 flex items-center gap-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+              {/* Cancel AdminLayout's <main> padding so the sticky bar pins flush
+                  to the scroll-container top (no padding strip to bleed through). */}
+              <div className="-m-4 sm:-m-6">
+                {/* Sticky action bar — title, live customer + total, actions.
+                    Negative top offset cancels <main>'s p-4/sm:p-6 so the bar
+                    pins flush to the scroll-container edge (no bleed band). */}
+                <div className="sticky -top-4 z-30 flex items-center gap-4 border-b bg-background px-4 py-3 shadow-sm sm:-top-6 sm:px-6">
                     <div className="min-w-0">
                         <p className="text-sm font-semibold leading-tight">
                             {isEdit ? 'Edit quotation' : 'New quotation'}
@@ -233,7 +258,7 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-x-10 gap-y-8 px-4 py-6 sm:px-6 lg:grid-cols-3">
                     {/* ── Main column ───────────────────────────────── */}
                     <div className="space-y-10 lg:col-span-2">
 
@@ -324,13 +349,24 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                                 </div>
                             )}
 
-                            {/* Address always editable (delivery/site can differ from the master). */}
-                            <div className="mt-4">
-                                <Field label="Address (optional, overrides master for this quote)" id="customer_address">
-                                    <Textarea id="customer_address" rows={2} maxLength={1000}
-                                              value={form.data.customer_address}
-                                              onChange={(e) => form.setData('customer_address', e.target.value)} />
-                                </Field>
+                            {/* Address is secondary — a quiet disclosure, not a
+                                big box hogging the top of the form. */}
+                            <div className="mt-3">
+                                {showAddr ? (
+                                    <Field label="Delivery / site address (optional)" id="customer_address">
+                                        <Textarea id="customer_address" rows={2} maxLength={1000}
+                                                  placeholder="Overrides the master address on this quote only"
+                                                  value={form.data.customer_address}
+                                                  onChange={(e) => form.setData('customer_address', e.target.value)} />
+                                    </Field>
+                                ) : (
+                                    <button type="button"
+                                            onClick={() => setShowAddr(true)}
+                                            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                                        <MapPin className="h-3.5 w-3.5" />
+                                        Add delivery / site address
+                                    </button>
+                                )}
                             </div>
                             {form.errors.customer_name && !manual && !selectedCustomer && (
                                 <p className="mt-2 text-[10px] text-destructive">
@@ -345,10 +381,19 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                         <section>
                             <div className="mb-4 flex items-center justify-between">
                                 <SectionHead icon={Package} title="Line items" />
-                                <Button type="button" variant="outline" size="sm"
-                                        onClick={() => form.setData('items', [...form.data.items, blankItem()])}>
-                                    <CirclePlus className="mr-1 h-3.5 w-3.5" /> Add line
-                                </Button>
+                                <div className="flex items-center gap-3">
+                                    <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                                        <Switch
+                                            checked={form.data.hide_discount}
+                                            onCheckedChange={(v: boolean) => form.setData('hide_discount', v)}
+                                        />
+                                        Hide discount on PDF
+                                    </label>
+                                    <Button type="button" variant="outline" size="sm"
+                                            onClick={() => form.setData('items', [...form.data.items, blankItem()])}>
+                                        <CirclePlus className="mr-1 h-3.5 w-3.5" /> Add line
+                                    </Button>
+                                </div>
                             </div>
                             <div className="-mx-1 overflow-x-auto">
                                 <table className="w-full min-w-[680px] text-sm">
@@ -418,6 +463,55 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                                 </table>
                             </div>
                             {form.errors.items && <p className="mt-2 text-[10px] text-destructive">{form.errors.items}</p>}
+                        </section>
+
+                        <Separator />
+
+                        {/* Dispatch & references — Tally invoice-parity block */}
+                        <section>
+                            <SectionHead
+                                icon={Truck}
+                                title="Dispatch & references"
+                                hint="Optional. Place of supply drives the CGST/SGST vs IGST split on the PDF."
+                            />
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <Field label="Buyer state (place of supply)" id="customer_state" error={form.errors.customer_state}>
+                                    <Input id="customer_state" value={form.data.customer_state}
+                                           placeholder="e.g. Maharashtra"
+                                           onChange={(e) => form.setData('customer_state', e.target.value)} />
+                                </Field>
+                                <Field label="State code" id="customer_state_code" error={form.errors.customer_state_code} help="2-digit GST code, e.g. 27">
+                                    <Input id="customer_state_code" className="font-mono text-xs"
+                                           value={form.data.customer_state_code} maxLength={4}
+                                           onChange={(e) => form.setData('customer_state_code', e.target.value)} />
+                                </Field>
+                                <Field label="Buyer's Ref. / Order No." id="buyer_ref" error={form.errors.buyer_ref}>
+                                    <Input id="buyer_ref" value={form.data.buyer_ref}
+                                           onChange={(e) => form.setData('buyer_ref', e.target.value)} />
+                                </Field>
+                                <Field label="Other references" id="other_references" error={form.errors.other_references}>
+                                    <Input id="other_references" value={form.data.other_references}
+                                           onChange={(e) => form.setData('other_references', e.target.value)} />
+                                </Field>
+                                <Field label="Dispatched through" id="dispatched_through" error={form.errors.dispatched_through}>
+                                    <Input id="dispatched_through" value={form.data.dispatched_through}
+                                           placeholder="e.g. By road"
+                                           onChange={(e) => form.setData('dispatched_through', e.target.value)} />
+                                </Field>
+                                <Field label="Destination" id="destination" error={form.errors.destination}>
+                                    <Input id="destination" value={form.data.destination}
+                                           onChange={(e) => form.setData('destination', e.target.value)} />
+                                </Field>
+                                <Field label="Mode / terms of payment" id="payment_terms" error={form.errors.payment_terms}>
+                                    <Input id="payment_terms" value={form.data.payment_terms}
+                                           placeholder="e.g. 50% advance, balance on delivery"
+                                           onChange={(e) => form.setData('payment_terms', e.target.value)} />
+                                </Field>
+                                <Field label="Terms of delivery" id="delivery_terms" error={form.errors.delivery_terms}>
+                                    <Input id="delivery_terms" value={form.data.delivery_terms}
+                                           onChange={(e) => form.setData('delivery_terms', e.target.value)} />
+                                </Field>
+                            </div>
                         </section>
 
                         <Separator />
@@ -494,12 +588,13 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                 </div>
 
                 {/* Mobile sticky save bar */}
-                <div className="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:hidden">
+                <div className="sticky -bottom-4 z-30 flex items-center justify-end gap-2 border-t bg-background px-4 py-3 shadow-[0_-1px_3px_rgba(0,0,0,0.06)] sm:-bottom-6 sm:px-6 lg:hidden">
                     <Button type="button" variant="ghost" asChild>
                         <Link href="/quotations">Cancel</Link>
                     </Button>
                     <SaveBtn />
                 </div>
+              </div>
             </form>
         </AdminLayout>
     );

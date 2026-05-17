@@ -48,15 +48,12 @@ class BrandLogoController extends Controller
         $prefix = app(TenantContext::class)->storagePath('brand-logos');
         $path = $request->file('logo')->store($prefix, 'public');
 
-        // Compress to keep PDFs small + consistent. Brand logos are small.
-        $absolute = Storage::disk('public')->path($path);
-        $compressed = ImageCompressor::compress($absolute, 400, 90);
-        if ($compressed !== $absolute) {
-            $path = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $path);
-            if (! str_ends_with(strtolower($path), '.jpg')) {
-                $path .= '.jpg';
-            }
-        }
+        // Compress to keep PDFs small. preserveAlpha keeps transparent PNG
+        // logos transparent (emitted as PNG) so they never get a black or
+        // white box behind them on the document.
+        $disk = Storage::disk('public');
+        $compressed = ImageCompressor::compress($disk->path($path), 400, 90, preserveAlpha: true);
+        $path = ltrim(str_replace($disk->path(''), '', $compressed), '/\\');
 
         BrandLogo::create([
             'name' => $data['name'],

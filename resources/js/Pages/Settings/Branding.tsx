@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { FormEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Upload, Trash2, Tags, Images, Image as ImageIcon } from 'lucide-react';
+import { Upload, Trash2, Tags, Images, Image as ImageIcon } from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { SettingsShell } from './SettingsShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { useConfirm } from '@/components/confirm-dialog';
 
 type Brand = {
     id: number;
@@ -24,6 +25,7 @@ type Brand = {
  * upload pattern as Settings → Company for visual consistency.
  */
 export default function BrandingSettings({ brands }: { brands: Brand[] }) {
+    const confirm = useConfirm();
     const fileRef = useRef<HTMLInputElement>(null);
     const [preview, setPreview] = useState<string | null>(null);
 
@@ -54,8 +56,14 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
         });
     };
 
-    const remove = (b: Brand) => {
-        if (!confirm(`Remove ${b.name}?`)) return;
+    const remove = async (b: Brand) => {
+        const ok = await confirm({
+            title: `Remove ${b.name}?`,
+            description: 'This brand logo will no longer appear on documents.',
+            confirmText: 'Remove',
+            destructive: true,
+        });
+        if (!ok) return;
         router.delete(`/settings/branding/${b.id}`, {
             preserveScroll: true,
             onSuccess: () => toast.success('Removed'),

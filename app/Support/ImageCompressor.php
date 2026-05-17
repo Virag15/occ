@@ -22,8 +22,12 @@ class ImageCompressor
      *
      * @return string The final on-disk path (may differ from $sourcePath if extension changed).
      */
-    public static function compress(string $sourcePath, int $maxDimension = 2000, int $quality = 82): string
-    {
+    public static function compress(
+        string $sourcePath,
+        int $maxDimension = 2000,
+        int $quality = 82,
+        bool $preserveAlpha = false,
+    ): string {
         if (! file_exists($sourcePath)) {
             return $sourcePath;
         }
@@ -60,28 +64,48 @@ class ImageCompressor
             }
         }
 
-        // Resize if too big
+        $keepAlpha = $preserveAlpha && in_array($type, [IMAGETYPE_PNG, IMAGETYPE_WEBP], true);
+
         $w = imagesx($src);
         $h = imagesy($src);
         $scale = min($maxDimension / max($w, $h), 1.0);
-        if ($scale < 1.0) {
-            $newW = max(1, (int) ($w * $scale));
-            $newH = max(1, (int) ($h * $scale));
-            $dst = imagecreatetruecolor($newW, $newH);
-            // Preserve transparency for PNG sources even though we'll save as JPEG
+        $newW = max(1, (int) ($w * $scale));
+        $newH = max(1, (int) ($h * $scale));
+        $dst = imagecreatetruecolor($newW, $newH);
+
+        if ($keepAlpha) {
+            // Logos: keep true transparency. No background fill — copy the
+            // source's alpha through and emit a PNG so the logo floats on
+            // whatever it's placed on (no black box, no white box).
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+            $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+            imagefilledrectangle($dst, 0, 0, $newW, $newH, $transparent);
+        } else {
+            // Photos: flatten onto white (JPEG has no alpha — transparent
+            // pixels would otherwise render black) then re-encode as JPEG.
             imagefilledrectangle($dst, 0, 0, $newW, $newH, imagecolorallocate($dst, 255, 255, 255));
-            imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
-            imagedestroy($src);
-            $src = $dst;
+            imagealphablending($dst, true);
         }
 
-        // Always emit JPEG — better compression for photos
-        $newPath = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $sourcePath);
-        if (! str_ends_with(strtolower($newPath), '.jpg')) {
-            $newPath .= '.jpg';
-        }
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
+        imagedestroy($src);
+        $src = $dst;
 
-        imagejpeg($src, $newPath, $quality);
+        if ($keepAlpha) {
+            // Already a .png/.webp path — overwrite in place, stay PNG.
+            $newPath = preg_replace('/\.(webp|jpe?g)$/i', '.png', $sourcePath);
+            if (! str_ends_with(strtolower($newPath), '.png')) {
+                $newPath .= '.png';
+            }
+            imagepng($src, $newPath, 6);
+        } else {
+            $newPath = preg_replace('/\.(png|webp|jpe?g)$/i', '.jpg', $sourcePath);
+            if (! str_ends_with(strtolower($newPath), '.jpg')) {
+                $newPath .= '.jpg';
+            }
+            imagejpeg($src, $newPath, $quality);
+        }
         imagedestroy($src);
 
         if ($newPath !== $sourcePath && file_exists($sourcePath)) {

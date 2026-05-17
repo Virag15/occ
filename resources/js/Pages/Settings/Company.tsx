@@ -1,7 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 import { toast } from 'sonner';
-import { Save, Image as ImageIcon, Building2, MapPin, Receipt, Landmark, FileText } from 'lucide-react';
+import { Save, Image as ImageIcon, Building2, MapPin, Receipt, Landmark, FileText } from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { SettingsShell } from './SettingsShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 type Settings = {
     id: number;
@@ -32,13 +35,42 @@ type Settings = {
     bank_name: string | null;
     bank_branch: string | null;
     bank_account_number: string | null;
+    bank_account_holder: string | null;
     bank_ifsc: string | null;
     upi_id: string | null;
     signatory_name: string | null;
     signatory_designation: string | null;
     terms_and_conditions: string | null;
     invoice_footer_note: string | null;
+    invoice_declaration: string | null;
+    quotation_layout: string | null;
 };
+
+/**
+ * Module-scope so its identity is stable across renders. Defining this
+ * inside the page component remounts the <Input> on every keystroke,
+ * which drops focus after one character.
+ */
+function Field({
+    id, label, value, onChange, error, mono = false, type = 'text',
+}: {
+    id: string; label: string; value: string; onChange: (v: string) => void;
+    error?: string; mono?: boolean; type?: string;
+}) {
+    return (
+        <div className="space-y-1.5">
+            <Label htmlFor={id} className="text-xs">{label}</Label>
+            <Input
+                id={id}
+                type={type}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className={mono ? 'font-mono text-xs' : ''}
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+    );
+}
 
 export default function CompanySettings({ settings }: { settings: Settings }) {
     const [logoPreview, setLogoPreview] = useState<string | null>(settings.logo_path ? `/storage/${settings.logo_path}` : null);
@@ -62,12 +94,15 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
         bank_name: settings.bank_name ?? '',
         bank_branch: settings.bank_branch ?? '',
         bank_account_number: settings.bank_account_number ?? '',
+        bank_account_holder: settings.bank_account_holder ?? '',
         bank_ifsc: settings.bank_ifsc ?? '',
         upi_id: settings.upi_id ?? '',
         signatory_name: settings.signatory_name ?? '',
         signatory_designation: settings.signatory_designation ?? '',
         terms_and_conditions: settings.terms_and_conditions ?? '',
         invoice_footer_note: settings.invoice_footer_note ?? '',
+        invoice_declaration: settings.invoice_declaration ?? '',
+        quotation_layout: settings.quotation_layout ?? 'classic',
         logo: null as File | null,
         signature: null as File | null,
     });
@@ -101,14 +136,6 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
             onError: (errs) => toast.error(Object.values(errs).join(', ')),
         });
     };
-
-    const Field = ({ id, label, value, onChange, error, mono = false, type = 'text' }: { id: string; label: string; value: string; onChange: (v: string) => void; error?: string; mono?: boolean; type?: string }) => (
-        <div className="space-y-1.5">
-            <Label htmlFor={id} className="text-xs">{label}</Label>
-            <Input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} className={mono ? 'font-mono text-xs' : ''} />
-            {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-    );
 
     return (
         <AdminLayout breadcrumbs={[{ label: 'Settings' }, { label: 'Company' }]}>
@@ -151,6 +178,25 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
                                     Tip: photograph signature on a plain white sheet for cleanest result.
                                 </p>
                             </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Document layout</Label>
+                            <Select
+                                value={form.data.quotation_layout}
+                                onValueChange={(v) => form.setData('quotation_layout', v)}
+                            >
+                                <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="classic">Classic — logo left, title right</SelectItem>
+                                    <SelectItem value="banner">Banner — logo &amp; identity centred on top</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                Applies to the quotation PDF, the on-screen preview, and (later) invoices.
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
@@ -200,6 +246,7 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
                     <CardContent className="grid grid-cols-1 gap-3 p-4 pt-2 sm:grid-cols-2">
                         <Field id="bank_name" label="Bank name" value={form.data.bank_name} onChange={(v) => form.setData('bank_name', v)} />
                         <Field id="bank_branch" label="Branch" value={form.data.bank_branch} onChange={(v) => form.setData('bank_branch', v)} />
+                        <Field id="bank_account_holder" label="A/c holder's name" value={form.data.bank_account_holder} onChange={(v) => form.setData('bank_account_holder', v)} />
                         <Field id="bank_account_number" label="Account number" value={form.data.bank_account_number} onChange={(v) => form.setData('bank_account_number', v)} mono />
                         <Field id="bank_ifsc" label="IFSC code" value={form.data.bank_ifsc} onChange={(v) => form.setData('bank_ifsc', v.toUpperCase())} mono />
                         <Field id="upi_id" label="UPI ID" value={form.data.upi_id} onChange={(v) => form.setData('upi_id', v)} mono />
@@ -222,6 +269,16 @@ export default function CompanySettings({ settings }: { settings: Settings }) {
                                 rows={4}
                                 value={form.data.terms_and_conditions}
                                 onChange={(e) => form.setData('terms_and_conditions', e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="invoice_declaration" className="text-xs">Declaration (printed near the signature)</Label>
+                            <Textarea
+                                id="invoice_declaration"
+                                rows={3}
+                                placeholder="We declare that this quotation shows the actual price of the goods described and that all particulars are true and correct."
+                                value={form.data.invoice_declaration}
+                                onChange={(e) => form.setData('invoice_declaration', e.target.value)}
                             />
                         </div>
                         <div className="space-y-1.5">

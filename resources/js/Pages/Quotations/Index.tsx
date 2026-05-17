@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X } from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { DataTable, SortableHeader } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
