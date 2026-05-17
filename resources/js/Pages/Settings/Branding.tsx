@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { FormEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Upload, Trash2, Tag, Image as ImageIcon } from 'lucide-react';
+import { Upload, Trash2, Tags, Images, Image as ImageIcon } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { SettingsShell } from './SettingsShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,7 +72,7 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
                     <Card>
                         <CardHeader className="p-4 pb-2">
                             <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                                <Tag className="h-4 w-4 text-muted-foreground" /> Add a brand
+                                <Tags className="h-4 w-4 text-muted-foreground" /> Add a brand
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 pt-2">
@@ -146,7 +146,7 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
                     <Card>
                         <CardHeader className="p-4 pb-2">
                             <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                                <Tag className="h-4 w-4 text-muted-foreground" />
+                                <Images className="h-4 w-4 text-muted-foreground" />
                                 Your brands
                                 {brands.length > 0 && (
                                     <span className="font-normal text-muted-foreground">· {brands.length}</span>
@@ -156,7 +156,7 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
                         <CardContent className="p-4 pt-2">
                             {brands.length === 0 ? (
                                 <div className="py-10 text-center text-sm text-muted-foreground">
-                                    <Tag className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                                    <Images className="mx-auto mb-2 h-8 w-8 opacity-40" />
                                     No brands yet. Add the 7–10 brands you deal in above —
                                     they&rsquo;ll show on every quotation.
                                 </div>

@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { Plus, Trash2, Save, User, FileText, ListPlus } from 'lucide-react';
+import { CirclePlus, Trash2, Save, Building2, CalendarClock, Package, StickyNote } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Combobox, type ComboOption } from '@/components/ui/combobox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { formatCurrency } from '@/lib/format';
 
 type CustomerLite = { id: number; name: string; company: string | null; gstin: string | null; phone: string | null; email: string | null };
@@ -99,6 +100,18 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
         [products],
     );
 
+    // Date → yyyy-mm-dd (local), same helper Orders/Form uses.
+    const setDate = (key: 'quotation_date' | 'valid_until') => (d: Date | undefined) => {
+        if (!d) {
+            form.setData(key, '');
+            return;
+        }
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        form.setData(key, `${yyyy}-${mm}-${dd}`);
+    };
+
     const setItem = (idx: number, patch: Partial<Item>) =>
         form.setData('items', form.data.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
@@ -174,7 +187,7 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                 <Card>
                     <CardHeader className="p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                            <User className="h-4 w-4 text-muted-foreground" /> Customer
+                            <Building2 className="h-4 w-4 text-muted-foreground" /> Customer
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 p-4 pt-2">
@@ -217,18 +230,16 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                 <Card>
                     <CardHeader className="p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                            <FileText className="h-4 w-4 text-muted-foreground" /> Details
+                            <CalendarClock className="h-4 w-4 text-muted-foreground" /> Details
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-2">
                         <div className="grid gap-3 sm:grid-cols-3">
                             <Field label="Quotation date *" id="quotation_date" error={form.errors.quotation_date}>
-                                <Input id="quotation_date" type="date" value={form.data.quotation_date}
-                                       onChange={(e) => form.setData('quotation_date', e.target.value)} />
+                                <DatePicker id="quotation_date" value={form.data.quotation_date} onChange={setDate('quotation_date')} />
                             </Field>
                             <Field label="Valid until" id="valid_until" error={form.errors.valid_until} help="Quote expiry date">
-                                <Input id="valid_until" type="date" value={form.data.valid_until}
-                                       onChange={(e) => form.setData('valid_until', e.target.value)} />
+                                <DatePicker id="valid_until" value={form.data.valid_until || null} onChange={setDate('valid_until')} placeholder="No expiry" />
                             </Field>
                             <Field label="Overall discount (₹)" id="discount_amount" help="Flat amount off the grand total">
                                 <Input id="discount_amount" type="number" step="0.01" min="0"
@@ -244,11 +255,11 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                            <ListPlus className="h-4 w-4 text-muted-foreground" /> Line items
+                            <Package className="h-4 w-4 text-muted-foreground" /> Line items
                         </CardTitle>
                         <Button type="button" variant="outline" size="sm"
                                 onClick={() => form.setData('items', [...form.data.items, blankItem()])}>
-                            <Plus className="mr-1 h-3.5 w-3.5" /> Add line
+                            <CirclePlus className="mr-1 h-3.5 w-3.5" /> Add line
                         </Button>
                     </CardHeader>
                     <CardContent className="p-4 pt-2">
@@ -352,7 +363,7 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                 <Card>
                     <CardHeader className="p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                            <FileText className="h-4 w-4 text-muted-foreground" /> Notes &amp; terms
+                            <StickyNote className="h-4 w-4 text-muted-foreground" /> Notes &amp; terms
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-2">

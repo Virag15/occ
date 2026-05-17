@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Download, Pencil, Trash2 } from 'lucide-react';
+import { FileDown, Pencil, Trash2 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +72,7 @@ export default function QuotationShow({ quotation }: { quotation: Quotation }) {
                             </SelectContent>
                         </Select>
                         <Button asChild variant="outline">
-                            <a href={`/quotations/${quotation.id}/pdf`}><Download className="h-4 w-4 mr-1" /> PDF</a>
+                            <a href={`/quotations/${quotation.id}/pdf`}><FileDown className="h-4 w-4 mr-1" /> PDF</a>
                         </Button>
                         <Button asChild variant="outline">
                             <Link href={`/quotations/${quotation.id}/edit`}><Pencil className="h-4 w-4 mr-1" /> Edit</Link>

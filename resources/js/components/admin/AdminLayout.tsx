@@ -21,7 +21,7 @@ import {
     UserCog,
     UsersRound,
     History,
-    FileText,
+    ReceiptIndianRupee,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
 import { Button } from '@/components/ui/button';
@@ -111,7 +111,7 @@ const navGroups: NavGroup[] = [
         textColor: 'text-orange-600',
         items: [
             { name: 'Orders', href: '/orders', icon: ShoppingCart },
-            { name: 'Quotations', href: '/quotations', icon: FileText, roles: ['owner', 'manager', 'accounts'] },
+            { name: 'Quotations', href: '/quotations', icon: ReceiptIndianRupee, roles: ['owner', 'manager', 'accounts'] },
             { name: 'Returns', href: '/returns', icon: AlertOctagon },
             { name: 'Dispatch calendar', href: '/shipments/calendar', icon: CalendarDays },
             { name: 'Warehouse queue', href: '/warehouse', icon: PackageCheck, roles: ['owner', 'manager', 'warehouse'] },
