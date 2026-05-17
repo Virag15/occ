@@ -1,8 +1,9 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
-import { ArrowLeft, CheckCircle2, XCircle, Search, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Search, FileText } from '@/lib/icons';
 import { toast } from 'sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ function statusClasses(s: string): string {
 
 export default function ReturnShow({ returnCase }: { returnCase: ReturnCase }) {
     const r = returnCase;
+    const confirm = useConfirm();
     const [resolveOpen, setResolveOpen] = useState(false);
     const resolveForm = useForm({
         resolution_type: 'credit_note',
@@ -55,8 +57,14 @@ export default function ReturnShow({ returnCase }: { returnCase: ReturnCase }) {
         });
     };
 
-    const reject = () => {
-        if (!confirm(`Reject case ${r.case_code}? Quantities will release back to delivered.`)) return;
+    const reject = async () => {
+        const ok = await confirm({
+            title: `Reject case ${r.case_code}?`,
+            description: 'Quantities will release back to delivered.',
+            confirmText: 'Reject case',
+            destructive: true,
+        });
+        if (!ok) return;
         router.patch(route('returns.reject', { return: r.id }), {}, {
             preserveScroll: true,
             onSuccess: () => toast.success('Case rejected.'),

@@ -4,13 +4,14 @@ import {
     ArrowLeft, Pencil, Truck, Package, FileCheck, IndianRupee, History, Phone, Mail, MapPin, Link2,
     Zap, MessageSquare, CheckCircle2, ChevronRight, Upload, Image as ImageIcon, Printer, ClipboardList,
     RotateCcw, AlertTriangle, ExternalLink, Plus, Download, Trash2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { useConfirm } from '@/components/confirm-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -757,6 +758,7 @@ export default function OrderShow({ order, auditLog, transporters }: { order: Or
 
 // ─── Payments card ───────────────────────────────────────────────────
 function PaymentsCard({ order, payments, onRecordPayment }: { order: OrderFull; payments: Payment[]; onRecordPayment: () => void }) {
+    const confirm = useConfirm();
     const orderValue = Number(order.order_value ?? 0);
     const received = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
     const balance = Math.max(0, orderValue - received);
@@ -815,8 +817,14 @@ function PaymentsCard({ order, payments, onRecordPayment }: { order: OrderFull; 
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                onClick={() => {
-                                    if (!confirm(`Delete this ${formatCurrency(p.amount)} payment? The order balance will recompute.`)) return;
+                                onClick={async () => {
+                                    const ok = await confirm({
+                                        title: 'Delete this payment?',
+                                        description: `The ${formatCurrency(p.amount)} payment will be removed and the order balance will recompute.`,
+                                        confirmText: 'Delete payment',
+                                        destructive: true,
+                                    });
+                                    if (!ok) return;
                                     router.delete(route('payments.destroy', { payment: p.id }), {
                                         preserveScroll: true,
                                         onSuccess: () => toast.success('Payment removed'),
@@ -847,6 +855,7 @@ function KPI({ label, value }: { label: string; value: React.ReactNode }) {
 
 // ─── Shipment card ───────────────────────────────────────────────────
 function ShipmentCard({ shipment: s }: { shipment: Shipment }) {
+    const confirm = useConfirm();
     const next = s.status === 'packed' ? 'dispatched' : s.status === 'dispatched' ? 'delivered' : null;
     const lineSummary = (s.items ?? [])
         .map((si) => `${Number(si.qty)}× ${si.order_item?.product_name ?? 'line'}`)
@@ -920,8 +929,14 @@ function ShipmentCard({ shipment: s }: { shipment: Shipment }) {
                             size="sm"
                             variant="ghost"
                             className="h-7 text-destructive hover:text-red-700"
-                            onClick={() => {
-                                if (!confirm(`Cancel shipment ${s.shipment_code}? Quantities will refund to the open balance.`)) return;
+                            onClick={async () => {
+                                const ok = await confirm({
+                                    title: `Cancel shipment ${s.shipment_code}?`,
+                                    description: 'Quantities will refund to the open balance.',
+                                    confirmText: 'Cancel shipment',
+                                    destructive: true,
+                                });
+                                if (!ok) return;
                                 router.delete(route('shipments.destroy', { shipment: s.id }), {
                                     preserveScroll: true,
                                     onSuccess: () => toast.success('Shipment cancelled'),

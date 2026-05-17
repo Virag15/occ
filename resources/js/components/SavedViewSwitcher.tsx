@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
-import { Eye, ChevronDown, Save, Star, Trash2, Plus, Check } from 'lucide-react';
+import { Eye, ChevronDown, Save, Star, Trash2, Plus, Check } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import {
     DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/components/confirm-dialog';
 import type { SavedView } from '@/types/entities';
 
 type ViewConfig = {
@@ -39,6 +40,7 @@ export function SavedViewSwitcher({
     allLabel?: string;
 }) {
     const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+    const confirm = useConfirm();
     const activeView = views.find((v) => v.id === activeViewId) ?? null;
 
     const saveForm = useForm({
@@ -78,8 +80,14 @@ export function SavedViewSwitcher({
         });
     };
 
-    const deleteView = (view: SavedView) => {
-        if (!confirm(`Delete view "${view.name}"?`)) return;
+    const deleteView = async (view: SavedView) => {
+        const ok = await confirm({
+            title: `Delete view “${view.name}”?`,
+            description: 'This saved view will be removed.',
+            confirmText: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
         router.delete(route('saved-views.destroy', { savedView: view.id }), {
             preserveScroll: true,
             onSuccess: () => {
