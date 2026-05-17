@@ -67,19 +67,13 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
             <Head title="Branding" />
 
             <SettingsShell active="branding">
-                <div className="space-y-5">
+                <div className="space-y-6">
                     {/* ─── Add a brand ──────────────────────────────── */}
                     <Card>
                         <CardHeader className="p-4 pb-2">
                             <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                                <Tag className="h-4 w-4 text-muted-foreground" />
-                                Add a brand
+                                <Tag className="h-4 w-4 text-muted-foreground" /> Add a brand
                             </CardTitle>
-                            <p className="text-xs text-muted-foreground">
-                                The brands you deal in appear automatically on every quotation
-                                and invoice PDF as an &ldquo;Authorised dealer for&rdquo; strip — no
-                                need to attach them per document.
-                            </p>
                         </CardHeader>
                         <CardContent className="p-4 pt-2">
                             <form onSubmit={submit} className="space-y-4">
@@ -99,11 +93,12 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
                                             accept="image/png,image/jpeg,image/webp"
                                             onChange={onFile}
                                         />
-                                        <p className="text-xs text-muted-foreground">
-                                            PNG / JPG / WEBP, max 2&nbsp;MB. Compressed to 400px for the PDF.
+                                        <p className="text-[10px] text-muted-foreground">
+                                            PNG / JPG / WEBP, max 2&nbsp;MB. Compressed to 400px. Auto-renders on
+                                            quotation &amp; invoice PDFs as an &ldquo;Authorised dealer for&rdquo; strip.
                                         </p>
                                         {form.errors.logo && (
-                                            <p className="text-xs text-destructive">{form.errors.logo}</p>
+                                            <p className="text-[10px] text-destructive">{form.errors.logo}</p>
                                         )}
                                     </div>
                                 </div>
@@ -122,7 +117,7 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
                                             required
                                         />
                                         {form.errors.name && (
-                                            <p className="text-xs text-destructive">{form.errors.name}</p>
+                                            <p className="text-[10px] text-destructive">{form.errors.name}</p>
                                         )}
                                     </div>
                                     <div className="space-y-1.5">

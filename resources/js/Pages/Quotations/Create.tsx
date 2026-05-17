@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus, Trash2, Save, User, FileText, ListPlus } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -53,19 +53,16 @@ const blankItem = (): Item => ({
     unit: '', unit_price: 0, discount_pct: 0, tax_rate: 18,
 });
 
-/** Inline labelled field — same shape Settings/Company uses. */
-function Field({
-    id, label, value, onChange, error, type = 'text', placeholder,
-}: {
-    id: string; label: string; value: string; onChange: (v: string) => void;
-    error?: string; type?: string; placeholder?: string;
+/** Label + control wrapper — identical to Orders/Form's Field. */
+function Field({ label, id, error, help, children }: {
+    label: string; id: string; error?: string; help?: string; children: React.ReactNode;
 }) {
     return (
         <div className="space-y-1.5">
             <Label htmlFor={id} className="text-xs">{label}</Label>
-            <Input id={id} type={type} value={value} placeholder={placeholder}
-                   onChange={(e) => onChange(e.target.value)} />
-            {error && <p className="text-xs text-destructive">{error}</p>}
+            {children}
+            {help && !error && <p className="text-[10px] text-muted-foreground">{help}</p>}
+            {error && <p className="text-[10px] text-destructive">{error}</p>}
         </div>
     );
 }
@@ -154,89 +151,104 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
         <AdminLayout breadcrumbs={[{ label: 'Quotations', href: '/quotations' }, { label: isEdit ? 'Edit' : 'New' }]}>
             <Head title={isEdit ? 'Edit quotation' : 'New quotation'} />
 
-            <form onSubmit={submit} className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <h1 className="text-xl font-semibold tracking-tight">
-                            {isEdit ? 'Edit quotation' : 'New quotation'}
-                        </h1>
-                        {!isEdit && (
-                            <p className="text-xs text-muted-foreground">
-                                Code <span className="font-mono">{nextCode}</span> · no order required
-                            </p>
-                        )}
+            <form onSubmit={submit} noValidate className="space-y-5 pb-10">
+                {/* Action row — title shown in breadcrumb */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
+                        {isEdit
+                            ? `Editing ${quotation!.customer_company || quotation!.customer_name}`
+                            : <>Creating a new quotation · <span className="font-mono">{nextCode}</span> · no order required</>}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" size="sm" asChild>
+                            <Link href="/quotations">Cancel</Link>
+                        </Button>
+                        <Button type="submit" disabled={form.processing} size="sm">
+                            <Save className="mr-1 h-3.5 w-3.5" />
+                            {form.processing ? 'Saving…' : isEdit ? 'Update quotation' : 'Create quotation'}
+                        </Button>
                     </div>
-                    <Button type="submit" disabled={form.processing}>
-                        <Save className="mr-1 h-4 w-4" /> {isEdit ? 'Save changes' : 'Create quotation'}
-                    </Button>
                 </div>
 
-                {/* Customer */}
+                {/* ─── Customer ─── */}
                 <Card>
                     <CardHeader className="p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm font-medium">
                             <User className="h-4 w-4 text-muted-foreground" /> Customer
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 p-4 pt-2">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs">Pick existing customer (optional)</Label>
+                    <CardContent className="space-y-4 p-4 pt-2">
+                        <Field label="Pick existing customer" id="customer_pick" help="Optional — or type the buyer details below">
                             <Combobox
                                 value={form.data.customer_id ? String(form.data.customer_id) : ''}
                                 onChange={pickCustomer}
                                 options={customerOptions}
-                                placeholder="Search customers, or type details below"
-                                searchPlaceholder="Search customers…"
+                                placeholder="Search customers…"
+                                searchPlaceholder="Search by name or company…"
                             />
+                        </Field>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Contact name *" id="customer_name" error={form.errors.customer_name}>
+                                <Input id="customer_name" value={form.data.customer_name}
+                                       onChange={(e) => form.setData('customer_name', e.target.value)} />
+                            </Field>
+                            <Field label="Company" id="customer_company" error={form.errors.customer_company}>
+                                <Input id="customer_company" value={form.data.customer_company}
+                                       onChange={(e) => form.setData('customer_company', e.target.value)} />
+                            </Field>
+                            <Field label="GSTIN" id="customer_gstin" error={form.errors.customer_gstin}>
+                                <Input id="customer_gstin" className="font-mono text-xs" value={form.data.customer_gstin}
+                                       onChange={(e) => form.setData('customer_gstin', e.target.value)} />
+                            </Field>
+                            <Field label="Phone" id="customer_phone" error={form.errors.customer_phone}>
+                                <Input id="customer_phone" className="font-mono text-xs" value={form.data.customer_phone}
+                                       onChange={(e) => form.setData('customer_phone', e.target.value)} />
+                            </Field>
                         </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <Field id="customer_name" label="Contact name *" value={form.data.customer_name}
-                                   onChange={(v) => form.setData('customer_name', v)} error={form.errors.customer_name} />
-                            <Field id="customer_company" label="Company" value={form.data.customer_company}
-                                   onChange={(v) => form.setData('customer_company', v)} error={form.errors.customer_company} />
-                            <Field id="customer_gstin" label="GSTIN" value={form.data.customer_gstin}
-                                   onChange={(v) => form.setData('customer_gstin', v)} error={form.errors.customer_gstin} />
-                            <Field id="customer_phone" label="Phone" value={form.data.customer_phone}
-                                   onChange={(v) => form.setData('customer_phone', v)} error={form.errors.customer_phone} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="customer_address" className="text-xs">Address</Label>
+                        <Field label="Address" id="customer_address">
                             <Textarea id="customer_address" rows={2} maxLength={1000}
                                       value={form.data.customer_address}
                                       onChange={(e) => form.setData('customer_address', e.target.value)} />
-                        </div>
+                        </Field>
                     </CardContent>
                 </Card>
 
-                {/* Details */}
+                {/* ─── Details ─── */}
                 <Card>
                     <CardHeader className="p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm font-medium">
                             <FileText className="h-4 w-4 text-muted-foreground" /> Details
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 gap-3 p-4 pt-2 sm:grid-cols-3">
-                        <Field id="quotation_date" label="Quotation date *" type="date"
-                               value={form.data.quotation_date} onChange={(v) => form.setData('quotation_date', v)}
-                               error={form.errors.quotation_date} />
-                        <Field id="valid_until" label="Valid until" type="date"
-                               value={form.data.valid_until} onChange={(v) => form.setData('valid_until', v)}
-                               error={form.errors.valid_until} />
-                        <Field id="discount_amount" label="Overall discount (₹)" type="number"
-                               value={String(form.data.discount_amount)}
-                               onChange={(v) => form.setData('discount_amount', Number(v))} />
+                    <CardContent className="p-4 pt-2">
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <Field label="Quotation date *" id="quotation_date" error={form.errors.quotation_date}>
+                                <Input id="quotation_date" type="date" value={form.data.quotation_date}
+                                       onChange={(e) => form.setData('quotation_date', e.target.value)} />
+                            </Field>
+                            <Field label="Valid until" id="valid_until" error={form.errors.valid_until} help="Quote expiry date">
+                                <Input id="valid_until" type="date" value={form.data.valid_until}
+                                       onChange={(e) => form.setData('valid_until', e.target.value)} />
+                            </Field>
+                            <Field label="Overall discount (₹)" id="discount_amount" help="Flat amount off the grand total">
+                                <Input id="discount_amount" type="number" step="0.01" min="0"
+                                       value={form.data.discount_amount}
+                                       onChange={(e) => form.setData('discount_amount', Number(e.target.value))}
+                                       className="text-right tabular-nums" />
+                            </Field>
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* Line items */}
+                {/* ─── Line items ─── */}
                 <Card>
-                    <CardHeader className="flex-row items-center justify-between p-4 pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm font-medium">
                             <ListPlus className="h-4 w-4 text-muted-foreground" /> Line items
                         </CardTitle>
                         <Button type="button" variant="outline" size="sm"
                                 onClick={() => form.setData('items', [...form.data.items, blankItem()])}>
-                            <Plus className="mr-1 h-4 w-4" /> Add line
+                            <Plus className="mr-1 h-3.5 w-3.5" /> Add line
                         </Button>
                     </CardHeader>
                     <CardContent className="p-4 pt-2">
@@ -246,10 +258,10 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                                     <tr className="text-xs text-muted-foreground">
                                         <th className="px-2 py-2 text-left font-medium" style={{ minWidth: 240 }}>Product / description</th>
                                         <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>Qty</th>
-                                        <th className="px-2 py-2 text-left font-medium" style={{ width: 60 }}>Unit</th>
+                                        <th className="px-2 py-2 text-left font-medium" style={{ width: 56 }}>Unit</th>
                                         <th className="px-2 py-2 text-right font-medium" style={{ width: 110 }}>Rate</th>
-                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>Disc %</th>
-                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>GST %</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 72 }}>Disc %</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 72 }}>GST %</th>
                                         <th className="px-2 py-2 text-right font-medium" style={{ width: 110 }}>Amount</th>
                                         <th className="px-2 py-2" style={{ width: 36 }} />
                                     </tr>
@@ -280,10 +292,7 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                                                     <Input type="number" step="0.001" min="0" className="h-8 text-right tabular-nums"
                                                            value={it.qty} onChange={(e) => setItem(i, { qty: Number(e.target.value) })} />
                                                 </td>
-                                                <td className="px-2 py-2">
-                                                    <Input className="h-8" maxLength={20}
-                                                           value={it.unit} onChange={(e) => setItem(i, { unit: e.target.value })} />
-                                                </td>
+                                                <td className="px-2 py-2 text-xs text-muted-foreground">{it.unit || '—'}</td>
                                                 <td className="px-2 py-2">
                                                     <Input type="number" step="0.01" min="0" className="h-8 text-right tabular-nums"
                                                            value={it.unit_price} onChange={(e) => setItem(i, { unit_price: Number(e.target.value) })} />
@@ -314,7 +323,7 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                                 </tbody>
                             </table>
                         </div>
-                        {form.errors.items && <p className="mt-2 text-xs text-destructive">{form.errors.items}</p>}
+                        {form.errors.items && <p className="mt-2 text-[10px] text-destructive">{form.errors.items}</p>}
 
                         <div className="mt-4 flex justify-end">
                             <div className="w-64 space-y-1 text-sm">
@@ -339,28 +348,35 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
                     </CardContent>
                 </Card>
 
-                {/* Notes + terms */}
+                {/* ─── Notes & terms ─── */}
                 <Card>
                     <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-sm font-medium">Notes &amp; terms</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <FileText className="h-4 w-4 text-muted-foreground" /> Notes &amp; terms
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 gap-3 p-4 pt-2 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="notes" className="text-xs">Notes</Label>
-                            <Textarea id="notes" rows={3} maxLength={2000}
-                                      value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="terms" className="text-xs">Terms &amp; conditions</Label>
-                            <Textarea id="terms" rows={3} maxLength={2000}
-                                      value={form.data.terms} onChange={(e) => form.setData('terms', e.target.value)} />
+                    <CardContent className="p-4 pt-2">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Notes" id="notes" help="Shown on the quotation PDF">
+                                <Textarea id="notes" rows={3} maxLength={2000}
+                                          value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} />
+                            </Field>
+                            <Field label="Terms & conditions" id="terms" help="Payment terms, delivery, validity">
+                                <Textarea id="terms" rows={3} maxLength={2000}
+                                          value={form.data.terms} onChange={(e) => form.setData('terms', e.target.value)} />
+                            </Field>
                         </div>
                     </CardContent>
                 </Card>
 
-                <div className="flex justify-end">
+                {/* Footer save (mirrors header save for long forms) */}
+                <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button type="button" variant="ghost" asChild>
+                        <Link href="/quotations">Cancel</Link>
+                    </Button>
                     <Button type="submit" disabled={form.processing}>
-                        <Save className="mr-1 h-4 w-4" /> {isEdit ? 'Save changes' : 'Create quotation'}
+                        <Save className="mr-1 h-4 w-4" />
+                        {form.processing ? 'Saving…' : isEdit ? 'Update quotation' : 'Create quotation'}
                     </Button>
                 </div>
             </form>
