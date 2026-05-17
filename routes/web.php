@@ -33,12 +33,13 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // ───── Public marketing site ─────────────────────────────────────────
-// Server-rendered Blade (no Inertia) — fast, SEO-friendly. The root
-// route branches: authed users land on the dashboard (with role-based
-// redirects inside the controller), unauthed users see the marketing
-// home page. The route name 'dashboard' is preserved so internal
-// link generators (route('dashboard')) keep working.
-Route::get('/', [MarketingController::class, 'home'])->name('dashboard');
+// Server-rendered Blade (no Inertia) — fast, SEO-friendly. `/` is the
+// guest marketing home; authed users are redirected to /dashboard
+// (the Inertia app). These MUST stay separate URLs: an Inertia XHR
+// landing on a Blade page triggers Inertia's "non-Inertia response"
+// white-modal overlay. The named 'dashboard' route is the Inertia
+// /dashboard inside the auth group below.
+Route::get('/', [MarketingController::class, 'home'])->name('marketing.home');
 Route::get('/features', [MarketingController::class, 'features'])->name('marketing.features');
 Route::get('/tally', [MarketingController::class, 'tally'])->name('marketing.tally');
 Route::get('/pricing', [MarketingController::class, 'pricing'])->name('marketing.pricing');
@@ -51,7 +52,9 @@ Route::get('/dpa', [MarketingController::class, 'dpa'])->name('marketing.dpa');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // ───── Read routes — open to every authed role ────────────────────────
-    // Role-based landing is enforced inside DashboardController::index.
+    // /dashboard is the Inertia app entry. Role-based landing (warehouse →
+    // queue, accounts → tasks) is enforced inside DashboardController::index.
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [TasksController::class, 'index'])->name('tasks');
     Route::get('/warehouse', [WarehouseController::class, 'index'])->name('warehouse.queue');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');

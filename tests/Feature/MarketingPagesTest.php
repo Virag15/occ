@@ -27,22 +27,21 @@ class MarketingPagesTest extends TestCase
             ->assertSee('Talk to us', false);
     }
 
-    public function test_authed_user_at_root_gets_dashboard_not_marketing(): void
+    public function test_authed_user_at_root_redirects_to_dashboard(): void
     {
+        // `/` is Blade marketing for guests; authed users get a clean
+        // 302 to the Inertia /dashboard. They must NOT be served the
+        // Blade page over an Inertia XHR (that caused the white-modal bug).
         $owner = User::factory()->create(['role' => 'owner']);
-        $response = $this->actingAs($owner)->get('/');
-        $response->assertOk();
-        // Owners land on the actual dashboard Inertia page, not the Blade
-        // marketing home (which has no <html class="scroll-smooth"> attr).
-        $response->assertDontSee('Operations for businesses that run on');
+        $this->actingAs($owner)->get('/')->assertRedirect('/dashboard');
     }
 
-    public function test_authed_warehouse_role_still_redirects_to_queue_from_root(): void
+    public function test_authed_warehouse_role_redirects_root_then_dashboard_to_queue(): void
     {
-        // Re-asserts RoleLandingTest invariant — multi-tenant + marketing
-        // refactor must not break this.
         $u = User::factory()->create(['role' => 'warehouse']);
-        $this->actingAs($u)->get('/')->assertRedirect('/warehouse');
+        // / → /dashboard, then DashboardController role-lands to /warehouse
+        $this->actingAs($u)->get('/')->assertRedirect('/dashboard');
+        $this->actingAs($u)->get('/dashboard')->assertRedirect('/warehouse');
     }
 
     public function test_features_page_renders(): void

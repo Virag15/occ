@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
-use Inertia\Response as InertiaResponse;
 
 /**
  * Public marketing site. Server-rendered Blade (not Inertia) so the
@@ -26,12 +25,15 @@ use Inertia\Response as InertiaResponse;
  */
 class MarketingController extends Controller
 {
-    public function home(Request $request): View|RedirectResponse|InertiaResponse
+    public function home(Request $request): View|RedirectResponse
     {
-        // Authed users get the dashboard (with role-based redirects inside).
-        // Delegate to the actual controller so behavior stays in one place.
+        // Authed users go to the Inertia app at /dashboard. We must NOT
+        // render an Inertia response here: `/` also serves the Blade
+        // marketing page to guests, and an Inertia XHR landing on Blade
+        // triggers Inertia's white-modal overlay. A 302 to /dashboard
+        // (a real Inertia route) keeps the two worlds cleanly separate.
         if ($request->user()) {
-            return app(DashboardController::class)->index();
+            return redirect()->route('dashboard');
         }
 
         return view('marketing.home');

@@ -58,6 +58,9 @@ class ProfileController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return Redirect::to('/');
+        // Account deletion is an Inertia DELETE; Inertia XHR-follows the
+        // redirect. '/' is the Blade marketing page (no X-Inertia header)
+        // which triggers Inertia's white-modal overlay. Send to /login.
+        return Redirect::route('login');
     }
 }

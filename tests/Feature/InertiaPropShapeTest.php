@@ -76,7 +76,7 @@ class InertiaPropShapeTest extends TestCase
 
     public function test_dashboard_has_kpi_props(): void
     {
-        $this->actingAs($this->owner)->get('/')
+        $this->actingAs($this->owner)->get('/dashboard')
             ->assertOk()
             ->assertInertia(fn (Assert $p) => $p
                 ->component('Dashboard')

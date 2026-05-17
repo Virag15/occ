@@ -166,7 +166,13 @@ class DatabaseSeeder extends Seeder
 
     private function seedUsers(): void
     {
-        User::firstOrCreate(
+        // Link the founder to the GC Communication tenant (seedTenants
+        // runs first). A null tenant_id is valid but means an owner sees
+        // ALL tenants' data via the scope fallback — not what we want for
+        // the primary GC account.
+        $gcTenantId = Tenant::where('slug', 'gc-communication')->value('id');
+
+        $virag = User::firstOrCreate(
             ['email' => 'virag@deltasystem.in'],
             [
                 'name' => 'Virag Bora',
@@ -177,6 +183,10 @@ class DatabaseSeeder extends Seeder
                 'is_platform_admin' => true,
             ],
         );
+
+        if ($gcTenantId && $virag->tenant_id !== $gcTenantId) {
+            $virag->forceFill(['tenant_id' => $gcTenantId])->save();
+        }
     }
 
     private function seedTransporters(): void

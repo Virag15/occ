@@ -47,6 +47,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // Redirect to the login page, not '/'. Logout is an Inertia POST;
+        // Inertia XHR-follows the redirect. '/' is the Blade marketing
+        // page (no X-Inertia header) which would trigger Inertia's
+        // white-modal overlay. /login is a proper Inertia page.
+        return redirect()->route('login');
     }
 }
