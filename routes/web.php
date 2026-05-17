@@ -15,6 +15,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductShowController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SavedViewController;
@@ -79,6 +80,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/returns', [ReturnController::class, 'index'])->name('returns.index');
     Route::get('/returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
 
+    // Quotations — standalone, no order needed. Reads open to all authed
+    // roles; writes gated to owner/manager/accounts below.
+    Route::get('/quotations', [QuotationController::class, 'index'])->name('quotations.index');
+    Route::get('/quotations/create', [QuotationController::class, 'create'])->name('quotations.create');
+    Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->name('quotations.show');
+    Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])->name('quotations.edit');
+    Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'pdf'])->name('quotations.pdf');
+
     // Literal route must precede /{shipment} bindings
     Route::get('/shipments/calendar', [ShipmentController::class, 'calendar'])->name('shipments.calendar');
     Route::get('/shipments/{shipment}/picking-slip', [ShipmentController::class, 'pickingSlip'])->name('shipments.picking-slip');
@@ -91,6 +100,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
         Route::match(['put', 'patch'], 'customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
         Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
+
+        // Quotation writes: owner/manager/accounts (sales-facing roles).
+        Route::post('quotations', [QuotationController::class, 'store'])->name('quotations.store');
+        Route::match(['put', 'patch'], 'quotations/{quotation}', [QuotationController::class, 'update'])->name('quotations.update');
+        Route::patch('quotations/{quotation}/status', [QuotationController::class, 'updateStatus'])->name('quotations.update-status');
+        Route::delete('quotations/{quotation}', [QuotationController::class, 'destroy'])->name('quotations.destroy');
     });
 
     // Products + Transporters + full Order edits: owner, manager only
