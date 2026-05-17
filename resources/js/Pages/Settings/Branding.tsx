@@ -55,27 +55,25 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
     };
 
     return (
-        <AdminLayout>
+        <AdminLayout breadcrumbs={[{ label: 'Settings' }, { label: 'Branding' }]}>
             <Head title="Branding" />
-            <div className="mx-auto max-w-5xl p-4 sm:p-6">
-                <SettingsShell active="branding">
-                    <div className="space-y-6">
-                        <div>
-                            <h1 className="text-xl font-semibold tracking-tight">Brand logos</h1>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                The brands you deal in. These appear automatically on
-                                every quotation and invoice PDF — no need to attach them
-                                per document.
-                            </p>
-                        </div>
 
-                        {/* Add form */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Add a brand</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <form onSubmit={submit} className="flex flex-col sm:flex-row sm:items-end gap-4">
+            <SettingsShell active="branding">
+                <div className="space-y-5">
+                    {/* ─── Add a brand ──────────────────────────────── */}
+                    <Card>
+                        <CardHeader className="p-4 pb-2">
+                            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                                <Tag className="h-4 w-4 text-muted-foreground" />
+                                Brand logos
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                                The brands you deal in. These appear automatically on every
+                                quotation and invoice PDF — no need to attach them per document.
+                            </p>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2">
+                            <form onSubmit={submit} className="flex flex-col sm:flex-row sm:items-end gap-4">
                                     <div className="flex-1">
                                         <Label htmlFor="name">Brand name</Label>
                                         <Input
@@ -123,49 +121,52 @@ export default function BrandingSettings({ brands }: { brands: Brand[] }) {
                                     {preview && (
                                         <img src={preview} alt="" className="h-10 w-auto rounded border bg-white object-contain" />
                                     )}
-                                    <Button type="submit" disabled={form.processing}>
-                                        <Upload className="h-4 w-4 mr-1" /> Add
-                                    </Button>
-                                </form>
-                            </CardContent>
-                        </Card>
+                                <Button type="submit" disabled={form.processing}>
+                                    <Upload className="h-4 w-4 mr-1" /> Add
+                                </Button>
+                            </form>
+                        </CardContent>
+                    </Card>
 
-                        {/* Existing brands */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Your brands {brands.length > 0 && <span className="text-muted-foreground font-normal">· {brands.length}</span>}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {brands.length === 0 ? (
-                                    <div className="text-center py-10 text-sm text-muted-foreground">
-                                        <Tag className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                        No brands yet. Add the 7–10 brands you deal in above —
-                                        they'll show on every quotation.
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                        {brands.map((b) => (
-                                            <div key={b.id} className="group relative rounded-lg border bg-white p-4 flex flex-col items-center gap-2">
-                                                <img src={b.logo_url} alt={b.name} className="h-12 w-auto object-contain" />
-                                                <span className="text-xs text-center text-muted-foreground truncate w-full">{b.name}</span>
-                                                <button
-                                                    onClick={() => remove(b)}
-                                                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 bg-red-50 text-red-600 hover:bg-red-100"
-                                                    aria-label={`Remove ${b.name}`}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
+                    {/* ─── Your brands ──────────────────────────────── */}
+                    <Card>
+                        <CardHeader className="p-4 pb-2">
+                            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                                <Tag className="h-4 w-4 text-muted-foreground" />
+                                Your brands
+                                {brands.length > 0 && (
+                                    <span className="text-muted-foreground font-normal">· {brands.length}</span>
                                 )}
-                            </CardContent>
-                        </Card>
-                    </div>
-                </SettingsShell>
-            </div>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2">
+                            {brands.length === 0 ? (
+                                <div className="text-center py-10 text-sm text-muted-foreground">
+                                    <Tag className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                                    No brands yet. Add the 7–10 brands you deal in above —
+                                    they'll show on every quotation.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                    {brands.map((b) => (
+                                        <div key={b.id} className="group relative rounded-lg border bg-white p-4 flex flex-col items-center gap-2">
+                                            <img src={b.logo_url} alt={b.name} className="h-12 w-auto object-contain" />
+                                            <span className="text-xs text-center text-muted-foreground truncate w-full">{b.name}</span>
+                                            <button
+                                                onClick={() => remove(b)}
+                                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 bg-red-50 text-red-600 hover:bg-red-100"
+                                                aria-label={`Remove ${b.name}`}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </SettingsShell>
         </AdminLayout>
     );
 }

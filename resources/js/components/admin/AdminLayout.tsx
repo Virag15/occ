@@ -91,7 +91,7 @@ const navGroups: NavGroup[] = [
         color: 'bg-emerald-500',
         textColor: 'text-emerald-600',
         items: [
-            { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+            { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
             { name: "Today's Tasks", href: '/tasks', icon: ListChecks },
         ],
     },
@@ -111,6 +111,7 @@ const navGroups: NavGroup[] = [
         textColor: 'text-orange-600',
         items: [
             { name: 'Orders', href: '/orders', icon: ShoppingCart },
+            { name: 'Quotations', href: '/quotations', icon: FileText, roles: ['owner', 'manager', 'accounts'] },
             { name: 'Returns', href: '/returns', icon: AlertOctagon },
             { name: 'Dispatch calendar', href: '/shipments/calendar', icon: CalendarDays },
             { name: 'Warehouse queue', href: '/warehouse', icon: PackageCheck, roles: ['owner', 'manager', 'warehouse'] },
