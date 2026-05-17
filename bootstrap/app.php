@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\IdempotencyMiddleware;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetCurrentTenant;
 use Illuminate\Foundation\Application;
@@ -25,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // when it tries to resolve the tenant. Must come BEFORE
             // HandleInertiaRequests so shared props can include tenant info.
             SetCurrentTenant::class,
+            // After SetCurrentTenant (tenant + auth resolved), before the
+            // controller — so a replayed offline-queue mutation is served
+            // its stored response instead of running twice.
+            IdempotencyMiddleware::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             SecurityHeaders::class,

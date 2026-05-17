@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Models\IdempotencyKey;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -43,3 +44,12 @@ Schedule::call(function () {
         ->where('created_at', '<', now()->subDays(90))
         ->delete();
 })->name('audit-log-prune')->dailyAt('03:30')->onOneServer();
+
+// Idempotency keys are only useful for the lifetime of an offline-queue
+// replay window. Keep 7 days for safety, then drop — the table would
+// otherwise grow unbounded with one row per mutation.
+Schedule::call(function () {
+    IdempotencyKey::query()
+        ->where('created_at', '<', now()->subDays(7))
+        ->delete();
+})->name('idempotency-key-prune')->dailyAt('03:40')->onOneServer();
