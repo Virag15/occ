@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search, X, AlertTriangle, ArrowDownToLine } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, AlertTriangle, ArrowDownToLine } from '@/lib/icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, nullable } from '@/lib/format';
 import { cn } from '@/lib/utils';

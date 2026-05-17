@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
     Truck, Camera, CheckCircle2, FileCheck, ChevronRight, Package, LayoutDashboard, LogOut, AlertOctagon, Clock,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';

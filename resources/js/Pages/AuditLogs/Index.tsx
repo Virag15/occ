@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, X, Plus, Pencil, Trash2, LogIn, LogOut, Shield, Truck, FileCheck, AlertTriangle, RefreshCcw, Check, Download, Printer, RotateCcw } from 'lucide-react';
+import { Search, X, Plus, Pencil, Trash2, LogIn, LogOut, Shield, Truck, FileCheck, AlertTriangle, RefreshCcw, Check, Download, Printer, RotateCcw } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 type Entry = {

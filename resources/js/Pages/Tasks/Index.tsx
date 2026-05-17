@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ReactNode, useState } from 'react';
 import {
     Truck, FileCheck, IndianRupee, RotateCcw, AlertTriangle, ChevronRight, Phone,
-} from 'lucide-react';
+} from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

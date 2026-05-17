@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, Home, ShieldX, Search, ServerCrash, Clock, Ban } from 'lucide-react';
+import { ArrowLeft, Home, ShieldX, Search, ServerCrash, Clock, Ban } from '@/lib/icons';
 
 type Props = {
     status: number;

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Combobox, ComboOption } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Truck } from 'lucide-react';
+import { Truck } from '@/lib/icons';
 import type { OrderItem, TransporterLite } from '@/types/entities';
 
 type LineRow = { order_item_id: number; qty: number | string };

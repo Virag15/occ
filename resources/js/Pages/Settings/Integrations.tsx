@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import {
     Plug, FileSpreadsheet, MessageCircle, Webhook, RefreshCw, CircleCheck, CircleAlert, Play, Database, Users, Package, Boxes, Clock,
     ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee, Repeat, Receipt, ShoppingBag, Terminal, Download,
-} from 'lucide-react';
+} from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

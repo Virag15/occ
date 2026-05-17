@@ -16,7 +16,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
     Plus, Pencil, Trash2, Search, X, MoreHorizontal, Truck, MessageSquare, CheckCircle2, FileCheck, AlertOctagon, LayoutGrid,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Order, SavedView } from '@/types/entities';

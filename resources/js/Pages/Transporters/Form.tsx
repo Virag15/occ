@@ -1,7 +1,7 @@
 import { Link, useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
 import { toast } from 'sonner';
-import { Save, Truck, Phone, MapPin, Gauge, FileText } from 'lucide-react';
+import { Save, Truck, Phone, MapPin, Gauge, FileText } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

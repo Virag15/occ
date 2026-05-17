@@ -4,7 +4,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import {
     ShoppingCart, Truck, FileWarning, IndianRupee, ChevronRight, TrendingUp,
     Activity, AlertCircle, Inbox, RotateCcw, Wallet, Crown, Hourglass,
-} from 'lucide-react';
+} from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

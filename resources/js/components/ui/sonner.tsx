@@ -1,5 +1,5 @@
 import { Toaster as Sonner } from 'sonner';
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from 'lucide-react';
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from '@/lib/icons';
 
 /**
  * App-wide toaster. `richColors` gives the standard vivid semantic

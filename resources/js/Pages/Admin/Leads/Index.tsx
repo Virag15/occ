@@ -3,7 +3,7 @@ import { useState } from 'react';
 import {
     Search, Filter, Phone, Mail, MessageCircle, Building2, Calendar,
     UserPlus, ArrowRight, X, ChevronDown,
-} from 'lucide-react';
+} from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

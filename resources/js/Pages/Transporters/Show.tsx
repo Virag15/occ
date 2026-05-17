@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import {
     ArrowLeft, Pencil, Truck, Phone, Mail, MapPin, Gauge, Package, IndianRupee,
     Clock, CheckCircle2, AlertCircle, Star, Calendar, ListChecks,
-} from 'lucide-react';
+} from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

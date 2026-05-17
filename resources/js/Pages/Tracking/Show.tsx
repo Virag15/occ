@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { CheckCircle2, Circle, Clock, Package, Truck, MapPin, FileCheck } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Package, Truck, MapPin, FileCheck } from '@/lib/icons';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';

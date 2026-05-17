@@ -1,7 +1,7 @@
 import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+import { ChevronRightIcon, MoreHorizontalIcon } from '@/lib/icons'
 
 function Breadcrumb({
   className,

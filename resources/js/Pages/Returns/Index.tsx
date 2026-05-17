@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, Search, X } from 'lucide-react';
+import { ArrowRight, Search, X } from '@/lib/icons';
 import { formatCurrency, formatDateIN, nullable } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from 'recharts';
 import {
     Crown, Hourglass, Tags, Truck, ShoppingCart, IndianRupee, Wallet, FileWarning, AlertOctagon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

@@ -1,7 +1,7 @@
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Head } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Construction } from 'lucide-react';
+import { Construction } from '@/lib/icons';
 
 type Props = { title: string; description: string };
 

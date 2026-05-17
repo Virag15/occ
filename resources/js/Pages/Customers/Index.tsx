@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X } from '@/lib/icons';
 import { nullable } from '@/lib/format';
 import { SavedViewSwitcher } from '@/components/SavedViewSwitcher';
 import type { Customer, SavedView } from '@/types/entities';

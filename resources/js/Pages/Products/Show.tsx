@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Package, IndianRupee, AlertTriangle, Warehouse, Info, TrendingDown, TrendingUp, ShoppingCart, ClipboardList, History, Users } from 'lucide-react';
+import { ArrowLeft, Pencil, Package, IndianRupee, AlertTriangle, Warehouse, Info, TrendingDown, TrendingUp, ShoppingCart, ClipboardList, History, Users } from '@/lib/icons';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

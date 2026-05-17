@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
-import { AlertCircle, Trash2 } from 'lucide-react';
+import { AlertCircle, Trash2 } from '@/lib/icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

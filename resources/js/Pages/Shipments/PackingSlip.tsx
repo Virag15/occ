@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { Printer, X } from 'lucide-react';
+import { Printer, X } from '@/lib/icons';
 
 type SlipItem = {
     id: number;

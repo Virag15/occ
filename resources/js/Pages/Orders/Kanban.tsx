@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ListOrdered, AlertOctagon } from 'lucide-react';
+import { ListOrdered, AlertOctagon } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 import type { Order } from '@/types/entities';

@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Phone, Mail, Building2, MapPin, ShoppingCart, IndianRupee, Clock, AlertTriangle, TrendingUp, Hourglass } from 'lucide-react';
+import { ArrowLeft, Pencil, Phone, Mail, Building2, MapPin, ShoppingCart, IndianRupee, Clock, AlertTriangle, TrendingUp, Hourglass } from '@/lib/icons';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
