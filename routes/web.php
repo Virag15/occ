@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BrandLogoController;
 use App\Http\Controllers\BridgeApiController;
 use App\Http\Controllers\CompanySettingController;
 use App\Http\Controllers\CustomerController;
@@ -175,6 +176,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/settings/tally/sync', [TallyController::class, 'sync'])->name('settings.tally.sync');
         Route::post('/settings/tally/ping', [TallyController::class, 'ping'])->name('settings.tally.ping');
         Route::get('/settings/tally/download-bridge', [TallyController::class, 'downloadBridge'])->name('settings.tally.download-bridge');
+
+        // Brand logos — rendered on quotation/invoice PDFs.
+        Route::get('/settings/branding', [BrandLogoController::class, 'index'])->name('settings.branding');
+        Route::post('/settings/branding', [BrandLogoController::class, 'store'])->name('settings.branding.store');
+        Route::delete('/settings/branding/{brandLogo}', [BrandLogoController::class, 'destroy'])->name('settings.branding.destroy');
     });
 
     // Profile is always self-managed

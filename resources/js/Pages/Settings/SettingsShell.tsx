@@ -1,11 +1,11 @@
 import { Link } from '@inertiajs/react';
 import {
-    Building2, Plug,
+    Building2, Plug, Tag,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type SettingsItemId = 'company' | 'integrations';
+type SettingsItemId = 'company' | 'branding' | 'integrations';
 
 type SettingsItem = {
     id: SettingsItemId;
@@ -19,6 +19,7 @@ type SettingsItem = {
 
 const ITEMS: SettingsItem[] = [
     { id: 'company', label: 'Company', icon: Building2, iconBg: 'bg-blue-500/15', iconColor: 'text-blue-600', href: '/settings/company' },
+    { id: 'branding', label: 'Branding', icon: Tag, iconBg: 'bg-amber-500/15', iconColor: 'text-amber-600', href: '/settings/branding' },
     { id: 'integrations', label: 'Integrations', icon: Plug, iconBg: 'bg-purple-500/15', iconColor: 'text-purple-600', href: '/settings/integrations' },
 ];
 
