@@ -65,10 +65,6 @@
 @php
     $cs = $company; // app/Models/CompanySetting current row
     $cust = $order->customer;
-    $sellerState = strtoupper(trim($cs->state_code ?? ''));
-    // GSTIN starts with 2-digit state code
-    $buyerState = strtoupper(substr(trim($cust->gstin ?? ''), 0, 2));
-    $sameState = $sellerState && $buyerState && $sellerState === $buyerState;
 
     // Mode: 'invoice' (default) | 'quotation'
     $mode = $mode ?? 'invoice';
@@ -79,26 +75,18 @@
     $billToLabel = $isQuotation ? 'Quote for' : 'Bill to';
     $validUntil = $isQuotation ? (\Carbon\Carbon::parse($order->order_date)->addDays(15)->format('d M Y')) : null;
 
-    $subtotal = 0.0;       // gross qty × price across lines (pre-discount, pre-tax)
-    $lineDiscountTotal = 0.0;
-    $taxableTotal = 0.0;   // taxable value after line discounts
-    $taxTotal = 0.0;
-    foreach ($order->items as $it) {
-        $qty = (float) $it->qty_ordered;
-        $rate = (float) ($it->unit_price ?? 0);
-        $discPct = (float) ($it->discount_pct ?? 0);
-        $taxRate = (float) ($it->tax_rate ?? 0);
-        $gross = $qty * $rate;
-        $lineDisc = $gross * $discPct / 100;
-        $taxable = $gross - $lineDisc;
-        $lineTax = $taxable * $taxRate / 100;
-        $subtotal += $gross;
-        $lineDiscountTotal += $lineDisc;
-        $taxableTotal += $taxable;
-        $taxTotal += $lineTax;
-    }
-    $orderDiscount = max(0.0, (float) ($order->discount_amount ?? 0));
-    $grandTotal = max(0.0, $taxableTotal + $taxTotal - $orderDiscount);
+    // ALL money math comes from the single InvoiceCalculator (M3). This
+    // blade must not recompute tax — the Tally voucher uses the same
+    // breakdown so the totals are guaranteed to agree to the paisa.
+    $b = $breakdown;
+    $sameState = $b->sameState;
+    $buyerState = $b->buyerStateCode;
+    $subtotal = $b->subtotal;
+    $lineDiscountTotal = $b->lineDiscountTotal;
+    $taxableTotal = $b->taxableTotal;
+    $taxTotal = $b->taxTotal;
+    $orderDiscount = $b->tradeDiscount;
+    $grandTotal = $b->grandTotal;
 @endphp
 
 {{-- HEADER --}}
@@ -213,30 +201,21 @@
         </tr>
     </thead>
     <tbody>
-        @foreach ($order->items as $i => $it)
-            @php
-                $qty = (float) $it->qty_ordered;
-                $rate = (float) ($it->unit_price ?? 0);
-                $discPct = (float) ($it->discount_pct ?? 0);
-                $taxRate = (float) ($it->tax_rate ?? 0);
-                $gross = $qty * $rate;
-                $taxable = $gross * (1 - $discPct / 100);
-                $lineTax = $taxable * $taxRate / 100;
-                $lineTotal = $taxable + $lineTax;
-            @endphp
+        @foreach ($b->lines as $line)
+            @php $it = $line->item; @endphp
             <tr>
-                <td class="num">{{ $i + 1 }}</td>
+                <td class="num">{{ $line->index + 1 }}</td>
                 <td>
                     <strong>{{ $it->product_name }}</strong>
                     @if ($it->product?->sku)<br><span class="mono" style="font-size: 7pt; color: #6b6660;">{{ $it->product->sku }}</span>@endif
                 </td>
                 <td class="mono" style="font-size: 8pt;">{{ $it->product?->hsn_code ?? '—' }}</td>
-                <td class="num">{{ rtrim(rtrim(number_format($qty, 3, '.', ''), '0'), '.') }}</td>
+                <td class="num">{{ rtrim(rtrim(number_format($line->qty, 3, '.', ''), '0'), '.') }}</td>
                 <td>{{ $it->unit }}</td>
-                <td class="num">{{ number_format($rate, 2) }}</td>
-                <td class="num">{{ $discPct > 0 ? number_format($discPct, 2) : '—' }}</td>
-                <td class="num">{{ number_format($taxRate, 2) }}</td>
-                <td class="num"><strong>{{ number_format($lineTotal, 2) }}</strong></td>
+                <td class="num">{{ number_format($line->rate, 2) }}</td>
+                <td class="num">{{ $line->discountPct > 0 ? number_format($line->discountPct, 2) : '—' }}</td>
+                <td class="num">{{ number_format($line->taxRate, 2) }}</td>
+                <td class="num"><strong>{{ number_format($line->lineTotal, 2) }}</strong></td>
             </tr>
         @endforeach
 
@@ -263,22 +242,28 @@
         @if ($sameState)
             <tr>
                 <td colspan="8" class="num">CGST</td>
-                <td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td>
+                <td class="num">₹ {{ number_format($b->cgst, 2) }}</td>
             </tr>
             <tr>
                 <td colspan="8" class="num">SGST</td>
-                <td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td>
+                <td class="num">₹ {{ number_format($b->sgst, 2) }}</td>
             </tr>
         @else
             <tr>
                 <td colspan="8" class="num">IGST</td>
-                <td class="num">₹ {{ number_format($taxTotal, 2) }}</td>
+                <td class="num">₹ {{ number_format($b->igst, 2) }}</td>
             </tr>
         @endif
         @if ($orderDiscount > 0)
             <tr>
                 <td colspan="8" class="num">Less: trade discount</td>
                 <td class="num">− ₹ {{ number_format($orderDiscount, 2) }}</td>
+            </tr>
+        @endif
+        @if ($b->hasRoundOff())
+            <tr>
+                <td colspan="8" class="num">Round off</td>
+                <td class="num">{{ $b->roundOff < 0 ? '− ₹ '.number_format(abs($b->roundOff), 2) : '+ ₹ '.number_format($b->roundOff, 2) }}</td>
             </tr>
         @endif
         <tr class="grand">
@@ -328,13 +313,16 @@
                     <tr><td style="color: #6b6660; padding: 1pt 0;">Taxable</td><td class="num">₹ {{ number_format($taxableTotal, 2) }}</td></tr>
                 @endif
                 @if ($sameState)
-                    <tr><td style="color: #6b6660; padding: 1pt 0;">CGST</td><td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td></tr>
-                    <tr><td style="color: #6b6660; padding: 1pt 0;">SGST</td><td class="num">₹ {{ number_format($taxTotal / 2, 2) }}</td></tr>
+                    <tr><td style="color: #6b6660; padding: 1pt 0;">CGST</td><td class="num">₹ {{ number_format($b->cgst, 2) }}</td></tr>
+                    <tr><td style="color: #6b6660; padding: 1pt 0;">SGST</td><td class="num">₹ {{ number_format($b->sgst, 2) }}</td></tr>
                 @else
-                    <tr><td style="color: #6b6660; padding: 1pt 0;">IGST</td><td class="num">₹ {{ number_format($taxTotal, 2) }}</td></tr>
+                    <tr><td style="color: #6b6660; padding: 1pt 0;">IGST</td><td class="num">₹ {{ number_format($b->igst, 2) }}</td></tr>
                 @endif
                 @if ($orderDiscount > 0)
                     <tr><td style="color: #6b6660; padding: 1pt 0;">Trade discount</td><td class="num">− ₹ {{ number_format($orderDiscount, 2) }}</td></tr>
+                @endif
+                @if ($b->hasRoundOff())
+                    <tr><td style="color: #6b6660; padding: 1pt 0;">Round off</td><td class="num">{{ $b->roundOff < 0 ? '− ₹ '.number_format(abs($b->roundOff), 2) : '+ ₹ '.number_format($b->roundOff, 2) }}</td></tr>
                 @endif
                 <tr style="border-top: 0.5pt solid #2a2722;">
                     <td style="padding: 3pt 0;"><strong>Total payable</strong></td>

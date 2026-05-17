@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\SavedView;
 use App\Models\Shipment;
 use App\Models\Transporter;
+use App\Services\Invoice\InvoiceCalculator;
 use App\Services\Ocr\OcrClient;
 use App\Support\ImageCompressor;
 use App\Support\NumberToWords;
@@ -316,22 +317,15 @@ class OrderController extends Controller
         $logoBase64 = $this->imageAsDataUri($company->logo_path);
         $signatureBase64 = $this->imageAsDataUri($company->signature_path);
 
-        // Compute the grand total in rupees for "amount in words" — factor line + order discounts
-        $grandTotal = 0.0;
-        foreach ($order->items as $it) {
-            $qty = (float) $it->qty_ordered;
-            $rate = (float) ($it->unit_price ?? 0);
-            $discPct = (float) ($it->discount_pct ?? 0);
-            $taxRate = (float) ($it->tax_rate ?? 0);
-            $taxable = $qty * $rate * (1 - $discPct / 100);
-            $grandTotal += $taxable + ($taxable * $taxRate / 100);
-        }
-        $grandTotal = max(0.0, $grandTotal - (float) ($order->discount_amount ?? 0));
-        $amountInWords = NumberToWords::rupees($grandTotal);
+        // Single source of truth for all invoice money math (M3). The
+        // blade renders this breakdown; it never recomputes tax itself.
+        $breakdown = InvoiceCalculator::for($order, $company);
+        $amountInWords = NumberToWords::rupees($breakdown->grandTotal);
 
         $pdf = Pdf::loadView('pdf.order-invoice', [
             'order' => $order,
             'company' => $company,
+            'breakdown' => $breakdown,
             'logoBase64' => $logoBase64,
             'signatureBase64' => $signatureBase64,
             'amountInWords' => $amountInWords,
