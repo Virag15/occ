@@ -9,6 +9,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerShowController;
 use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
@@ -92,6 +93,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])->name('quotations.edit');
     Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'pdf'])->name('quotations.pdf');
 
+    // Invoices — usually converted from a quotation; same template.
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+
     // Literal route must precede /{shipment} bindings
     Route::get('/shipments/calendar', [ShipmentController::class, 'calendar'])->name('shipments.calendar');
     Route::get('/shipments/{shipment}/picking-slip', [ShipmentController::class, 'pickingSlip'])->name('shipments.picking-slip');
@@ -111,6 +117,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('quotations/{quotation}/email', [QuotationController::class, 'email'])->name('quotations.email');
         Route::patch('quotations/{quotation}/status', [QuotationController::class, 'updateStatus'])->name('quotations.update-status');
         Route::delete('quotations/{quotation}', [QuotationController::class, 'destroy'])->name('quotations.destroy');
+
+        // Invoice writes: owner/manager/accounts.
+        Route::post('quotations/{quotation}/convert', [InvoiceController::class, 'convert'])->name('quotations.convert');
+        Route::post('invoices/{invoice}/email', [InvoiceController::class, 'email'])->name('invoices.email');
+        Route::patch('invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.update-status');
+        Route::delete('invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
     });
 
     // Products + Transporters + full Order edits: owner, manager only

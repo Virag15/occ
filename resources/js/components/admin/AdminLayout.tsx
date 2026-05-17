@@ -22,7 +22,8 @@ import {
     UsersRound,
     History,
     ReceiptIndianRupee,
-} from 'lucide-react';
+    FileText,
+} from '@/lib/icons';
 import { useTheme } from '@/hooks/use-theme';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -47,7 +48,8 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon } from '@/lib/icons';
+import { OfflineSyncIndicator } from '@/components/OfflineSyncIndicator';
 import type { PageProps } from '@/types';
 
 type Role = 'owner' | 'manager' | 'accounts' | 'warehouse' | 'viewer';
@@ -112,6 +114,7 @@ const navGroups: NavGroup[] = [
         items: [
             { name: 'Orders', href: '/orders', icon: ShoppingCart },
             { name: 'Quotations', href: '/quotations', icon: ReceiptIndianRupee, roles: ['owner', 'manager', 'accounts'] },
+            { name: 'Invoices', href: '/invoices', icon: FileText, roles: ['owner', 'manager', 'accounts'] },
             { name: 'Returns', href: '/returns', icon: AlertOctagon },
             { name: 'Dispatch calendar', href: '/shipments/calendar', icon: CalendarDays },
             { name: 'Warehouse queue', href: '/warehouse', icon: PackageCheck, roles: ['owner', 'manager', 'warehouse'] },
@@ -432,9 +435,12 @@ export default function AdminLayout({ children, title, breadcrumbs }: AdminLayou
                         title && <h1 className="text-sm font-medium text-foreground">{title}</h1>
                     )}
 
-                    <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground hidden sm:inline">
-                        OCC · GC Communication
-                    </span>
+                    <div className="ml-auto flex items-center gap-2">
+                        <OfflineSyncIndicator />
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground hidden sm:inline">
+                            OCC · GC Communication
+                        </span>
+                    </div>
                 </header>
 
                 {/* Content */}
