@@ -61,11 +61,28 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->with('status', 'Your session has expired. Please sign in again.');
             }
 
-            // Render the branded Inertia Error page for known HTTP errors.
-            if ($request->header('X-Inertia') || (! $request->expectsJson() && in_array($status, [403, 404, 500, 503], true))) {
+            // Only intercept genuine error pages (4xx/5xx) — and ONLY for
+            // non-JSON, non-Inertia document requests. Crucially we must
+            // NOT touch:
+            //   • redirects (3xx) — normal post/redirect/get flow
+            //   • 409 — Inertia's asset-version bump (client self-reloads)
+            //   • 422 — validation (Inertia renders errors on the form)
+            //   • XHR / Inertia / JSON requests — the client handles those
+            // The previous condition rendered the branded Error page for
+            // ANY status whenever the X-Inertia header was present, which
+            // turned ordinary 302/409 responses into a scary "Unexpected
+            // error" screen.
+            $isErrorStatus = $status >= 400 && ! in_array($status, [409, 419, 422], true);
+            $wantsHtmlDocument = ! $request->expectsJson()
+                && ! $request->header('X-Inertia')
+                && ! $request->ajax();
+
+            if ($isErrorStatus && $wantsHtmlDocument) {
                 return Inertia::render('Error', [
                     'status' => $status,
-                    'message' => app()->hasDebugModeEnabled() && $status === 500 ? $exception->getMessage() : null,
+                    'debug' => app()->hasDebugModeEnabled() && $status >= 500
+                        ? $exception->getMessage()
+                        : null,
                 ])->toResponse($request)->setStatusCode($status);
             }
 

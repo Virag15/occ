@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\Transporter;
 use App\Models\User;
 use App\Observers\AuditObserver;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -23,9 +24,17 @@ class DatabaseSeeder extends Seeder
 
         $this->seedTenants();
         $this->seedUsers();
-        $this->seedTransporters();
-        $this->seedTallyMirrors();
-        $this->seedOrders();
+
+        // Everything below is tenant-owned. Without an active tenant
+        // context the BelongsToTenant trait stamps tenant_id = NULL, so
+        // the seeded user (linked to GC) sees nothing. Seed inside the
+        // GC tenant context so all demo data belongs to it.
+        $gc = Tenant::where('slug', 'gc-communication')->firstOrFail();
+        app(TenantContext::class)->runAs($gc, function () {
+            $this->seedTransporters();
+            $this->seedTallyMirrors();
+            $this->seedOrders();
+        });
 
         AuditObserver::$enabled = true;
     }

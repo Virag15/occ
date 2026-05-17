@@ -200,14 +200,32 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
             <Head title={isEdit ? 'Edit quotation' : 'New quotation'} />
 
             <form onSubmit={submit} noValidate>
-                {/* Sticky action bar — always reachable on long forms */}
-                <div className="sticky top-0 z-10 -mx-4 mb-6 flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-                    <p className="truncate text-xs text-muted-foreground">
-                        {isEdit
-                            ? `Editing quotation for ${quotation!.customer_company || quotation!.customer_name}`
-                            : <>New quotation · <span className="font-mono text-foreground">{nextCode}</span> · no order required</>}
-                    </p>
-                    <div className="flex shrink-0 items-center gap-2">
+                {/* Sticky action bar — title, live customer + total, actions */}
+                <div className="sticky top-0 z-10 -mx-4 mb-6 flex items-center gap-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+                    <div className="min-w-0">
+                        <p className="text-sm font-semibold leading-tight">
+                            {isEdit ? 'Edit quotation' : 'New quotation'}
+                        </p>
+                        <p className="truncate font-mono text-[11px] text-muted-foreground">
+                            {isEdit ? quotation!.id && `#${quotation!.id}` : nextCode} · no order required
+                        </p>
+                    </div>
+
+                    {/* Live state — fills the bar with what actually matters */}
+                    <div className="ml-auto hidden items-center gap-6 md:flex">
+                        <div className="text-right">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Customer</p>
+                            <p className="max-w-[200px] truncate text-xs font-medium">
+                                {selectedCustomer?.company || selectedCustomer?.name || form.data.customer_name || '—'}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</p>
+                            <p className="font-mono text-sm font-semibold tabular-nums">{formatCurrency(totals.total)}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2 md:ml-6">
                         <Button type="button" variant="ghost" size="sm" asChild>
                             <Link href="/quotations">Cancel</Link>
                         </Button>
