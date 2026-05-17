@@ -1,15 +1,13 @@
 import { Head, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, User, FileText, ListPlus } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Combobox, type ComboOption } from '@/components/ui/combobox';
 import { formatCurrency } from '@/lib/format';
 
 type CustomerLite = { id: number; name: string; company: string | null; gstin: string | null; phone: string | null; email: string | null };
@@ -55,6 +53,23 @@ const blankItem = (): Item => ({
     unit: '', unit_price: 0, discount_pct: 0, tax_rate: 18,
 });
 
+/** Inline labelled field — same shape Settings/Company uses. */
+function Field({
+    id, label, value, onChange, error, type = 'text', placeholder,
+}: {
+    id: string; label: string; value: string; onChange: (v: string) => void;
+    error?: string; type?: string; placeholder?: string;
+}) {
+    return (
+        <div className="space-y-1.5">
+            <Label htmlFor={id} className="text-xs">{label}</Label>
+            <Input id={id} type={type} value={value} placeholder={placeholder}
+                   onChange={(e) => onChange(e.target.value)} />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+    );
+}
+
 export default function QuotationCreate({ customers, products, nextCode, quotation }: Props) {
     const isEdit = !!quotation;
 
@@ -78,10 +93,17 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
         })) ?? [blankItem()]) as Item[],
     });
 
-    const setItem = (idx: number, patch: Partial<Item>) => {
-        const items = form.data.items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
-        form.setData('items', items);
-    };
+    const customerOptions: ComboOption[] = useMemo(
+        () => customers.map((c) => ({ value: String(c.id), label: c.company || c.name, sublabel: c.company ? c.name : (c.gstin ?? undefined) })),
+        [customers],
+    );
+    const productOptions: ComboOption[] = useMemo(
+        () => products.map((p) => ({ value: String(p.id), label: p.name, sublabel: p.sku ?? (p.hsn_code ?? undefined) })),
+        [products],
+    );
+
+    const setItem = (idx: number, patch: Partial<Item>) =>
+        form.setData('items', form.data.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
     const pickProduct = (idx: number, productId: string) => {
         const p = products.find((x) => String(x.id) === productId);
@@ -97,12 +119,11 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
     };
 
     const pickCustomer = (id: string) => {
-        if (id === 'adhoc') {
+        const c = customers.find((x) => String(x.id) === id);
+        if (!c) {
             form.setData('customer_id', null);
             return;
         }
-        const c = customers.find((x) => String(x.id) === id);
-        if (!c) return;
         form.setData((d) => ({
             ...d,
             customer_id: c.id,
@@ -121,176 +142,198 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
             subtotal += taxable;
             tax += (taxable * it.tax_rate) / 100;
         }
-        const total = Math.max(0, subtotal + tax - form.data.discount_amount);
-        return { subtotal, tax, total };
+        return { subtotal, tax, total: Math.max(0, subtotal + tax - form.data.discount_amount) };
     }, [form.data.items, form.data.discount_amount]);
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (isEdit) {
-            form.put(`/quotations/${quotation!.id}`);
-        } else {
-            form.post('/quotations');
-        }
+        isEdit ? form.put(`/quotations/${quotation!.id}`) : form.post('/quotations');
     };
 
     return (
         <AdminLayout breadcrumbs={[{ label: 'Quotations', href: '/quotations' }, { label: isEdit ? 'Edit' : 'New' }]}>
             <Head title={isEdit ? 'Edit quotation' : 'New quotation'} />
-            <form onSubmit={submit} className="p-6 max-w-6xl mx-auto space-y-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        {isEdit ? `Edit ${quotation!.customer_name}` : 'New quotation'}
-                        {!isEdit && <span className="ml-2 text-sm font-mono text-muted-foreground">{nextCode}</span>}
-                    </h1>
+
+            <form onSubmit={submit} className="space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h1 className="text-xl font-semibold tracking-tight">
+                            {isEdit ? 'Edit quotation' : 'New quotation'}
+                        </h1>
+                        {!isEdit && (
+                            <p className="text-xs text-muted-foreground">
+                                Code <span className="font-mono">{nextCode}</span> · no order required
+                            </p>
+                        )}
+                    </div>
                     <Button type="submit" disabled={form.processing}>
-                        <Save className="h-4 w-4 mr-1" /> {isEdit ? 'Save changes' : 'Create quotation'}
+                        <Save className="mr-1 h-4 w-4" /> {isEdit ? 'Save changes' : 'Create quotation'}
                     </Button>
                 </div>
 
                 {/* Customer */}
                 <Card>
-                    <CardHeader><CardTitle className="text-base">Customer</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div>
-                            <Label>Pick existing customer (optional)</Label>
-                            <Select onValueChange={pickCustomer} defaultValue={quotation?.customer_id ? String(quotation.customer_id) : 'adhoc'}>
-                                <SelectTrigger><SelectValue placeholder="Type details below, or pick a customer" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="adhoc">— Ad-hoc (type below) —</SelectItem>
-                                    {customers.map((c) => (
-                                        <SelectItem key={c.id} value={String(c.id)}>
-                                            {c.company || c.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <User className="h-4 w-4 text-muted-foreground" /> Customer
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 p-4 pt-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Pick existing customer (optional)</Label>
+                            <Combobox
+                                value={form.data.customer_id ? String(form.data.customer_id) : ''}
+                                onChange={pickCustomer}
+                                options={customerOptions}
+                                placeholder="Search customers, or type details below"
+                                searchPlaceholder="Search customers…"
+                            />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <Label>Contact name *</Label>
-                                <Input value={form.data.customer_name} onChange={(e) => form.setData('customer_name', e.target.value)} required maxLength={150} />
-                                {form.errors.customer_name && <p className="text-xs text-red-600 mt-1">{form.errors.customer_name}</p>}
-                            </div>
-                            <div>
-                                <Label>Company</Label>
-                                <Input value={form.data.customer_company} onChange={(e) => form.setData('customer_company', e.target.value)} maxLength={150} />
-                            </div>
-                            <div>
-                                <Label>GSTIN</Label>
-                                <Input value={form.data.customer_gstin} onChange={(e) => form.setData('customer_gstin', e.target.value)} maxLength={20} />
-                            </div>
-                            <div>
-                                <Label>Phone</Label>
-                                <Input value={form.data.customer_phone} onChange={(e) => form.setData('customer_phone', e.target.value)} maxLength={20} />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <Label>Address</Label>
-                                <Textarea value={form.data.customer_address} onChange={(e) => form.setData('customer_address', e.target.value)} rows={2} maxLength={1000} />
-                            </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <Field id="customer_name" label="Contact name *" value={form.data.customer_name}
+                                   onChange={(v) => form.setData('customer_name', v)} error={form.errors.customer_name} />
+                            <Field id="customer_company" label="Company" value={form.data.customer_company}
+                                   onChange={(v) => form.setData('customer_company', v)} error={form.errors.customer_company} />
+                            <Field id="customer_gstin" label="GSTIN" value={form.data.customer_gstin}
+                                   onChange={(v) => form.setData('customer_gstin', v)} error={form.errors.customer_gstin} />
+                            <Field id="customer_phone" label="Phone" value={form.data.customer_phone}
+                                   onChange={(v) => form.setData('customer_phone', v)} error={form.errors.customer_phone} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="customer_address" className="text-xs">Address</Label>
+                            <Textarea id="customer_address" rows={2} maxLength={1000}
+                                      value={form.data.customer_address}
+                                      onChange={(e) => form.setData('customer_address', e.target.value)} />
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Dates */}
+                {/* Details */}
                 <Card>
-                    <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
-                    <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <Label>Quotation date *</Label>
-                            <Input type="date" value={form.data.quotation_date} onChange={(e) => form.setData('quotation_date', e.target.value)} required />
-                        </div>
-                        <div>
-                            <Label>Valid until</Label>
-                            <Input type="date" value={form.data.valid_until} onChange={(e) => form.setData('valid_until', e.target.value)} />
-                        </div>
-                        <div>
-                            <Label>Overall discount (₹)</Label>
-                            <Input type="number" min={0} step="0.01" value={form.data.discount_amount}
-                                   onChange={(e) => form.setData('discount_amount', Number(e.target.value))} />
-                        </div>
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <FileText className="h-4 w-4 text-muted-foreground" /> Details
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 gap-3 p-4 pt-2 sm:grid-cols-3">
+                        <Field id="quotation_date" label="Quotation date *" type="date"
+                               value={form.data.quotation_date} onChange={(v) => form.setData('quotation_date', v)}
+                               error={form.errors.quotation_date} />
+                        <Field id="valid_until" label="Valid until" type="date"
+                               value={form.data.valid_until} onChange={(v) => form.setData('valid_until', v)}
+                               error={form.errors.valid_until} />
+                        <Field id="discount_amount" label="Overall discount (₹)" type="number"
+                               value={String(form.data.discount_amount)}
+                               onChange={(v) => form.setData('discount_amount', Number(v))} />
                     </CardContent>
                 </Card>
 
                 {/* Line items */}
                 <Card>
-                    <CardHeader className="flex-row items-center justify-between">
-                        <CardTitle className="text-base">Line items</CardTitle>
+                    <CardHeader className="flex-row items-center justify-between p-4 pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <ListPlus className="h-4 w-4 text-muted-foreground" /> Line items
+                        </CardTitle>
                         <Button type="button" variant="outline" size="sm"
                                 onClick={() => form.setData('items', [...form.data.items, blankItem()])}>
-                            <Plus className="h-4 w-4 mr-1" /> Add line
+                            <Plus className="mr-1 h-4 w-4" /> Add line
                         </Button>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                        {form.data.items.map((it, idx) => {
-                            const taxable = it.qty * it.unit_price * (1 - it.discount_pct / 100);
-                            const lineTotal = taxable + (taxable * it.tax_rate) / 100;
-                            return (
-                                <div key={idx} className="grid grid-cols-12 gap-2 items-end border-b pb-3 last:border-0">
-                                    <div className="col-span-12 sm:col-span-4">
-                                        <Label className="text-xs">Product</Label>
-                                        <Select onValueChange={(v) => pickProduct(idx, v)}>
-                                            <SelectTrigger className="h-9"><SelectValue placeholder="Pick or type below" /></SelectTrigger>
-                                            <SelectContent>
-                                                {products.map((p) => (
-                                                    <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Input className="mt-1" placeholder="Description *" value={it.product_name}
-                                               onChange={(e) => setItem(idx, { product_name: e.target.value })} required maxLength={255} />
-                                    </div>
-                                    <div className="col-span-3 sm:col-span-1">
-                                        <Label className="text-xs">HSN</Label>
-                                        <Input value={it.hsn_code} onChange={(e) => setItem(idx, { hsn_code: e.target.value })} maxLength={20} />
-                                    </div>
-                                    <div className="col-span-3 sm:col-span-1">
-                                        <Label className="text-xs">Qty</Label>
-                                        <Input type="number" min={0} step="0.001" value={it.qty}
-                                               onChange={(e) => setItem(idx, { qty: Number(e.target.value) })} />
-                                    </div>
-                                    <div className="col-span-3 sm:col-span-1">
-                                        <Label className="text-xs">Unit</Label>
-                                        <Input value={it.unit} onChange={(e) => setItem(idx, { unit: e.target.value })} maxLength={20} />
-                                    </div>
-                                    <div className="col-span-3 sm:col-span-2">
-                                        <Label className="text-xs">Rate</Label>
-                                        <Input type="number" min={0} step="0.01" value={it.unit_price}
-                                               onChange={(e) => setItem(idx, { unit_price: Number(e.target.value) })} />
-                                    </div>
-                                    <div className="col-span-3 sm:col-span-1">
-                                        <Label className="text-xs">Disc%</Label>
-                                        <Input type="number" min={0} max={100} step="0.01" value={it.discount_pct}
-                                               onChange={(e) => setItem(idx, { discount_pct: Number(e.target.value) })} />
-                                    </div>
-                                    <div className="col-span-3 sm:col-span-1">
-                                        <Label className="text-xs">Tax%</Label>
-                                        <Input type="number" min={0} max={100} step="0.01" value={it.tax_rate}
-                                               onChange={(e) => setItem(idx, { tax_rate: Number(e.target.value) })} />
-                                    </div>
-                                    <div className="col-span-9 sm:col-span-1 text-right font-mono text-sm pb-2">
-                                        {formatCurrency(lineTotal)}
-                                    </div>
-                                    <div className="col-span-3 sm:col-span-12 sm:flex sm:justify-end">
-                                        {form.data.items.length > 1 && (
-                                            <button type="button"
-                                                    onClick={() => form.setData('items', form.data.items.filter((_, i) => i !== idx))}
-                                                    className="text-red-600 hover:bg-red-50 rounded p-1">
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        {form.errors.items && <p className="text-xs text-red-600">{form.errors.items}</p>}
+                    <CardContent className="p-4 pt-2">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-xs text-muted-foreground">
+                                        <th className="px-2 py-2 text-left font-medium" style={{ minWidth: 240 }}>Product / description</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>Qty</th>
+                                        <th className="px-2 py-2 text-left font-medium" style={{ width: 60 }}>Unit</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 110 }}>Rate</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>Disc %</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 80 }}>GST %</th>
+                                        <th className="px-2 py-2 text-right font-medium" style={{ width: 110 }}>Amount</th>
+                                        <th className="px-2 py-2" style={{ width: 36 }} />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {form.data.items.map((it, i) => {
+                                        const taxable = it.qty * it.unit_price * (1 - it.discount_pct / 100);
+                                        const lineTotal = taxable + (taxable * it.tax_rate) / 100;
+                                        return (
+                                            <tr key={i} className="border-t border-border/40 align-top">
+                                                <td className="px-2 py-2">
+                                                    <Combobox
+                                                        value={it.product_id ? String(it.product_id) : ''}
+                                                        onChange={(v) => pickProduct(i, v)}
+                                                        options={productOptions}
+                                                        placeholder="Pick product"
+                                                        searchPlaceholder="Search products…"
+                                                    />
+                                                    <Input
+                                                        className="mt-1 h-8"
+                                                        placeholder="Description *"
+                                                        value={it.product_name}
+                                                        onChange={(e) => setItem(i, { product_name: e.target.value })}
+                                                        maxLength={255}
+                                                    />
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <Input type="number" step="0.001" min="0" className="h-8 text-right tabular-nums"
+                                                           value={it.qty} onChange={(e) => setItem(i, { qty: Number(e.target.value) })} />
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <Input className="h-8" maxLength={20}
+                                                           value={it.unit} onChange={(e) => setItem(i, { unit: e.target.value })} />
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <Input type="number" step="0.01" min="0" className="h-8 text-right tabular-nums"
+                                                           value={it.unit_price} onChange={(e) => setItem(i, { unit_price: Number(e.target.value) })} />
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <Input type="number" step="0.01" min="0" max="100" className="h-8 text-right tabular-nums"
+                                                           value={it.discount_pct} onChange={(e) => setItem(i, { discount_pct: Number(e.target.value) })} />
+                                                </td>
+                                                <td className="px-2 py-2">
+                                                    <Input type="number" step="0.01" min="0" max="100" className="h-8 text-right tabular-nums"
+                                                           value={it.tax_rate} onChange={(e) => setItem(i, { tax_rate: Number(e.target.value) })} />
+                                                </td>
+                                                <td className="px-2 py-2 text-right font-mono tabular-nums">
+                                                    {formatCurrency(lineTotal)}
+                                                </td>
+                                                <td className="px-2 py-2 text-center">
+                                                    {form.data.items.length > 1 && (
+                                                        <Button type="button" variant="ghost" size="icon"
+                                                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                                onClick={() => form.setData('items', form.data.items.filter((_, x) => x !== i))}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        {form.errors.items && <p className="mt-2 text-xs text-destructive">{form.errors.items}</p>}
 
-                        <div className="flex justify-end pt-2">
+                        <div className="mt-4 flex justify-end">
                             <div className="w-64 space-y-1 text-sm">
-                                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{formatCurrency(totals.subtotal)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span className="font-mono">{formatCurrency(totals.tax)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono">− {formatCurrency(form.data.discount_amount)}</span></div>
-                                <div className="flex justify-between border-t pt-1 font-semibold"><span>Total</span><span className="font-mono">{formatCurrency(totals.total)}</span></div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Subtotal</span>
+                                    <span className="font-mono tabular-nums">{formatCurrency(totals.subtotal)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Tax</span>
+                                    <span className="font-mono tabular-nums">{formatCurrency(totals.tax)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Discount</span>
+                                    <span className="font-mono tabular-nums">− {formatCurrency(form.data.discount_amount)}</span>
+                                </div>
+                                <div className="flex justify-between border-t pt-1 font-semibold">
+                                    <span>Total</span>
+                                    <span className="font-mono tabular-nums">{formatCurrency(totals.total)}</span>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -298,21 +341,26 @@ export default function QuotationCreate({ customers, products, nextCode, quotati
 
                 {/* Notes + terms */}
                 <Card>
-                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
-                        <div>
-                            <Label>Notes</Label>
-                            <Textarea value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} rows={3} maxLength={2000} />
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm font-medium">Notes &amp; terms</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 gap-3 p-4 pt-2 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="notes" className="text-xs">Notes</Label>
+                            <Textarea id="notes" rows={3} maxLength={2000}
+                                      value={form.data.notes} onChange={(e) => form.setData('notes', e.target.value)} />
                         </div>
-                        <div>
-                            <Label>Terms &amp; conditions</Label>
-                            <Textarea value={form.data.terms} onChange={(e) => form.setData('terms', e.target.value)} rows={3} maxLength={2000} />
+                        <div className="space-y-1.5">
+                            <Label htmlFor="terms" className="text-xs">Terms &amp; conditions</Label>
+                            <Textarea id="terms" rows={3} maxLength={2000}
+                                      value={form.data.terms} onChange={(e) => form.setData('terms', e.target.value)} />
                         </div>
                     </CardContent>
                 </Card>
 
                 <div className="flex justify-end">
                     <Button type="submit" disabled={form.processing}>
-                        <Save className="h-4 w-4 mr-1" /> {isEdit ? 'Save changes' : 'Create quotation'}
+                        <Save className="mr-1 h-4 w-4" /> {isEdit ? 'Save changes' : 'Create quotation'}
                     </Button>
                 </div>
             </form>

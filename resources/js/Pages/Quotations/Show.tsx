@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
 import { formatCurrency, formatDateIN } from '@/lib/format';
 
 type Item = {
@@ -93,45 +96,61 @@ export default function QuotationShow({ quotation }: { quotation: Quotation }) {
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle className="text-base">Items</CardTitle></CardHeader>
-                    <CardContent className="p-0">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                                    <th className="px-4 py-2">#</th>
-                                    <th className="px-4 py-2">Description</th>
-                                    <th className="px-4 py-2 text-right">Qty</th>
-                                    <th className="px-4 py-2 text-right">Rate</th>
-                                    <th className="px-4 py-2 text-right">Disc%</th>
-                                    <th className="px-4 py-2 text-right">Tax%</th>
-                                    <th className="px-4 py-2 text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm font-medium">Items</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-10">#</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Qty</TableHead>
+                                    <TableHead className="text-right">Rate</TableHead>
+                                    <TableHead className="text-right">Disc %</TableHead>
+                                    <TableHead className="text-right">GST %</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {quotation.items.map((it, i) => (
-                                    <tr key={it.id} className="border-b last:border-0">
-                                        <td className="px-4 py-2 font-mono text-muted-foreground">{i + 1}</td>
-                                        <td className="px-4 py-2">
-                                            {it.product_name}
-                                            {it.hsn_code && <span className="text-xs text-muted-foreground font-mono"> · HSN {it.hsn_code}</span>}
-                                        </td>
-                                        <td className="px-4 py-2 text-right font-mono">{Number(it.qty)} {it.unit}</td>
-                                        <td className="px-4 py-2 text-right font-mono">{formatCurrency(Number(it.unit_price))}</td>
-                                        <td className="px-4 py-2 text-right font-mono">{Number(it.discount_pct) || '—'}</td>
-                                        <td className="px-4 py-2 text-right font-mono">{Number(it.tax_rate) || '—'}</td>
-                                        <td className="px-4 py-2 text-right font-mono">{formatCurrency(Number(it.line_total))}</td>
-                                    </tr>
+                                    <TableRow key={it.id}>
+                                        <TableCell className="font-mono text-muted-foreground">{i + 1}</TableCell>
+                                        <TableCell>
+                                            <span className="font-medium">{it.product_name}</span>
+                                            {it.hsn_code && (
+                                                <span className="ml-1 font-mono text-xs text-muted-foreground">· HSN {it.hsn_code}</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono tabular-nums">{Number(it.qty)} {it.unit}</TableCell>
+                                        <TableCell className="text-right font-mono tabular-nums">{formatCurrency(Number(it.unit_price))}</TableCell>
+                                        <TableCell className="text-right font-mono tabular-nums">{Number(it.discount_pct) || '—'}</TableCell>
+                                        <TableCell className="text-right font-mono tabular-nums">{Number(it.tax_rate) || '—'}</TableCell>
+                                        <TableCell className="text-right font-mono tabular-nums">{formatCurrency(Number(it.line_total))}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                        <div className="flex justify-end p-4">
+                            </TableBody>
+                        </Table>
+                        <div className="mt-4 flex justify-end">
                             <div className="w-64 space-y-1 text-sm">
-                                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{formatCurrency(Number(quotation.subtotal))}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span className="font-mono">{formatCurrency(Number(quotation.tax_total))}</span></div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Subtotal</span>
+                                    <span className="font-mono tabular-nums">{formatCurrency(Number(quotation.subtotal))}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Tax</span>
+                                    <span className="font-mono tabular-nums">{formatCurrency(Number(quotation.tax_total))}</span>
+                                </div>
                                 {Number(quotation.discount_amount) > 0 && (
-                                    <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-mono">− {formatCurrency(Number(quotation.discount_amount))}</span></div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Discount</span>
+                                        <span className="font-mono tabular-nums">− {formatCurrency(Number(quotation.discount_amount))}</span>
+                                    </div>
                                 )}
-                                <div className="flex justify-between border-t pt-1 text-base font-semibold"><span>Total</span><span className="font-mono">{formatCurrency(Number(quotation.total))}</span></div>
+                                <div className="flex justify-between border-t pt-1 text-base font-semibold">
+                                    <span>Total</span>
+                                    <span className="font-mono tabular-nums">{formatCurrency(Number(quotation.total))}</span>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
