@@ -21,6 +21,7 @@ use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SavedViewController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\TallyController;
+use App\Http\Controllers\TallyMappingController;
 use App\Http\Controllers\TasksController;
 use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\TransporterController;
@@ -107,6 +108,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Quotation writes: owner/manager/accounts (sales-facing roles).
         Route::post('quotations', [QuotationController::class, 'store'])->name('quotations.store');
         Route::match(['put', 'patch'], 'quotations/{quotation}', [QuotationController::class, 'update'])->name('quotations.update');
+        Route::post('quotations/{quotation}/email', [QuotationController::class, 'email'])->name('quotations.email');
         Route::patch('quotations/{quotation}/status', [QuotationController::class, 'updateStatus'])->name('quotations.update-status');
         Route::delete('quotations/{quotation}', [QuotationController::class, 'destroy'])->name('quotations.destroy');
     });
@@ -194,6 +196,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/settings/tally/sync', [TallyController::class, 'sync'])->name('settings.tally.sync');
         Route::post('/settings/tally/ping', [TallyController::class, 'ping'])->name('settings.tally.ping');
         Route::get('/settings/tally/download-bridge', [TallyController::class, 'downloadBridge'])->name('settings.tally.download-bridge');
+        Route::get('/settings/tally-mapping', [TallyMappingController::class, 'edit'])->name('settings.tally-mapping');
+        Route::post('/settings/tally-mapping', [TallyMappingController::class, 'update'])->name('settings.tally-mapping.update');
 
         // Brand logos — rendered on quotation/invoice PDFs.
         Route::get('/settings/branding', [BrandLogoController::class, 'index'])->name('settings.branding');

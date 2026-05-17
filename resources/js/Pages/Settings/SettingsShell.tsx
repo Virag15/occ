@@ -1,11 +1,11 @@
 import { Link } from '@inertiajs/react';
 import {
-    Building2, Plug, Tag,
+    Building2, Plug, Tag, Receipt,
     type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
-type SettingsItemId = 'company' | 'branding' | 'integrations';
+type SettingsItemId = 'company' | 'branding' | 'integrations' | 'tally-mapping';
 
 type SettingsItem = {
     id: SettingsItemId;
@@ -21,6 +21,7 @@ const ITEMS: SettingsItem[] = [
     { id: 'company', label: 'Company', icon: Building2, iconBg: 'bg-blue-500/15', iconColor: 'text-blue-600', href: '/settings/company' },
     { id: 'branding', label: 'Branding', icon: Tag, iconBg: 'bg-amber-500/15', iconColor: 'text-amber-600', href: '/settings/branding' },
     { id: 'integrations', label: 'Integrations', icon: Plug, iconBg: 'bg-purple-500/15', iconColor: 'text-purple-600', href: '/settings/integrations' },
+    { id: 'tally-mapping', label: 'Tally mapping', icon: Receipt, iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-600', href: '/settings/tally-mapping' },
 ];
 
 export function SettingsShell({ active, children }: { active: SettingsItemId | null; children: React.ReactNode }) {
